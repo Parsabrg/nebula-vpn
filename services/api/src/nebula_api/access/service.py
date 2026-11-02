@@ -177,7 +177,8 @@ class AccessService:
             .join(ProtocolProfile, ProtocolProfile.id == UserProtocolPermission.protocol_profile_id)
             .join(User, User.id == UserProtocolPermission.user_id)
             .where(*conditions)
-            .order_by(UserProtocolPermission.granted_at.desc())
+            # By user, so the panel can show each user's grants together.
+            .order_by(User.email, ProtocolProfile.display_name, UserProtocolPermission.id)
             .limit(bounded_limit)
             .offset(bounded_offset)
         )
