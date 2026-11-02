@@ -18,6 +18,8 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 - A refused token refresh (rate limit, server busy) no longer disconnects the VPN (#20).
 
 ### Servers
+- Server health reloads its reconciliation history by itself after "Run reconciliation
+  now" or "Check again".
 - Admin panel: give every user a server (from its card on Server health) or a protocol
   (from Permissions) in one step.
 - Admin panel: a pending request whose email or username an existing account already has

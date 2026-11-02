@@ -1,11 +1,15 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import {
   ReconcileNowControl,
   describeReconciliation,
 } from "@/components/reconcile-now-control";
 
-vi.mock("@/lib/topology-actions", () => ({ reconcileNow: vi.fn() }));
+const reconcileNow = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/topology-actions", () => ({ reconcileNow }));
+const refresh = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 
 const zero = {
   checked: 0,
@@ -27,6 +31,25 @@ describe("ReconcileNowControl", () => {
   it("offers to check one credential again", () => {
     render(<ReconcileNowControl targetId="t" />);
     expect(screen.getByRole("button", { name: "Check again" })).toBeTruthy();
+  });
+
+  it("shows the result and reloads the history after a run", async () => {
+    reconcileNow.mockResolvedValue({
+      ok: true,
+      data: { wireguard: { ...zero, checked: 1, inSync: 1 }, xray: zero },
+    });
+    const user = userEvent.setup();
+    render(<ReconcileNowControl />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Run reconciliation now" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Run" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "1 checked: 1 in sync.",
+    );
+    expect(refresh).toHaveBeenCalled();
   });
 
   it("sums both passes and leaves out what did not happen", () => {
