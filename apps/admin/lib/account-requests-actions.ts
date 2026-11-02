@@ -30,7 +30,7 @@ export async function approveAccountRequest(
 ): Promise<ActionResult<AccountRequestListItem>> {
   return toActionResult(
     apiFetch<AccountRequestItemBody>(
-      `/v1/admin/account-requests/${id}/approve`,
+      `/v1/admin/account-requests/${encodeURIComponent(id)}/approve`,
       {
         method: "POST",
       },
@@ -44,7 +44,7 @@ export async function rejectAccountRequest(
 ): Promise<ActionResult<AccountRequestListItem>> {
   return toActionResult(
     apiFetch<AccountRequestItemBody>(
-      `/v1/admin/account-requests/${id}/reject`,
+      `/v1/admin/account-requests/${encodeURIComponent(id)}/reject`,
       {
         method: "POST",
         body: { reason },

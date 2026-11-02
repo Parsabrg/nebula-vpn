@@ -56,6 +56,7 @@ Updated in the same pull request as the work (section 92).
 
 | Section | Item | State |
 | --- | --- | --- |
+| 95 | Admin panel: every id placed in an API path is URL-encoded (access and account-request actions were the last ones), as CodeQL's request-forgery check asks | Done |
 | Panel sweep | Change a user's email or username: `POST /v1/admin/users/{id}/identity` (step-up, audited per field as `email_changed` / `username_changed`; a taken or malformed value is refused with the reason, also when taken at commit); Edit dialog on the user page. Also fixed: a refusal after a step-up landed in the closed dialog | Done; in the local stack a too-short username showed its reason, a valid one changed and was put back |
 | Panel sweep | Requests: the result of approving or rejecting stays as a note above the list; the line added in the small-fixes PR was inside the row, which leaves the list as soon as it reloads | Done; seen in the local stack after approving |
 | Panel sweep | Admin user actions: `POST /v1/admin/users/{id}/delete` (step-up; the app's own strict deletion, now shared as `account_erasure.erase_account`; audited as the admin; a deleted account is refused) and `POST /v1/admin/users/{id}/reissue-activation` (step-up; the CLI's reissue, audited as the admin; says why when it cannot); buttons on the user page | Done; in the local stack an approved account was sent a new link, then deleted: row anonymised, its emails and request gone, audit row by the admin |

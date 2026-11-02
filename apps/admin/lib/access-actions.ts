@@ -66,7 +66,7 @@ export async function grantPermission(
 ): Promise<ActionResult<UserPermissionListItem>> {
   return toActionResult(
     apiFetch<UserPermissionListItemBody>(
-      `/v1/admin/users/${userId}/permissions/${protocolProfileId}/grant`,
+      `/v1/admin/users/${encodeURIComponent(userId)}/permissions/${encodeURIComponent(protocolProfileId)}/grant`,
       { method: "POST" },
     ).then(toPermissionItem),
   );
@@ -79,7 +79,7 @@ export async function grantPermissions(
 ): Promise<ActionResult<UserPermissionListItem[]>> {
   return toActionResult(
     apiFetch<{ items: UserPermissionListItemBody[] }>(
-      `/v1/admin/users/${userId}/permissions/grant`,
+      `/v1/admin/users/${encodeURIComponent(userId)}/permissions/grant`,
       {
         method: "POST",
         body: { protocol_profile_ids: protocolProfileIds },
@@ -94,7 +94,7 @@ export async function revokePermission(
 ): Promise<ActionResult<UserPermissionListItem>> {
   return toActionResult(
     apiFetch<UserPermissionListItemBody>(
-      `/v1/admin/users/${userId}/permissions/${protocolProfileId}/revoke`,
+      `/v1/admin/users/${encodeURIComponent(userId)}/permissions/${encodeURIComponent(protocolProfileId)}/revoke`,
       { method: "POST" },
     ).then(toPermissionItem),
   );
@@ -106,7 +106,7 @@ export async function assignServer(
 ): Promise<ActionResult<UserAssignmentListItem>> {
   return toActionResult(
     apiFetch<UserAssignmentListItemBody>(
-      `/v1/admin/users/${userId}/assignments/${vpnServerId}/assign`,
+      `/v1/admin/users/${encodeURIComponent(userId)}/assignments/${encodeURIComponent(vpnServerId)}/assign`,
       { method: "POST" },
     ).then(toAssignmentItem),
   );
@@ -118,7 +118,7 @@ export async function revokeAssignment(
 ): Promise<ActionResult<UserAssignmentListItem>> {
   return toActionResult(
     apiFetch<UserAssignmentListItemBody>(
-      `/v1/admin/users/${userId}/assignments/${vpnServerId}/revoke`,
+      `/v1/admin/users/${encodeURIComponent(userId)}/assignments/${encodeURIComponent(vpnServerId)}/revoke`,
       { method: "POST" },
     ).then(toAssignmentItem),
   );
