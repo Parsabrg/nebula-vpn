@@ -457,6 +457,7 @@ def test_admin_login_requires_exact_origin_and_enrollment_is_secret_safe() -> No
     assert login.json()["next_step"] == "enroll"
     assert enrollment.status_code == 200
     assert enrollment.json()["secret"] == "BASE32CANARY"  # noqa: S105 - test fixture
+    assert enrollment.json()["qr_svg"].startswith("<svg")
     assert "password-canary" not in login.text
 
 

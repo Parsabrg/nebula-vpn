@@ -29,6 +29,7 @@ from nebula_api.auth.schemas import (
     AdminStepUpRequest,
 )
 from nebula_api.auth.user_service import AuthenticationRateLimited, AuthenticationRejected
+from nebula_api.qr import qr_svg
 from nebula_api.settings import Settings
 
 router = APIRouter(prefix="/v1/admin/auth", tags=["admin-auth"])
@@ -180,6 +181,7 @@ async def start_enrollment(
         expires_in=enrollment.expires_in_seconds,
         secret=enrollment.base32_secret,
         provisioning_uri=enrollment.provisioning_uri,
+        qr_svg=qr_svg(enrollment.provisioning_uri),
     )
 
 

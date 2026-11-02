@@ -16,6 +16,7 @@ interface EnrollmentResponseBody {
   expires_in: number;
   secret: string;
   provisioning_uri: string;
+  qr_svg: string;
 }
 
 interface SessionResponseBody {
@@ -38,6 +39,7 @@ type Phase =
       challenge: string;
       secret: string;
       provisioningUri: string;
+      qrSvg: string;
     }
   | { name: "recovery-codes"; codes: string[] };
 
@@ -100,6 +102,7 @@ export function LoginFlow() {
           challenge: enrollment.challenge,
           secret: enrollment.secret,
           provisioningUri: enrollment.provisioning_uri,
+          qrSvg: enrollment.qr_svg,
         });
       } else {
         setPhase({ name: "mfa", challenge: body.challenge });
@@ -233,9 +236,16 @@ export function LoginFlow() {
     return (
       <div className="auth-form">
         <p>
-          Set up an authenticator app with this key, then enter the 6-digit code
-          it shows.
+          Scan this code with an authenticator app, or type the key below into
+          it, then enter the 6-digit code it shows.
         </p>
+        {/* eslint-disable-next-line @next/next/no-img-element -- an inline data URL, nothing to optimise */}
+        <img
+          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(phase.qrSvg)}`}
+          alt="QR code for the authenticator app"
+          width={200}
+          height={200}
+        />
         <p className="mfa-secret" aria-label="Setup key">
           {phase.secret}
         </p>
