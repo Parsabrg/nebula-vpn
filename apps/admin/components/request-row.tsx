@@ -7,6 +7,7 @@ import {
 } from "@/lib/account-requests-actions";
 import type { AccountRequestListItem } from "@/lib/account-requests";
 import { ConfirmDialog } from "./confirm-dialog";
+import { useAnnounce } from "./decision-notes";
 import { endedSession } from "@/lib/end-session";
 import { LocalTime } from "@/components/local-time";
 import { label } from "@/lib/labels";
@@ -20,6 +21,7 @@ export function RequestRow({ request }: { request: AccountRequestListItem }) {
     null,
   );
   const [pending, startTransition] = useTransition();
+  const announce = useAnnounce();
 
   function openApprove() {
     setError(null);
@@ -37,6 +39,7 @@ export function RequestRow({ request }: { request: AccountRequestListItem }) {
       if (result.ok) {
         setApproveOpen(false);
         setDecision("approved");
+        announce(`Approved ${request.email}: activation email sent.`);
       } else if (!endedSession(result)) {
         setError(result.message);
       }
@@ -52,6 +55,7 @@ export function RequestRow({ request }: { request: AccountRequestListItem }) {
       if (result.ok) {
         setRejectOpen(false);
         setDecision("rejected");
+        announce(`Rejected ${request.email}: a not-approved email was sent.`);
       } else if (!endedSession(result)) {
         setError(result.message);
       }
