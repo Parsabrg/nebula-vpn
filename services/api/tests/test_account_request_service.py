@@ -281,13 +281,39 @@ def test_submit_request_is_rate_limited() -> None:
 
 def test_list_pending_returns_summaries() -> None:
     request = pending_request()
-    session = ScriptedSession(scalars_values=[[request]])
+    # No username on the request, so only the email is looked up.
+    session = ScriptedSession(scalars_values=[[request], []])
     factory = ScriptedFactory(session)
     instance, _redis, _outbox = service(factory)
 
     items = asyncio.run(instance.list_pending())
 
     assert [item.id for item in items] == [request.id]
+    assert items[0].taken == ()
+
+
+def test_list_pending_marks_what_an_existing_account_already_has() -> None:
+    first = pending_request(email="taken@example.com", email_normalized="taken@example.com")
+    second = pending_request(
+        email="free@example.com",
+        email_normalized="free@example.com",
+        username="ali",
+        username_normalized="ali",
+    )
+    # The requests, then the emails and usernames existing accounts hold.
+    session = ScriptedSession(scalars_values=[[first, second], ["taken@example.com"], ["ali"]])
+    instance, _redis, _outbox = service(ScriptedFactory(session))
+
+    items = asyncio.run(instance.list_pending())
+
+    assert [item.taken for item in items] == [("email",), ("username",)]
+
+
+def test_list_pending_with_nothing_pending_asks_nothing_more() -> None:
+    session = ScriptedSession(scalars_values=[[]])
+    instance, _redis, _outbox = service(ScriptedFactory(session))
+
+    assert asyncio.run(instance.list_pending()) == []
 
 
 def test_approve_creates_user_and_activation_and_stages_email() -> None:

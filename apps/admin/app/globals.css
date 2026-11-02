@@ -1105,3 +1105,9 @@ h2 {
   background: var(--surface);
   list-style: none;
 }
+
+/* A request clashing with an existing account, under the value that clashes. */
+.taken-note {
+  display: block;
+  color: var(--warning);
+}

@@ -12,6 +12,11 @@ import { endedSession } from "@/lib/end-session";
 import { LocalTime } from "@/components/local-time";
 import { label } from "@/lib/labels";
 
+/** Approving would be refused; say why before anyone presses it. */
+function TakenNote({ children }: { children: string }) {
+  return <small className="taken-note">{children}</small>;
+}
+
 export function RequestRow({ request }: { request: AccountRequestListItem }) {
   const [approveOpen, setApproveOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -84,8 +89,18 @@ export function RequestRow({ request }: { request: AccountRequestListItem }) {
 
   return (
     <tr>
-      <td data-label="Email">{request.email}</td>
-      <td data-label="Username">{request.username ?? "—"}</td>
+      <td data-label="Email">
+        {request.email}
+        {request.taken.includes("email") ? (
+          <TakenNote>An account already uses this email.</TakenNote>
+        ) : null}
+      </td>
+      <td data-label="Username">
+        {request.username ?? "—"}
+        {request.taken.includes("username") ? (
+          <TakenNote>Another account has this username.</TakenNote>
+        ) : null}
+      </td>
       <td data-label="Requested">{requestedAt}</td>
       <td data-label="Actions" className="data-table__actions">
         <button

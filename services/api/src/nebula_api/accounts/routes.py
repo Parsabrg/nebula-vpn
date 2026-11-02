@@ -103,6 +103,7 @@ def _to_item(summary: AccountRequestSummary) -> AccountRequestListItem:
         username=summary.username,
         state=summary.state,
         created_at=summary.created_at,
+        taken=list(summary.taken),
     )
 
 

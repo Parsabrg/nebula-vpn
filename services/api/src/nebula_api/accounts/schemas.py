@@ -1,6 +1,7 @@
 """Strict, bounded HTTP contracts for account-request and activation flows."""
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import Field, SecretStr, field_validator
@@ -43,6 +44,7 @@ class AccountRequestListItem(AuthModel):
     username: str | None
     state: RequestState
     created_at: datetime
+    taken: list[Literal["email", "username"]] = Field(default_factory=list)
 
 
 class AccountRequestListResponse(AuthModel):

@@ -13,6 +13,7 @@ interface AccountRequestItemBody {
   username: string | null;
   state: AccountRequestState;
   created_at: string;
+  taken?: ("email" | "username")[];
 }
 
 function toItem(body: AccountRequestItemBody): AccountRequestListItem {
@@ -22,6 +23,7 @@ function toItem(body: AccountRequestItemBody): AccountRequestListItem {
     username: body.username,
     state: body.state,
     createdAt: body.created_at,
+    taken: body.taken ?? [],
   };
 }
 

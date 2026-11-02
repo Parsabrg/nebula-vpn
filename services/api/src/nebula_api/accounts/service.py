@@ -2,7 +2,7 @@
 
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
@@ -63,6 +63,9 @@ class AccountRequestSummary:
     username: str | None
     state: RequestState
     created_at: datetime
+    # Which of its email and username an existing account already has:
+    # approving it would be refused, so the list says so up front.
+    taken: tuple[str, ...] = ()
 
 
 class AccountRequestService:
@@ -198,7 +201,45 @@ class AccountRequestService:
                     .order_by(AccountRequest.created_at)
                 )
             ).all()
-            return [_summary(row) for row in rows]
+            if not rows:
+                return []
+            emails = set(
+                (
+                    await session.scalars(
+                        select(User.email_normalized).where(
+                            User.email_normalized.in_({row.email_normalized for row in rows})
+                        )
+                    )
+                ).all()
+            )
+            wanted = {row.username_normalized for row in rows if row.username_normalized}
+            usernames = (
+                set(
+                    (
+                        await session.scalars(
+                            select(User.username_normalized).where(
+                                User.username_normalized.in_(wanted)
+                            )
+                        )
+                    ).all()
+                )
+                if wanted
+                else set()
+            )
+            return [
+                replace(
+                    _summary(row),
+                    taken=tuple(
+                        field
+                        for field, clash in (
+                            ("email", row.email_normalized in emails),
+                            ("username", row.username_normalized in usernames),
+                        )
+                        if clash
+                    ),
+                )
+                for row in rows
+            ]
 
     async def approve(
         self,
