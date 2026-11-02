@@ -5,6 +5,7 @@ import { DataTable } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { PaginationControls } from "@/components/pagination-controls";
 import { LocalTime } from "@/components/local-time";
+import { label } from "@/lib/labels";
 
 export const metadata: Metadata = {
   title: "Assignments",
@@ -25,7 +26,10 @@ export default async function AssignmentsPage({
     <>
       <section className="page-heading" aria-labelledby="assignments-title">
         <h1 id="assignments-title">Assignments</h1>
-        <p>Assign devices and users to specific VPN servers.</p>
+        <p>
+          Which servers each user may connect to. Assign or remove them on the
+          user page.
+        </p>
       </section>
 
       {page.items.length === 0 ? (
@@ -48,7 +52,7 @@ export default async function AssignmentsPage({
                   {item.userEmail}
                 </Link>,
                 item.serverDisplayName,
-                item.state,
+                label(item.state),
                 <LocalTime key="time-1" value={item.assignedAt} />,
                 item.expiresAt ? (
                   <LocalTime key="time-2" value={item.expiresAt} />

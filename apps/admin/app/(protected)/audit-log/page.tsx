@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { listAuditLog } from "@/lib/audit-log";
 import { DataTable } from "@/components/data-table";
 import { FilterBar, type FilterField } from "@/components/filter-bar";
 import { PaginationControls } from "@/components/pagination-controls";
 import { LocalTime } from "@/components/local-time";
+import { codeOptions, label } from "@/lib/labels";
 
 export const metadata: Metadata = {
   title: "Audit log",
@@ -82,27 +84,40 @@ const FILTER_FIELDS: FilterField[] = [
     name: "actor_kind",
     label: "Actor kind",
     type: "select",
-    options: ACTOR_KINDS.map((value) => ({ value, label: value })),
+    options: codeOptions(ACTOR_KINDS),
   },
   {
     name: "target_kind",
     label: "Target kind",
     type: "select",
-    options: TARGET_KINDS.map((value) => ({ value, label: value })),
+    options: codeOptions(TARGET_KINDS),
   },
   {
     name: "event_code",
     label: "Event",
     type: "select",
-    options: EVENT_CODES.map((value) => ({ value, label: value })),
+    options: codeOptions(EVENT_CODES),
   },
   {
     name: "outcome",
     label: "Outcome",
     type: "select",
-    options: OUTCOMES.map((value) => ({ value, label: value })),
+    options: codeOptions(OUTCOMES),
   },
 ];
+
+/** Ids are long; the first block tells rows apart. */
+function shortId(id: string): string {
+  return id.slice(0, 8);
+}
+
+/** The target, linked when the panel has a page for it. */
+function Target({ kind, id }: { kind: string; id: string }) {
+  const text = `${label(kind)} ${shortId(id)}`;
+  if (kind === "user") return <Link href={`/users/${id}`}>{text}</Link>;
+  if (kind === "vpn_server") return <Link href="/server-health">{text}</Link>;
+  return <span title={id}>{text}</span>;
+}
 
 interface AuditLogSearchParams {
   actor_kind?: string;
@@ -164,12 +179,12 @@ export default async function AuditLogPage({
           cells: [
             <LocalTime key="time-1" value={item.recordedAt} />,
             item.actorId
-              ? `${item.actorKind} (${item.actorId})`
-              : item.actorKind,
-            `${item.targetKind} (${item.targetId})`,
-            item.eventCode,
-            item.outcome,
-            item.reasonCode ?? "—",
+              ? `${label(item.actorKind)} ${shortId(item.actorId)}`
+              : label(item.actorKind),
+            <Target key="target" kind={item.targetKind} id={item.targetId} />,
+            label(item.eventCode),
+            label(item.outcome),
+            item.reasonCode ? label(item.reasonCode) : "—",
           ],
         }))}
       />

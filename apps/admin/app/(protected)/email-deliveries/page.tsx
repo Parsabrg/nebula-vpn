@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { listEmailDeliveries } from "@/lib/email-deliveries";
 import { DataTable } from "@/components/data-table";
 import { FilterBar, type FilterField } from "@/components/filter-bar";
 import { PaginationControls } from "@/components/pagination-controls";
 import { LocalTime } from "@/components/local-time";
+import { codeOptions, label } from "@/lib/labels";
 
 export const metadata: Metadata = {
   title: "Email deliveries",
@@ -26,19 +28,19 @@ const FILTER_FIELDS: FilterField[] = [
     name: "state",
     label: "State",
     type: "select",
-    options: STATES.map((value) => ({ value, label: value })),
+    options: codeOptions(STATES),
   },
   {
     name: "template_code",
     label: "Template",
     type: "select",
-    options: TEMPLATE_CODES.map((value) => ({ value, label: value })),
+    options: codeOptions(TEMPLATE_CODES),
   },
   {
     name: "subject_kind",
     label: "Subject kind",
     type: "select",
-    options: SUBJECT_KINDS.map((value) => ({ value, label: value })),
+    options: codeOptions(SUBJECT_KINDS),
   },
 ];
 
@@ -98,12 +100,18 @@ export default async function EmailDeliveriesPage({
           key: item.id,
           cells: [
             item.recipientAddress,
-            item.templateCode,
-            `${item.subjectKind} (${item.subjectId})`,
-            item.state,
+            label(item.templateCode),
+            item.subjectKind === "user" ? (
+              <Link key="subject" href={`/users/${item.subjectId}`}>
+                {label(item.subjectKind)}
+              </Link>
+            ) : (
+              label(item.subjectKind)
+            ),
+            label(item.state),
             item.attemptCount,
             item.sentAt ? <LocalTime value={item.sentAt} /> : "—",
-            item.resultCode ?? "—",
+            item.resultCode ? label(item.resultCode) : "—",
           ],
         }))}
       />
