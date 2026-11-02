@@ -18,6 +18,8 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 - A refused token refresh (rate limit, server busy) no longer disconnects the VPN (#20).
 
 ### Servers
+- Admin panel: correct a user's email or username from their page. A refusal after the
+  authenticator code is asked for now shows its reason instead of vanishing.
 - Admin panel: after approving or rejecting, a note above the list says what was done
   (the row itself leaves the list).
 - Admin panel: delete a user (the same strict deletion as the app's own) and send an

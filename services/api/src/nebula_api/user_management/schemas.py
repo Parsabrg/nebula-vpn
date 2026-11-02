@@ -121,3 +121,10 @@ class UserDetailResponse(AuthModel):
 
 class ActivationReissuedResponse(AuthModel):
     expires_at: datetime
+
+
+class ChangeIdentityRequest(AuthModel):
+    """Leave a field out to keep it; an empty username removes it."""
+
+    email: str | None = Field(default=None, max_length=320)
+    username: str | None = Field(default=None, max_length=32)

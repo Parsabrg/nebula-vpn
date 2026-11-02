@@ -14,6 +14,7 @@ from nebula_api.models.types import AdminRole
 from nebula_api.usage.service import AccountUsage, DeviceActivity, UsageService
 from nebula_api.user_management.schemas import (
     ActivationReissuedResponse,
+    ChangeIdentityRequest,
     DeviceListItem,
     GrantTrafficQuotaRequest,
     SetDeviceDnsProfileRequest,
@@ -28,6 +29,7 @@ from nebula_api.user_management.schemas import (
 )
 from nebula_api.user_management.service import (
     DeviceSummary,
+    IdentityNotChanged,
     UserDetail,
     UserManagementRejected,
     UserManagementService,
@@ -350,6 +352,34 @@ async def set_device_limit_route(
     if refreshed is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_GENERIC_DETAIL)
     return _to_user_item(refreshed.user)
+
+
+@router.post("/{user_id}/identity", response_model=UserListItem)
+async def change_identity_route(
+    user_id: UUID,
+    payload: ChangeIdentityRequest,
+    request: Request,
+    response: Response,
+) -> UserListItem:
+    """Correct the account's email or username (step-up, audited)."""
+
+    principal = await authorize_admin_mutation(
+        request, allowed_roles=_MUTATION_ROLES, require_step_up=True
+    )
+    try:
+        summary = await _service(request).change_identity(
+            user_id=user_id,
+            admin_id=principal.admin_id,
+            request_id=uuid4(),
+            email=payload.email,
+            username=payload.username,
+        )
+    except IdentityNotChanged as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from None
+    except (UserManagementRejected, AuthStateUnavailable) as error:
+        _raise_user_management_error(error)
+    apply_auth_response_headers(response)
+    return _to_user_item(summary)
 
 
 @router.post("/{user_id}/expiry", response_model=UserListItem)

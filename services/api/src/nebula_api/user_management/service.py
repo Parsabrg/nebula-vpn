@@ -18,12 +18,14 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import ColumnElement, func, select
+from sqlalchemy.exc import IntegrityError
 
 from nebula_api.account_erasure import erase_account
 from nebula_api.auth import session_revocation
 from nebula_api.auth.audit import add_audit_event
 from nebula_api.auth.redis_state import RedisAuthState
 from nebula_api.db.engine import SessionFactory
+from nebula_api.identity import normalize_email, normalize_username
 from nebula_api.models.identity import Device, User, UserSession
 from nebula_api.models.types import AccountState, LifecycleState
 from nebula_api.provisioning.revocation import revoke_device_credentials
@@ -38,6 +40,10 @@ _MAX_LIMIT = 200
 
 class UserManagementRejected(Exception):
     """Stable denial for invalid, not-found, or out-of-scope requests."""
+
+
+class IdentityNotChanged(Exception):
+    """An email or username the admin cannot set, and why (safe to show)."""
 
 
 # States in which a credential is still served by the VPN server. Matches
@@ -320,6 +326,76 @@ class UserManagementService:
             )
             await session.commit()
             return device_limit
+
+    async def change_identity(
+        self,
+        *,
+        user_id: UUID,
+        admin_id: UUID,
+        request_id: UUID,
+        email: str | None,
+        username: str | None,
+    ) -> UserSummary:
+        """Correct an account's email or username; "" clears the username.
+
+        Nothing else changes: sessions, devices and VPN access stay, and an
+        activation link already sent keeps working. Another account holding
+        the same address or username is refused by name.
+        """
+
+        try:
+            new_email = normalize_email(email) if email is not None else None
+            new_username = normalize_username(username) if username else None
+        except ValueError as error:
+            message = str(error)
+            raise IdentityNotChanged(message[:1].upper() + message[1:] + ".") from None
+        async with self._session_factory() as session:
+            user = await session.scalar(select(User).where(User.id == user_id).with_for_update())
+            if user is None or user.email_normalized.endswith("@deleted.invalid"):
+                raise UserManagementRejected("Request was not accepted")
+            if new_email is not None and new_email != user.email_normalized:
+                if await session.scalar(select(User.id).where(User.email_normalized == new_email)):
+                    raise IdentityNotChanged("Another account already uses that email.")
+                user.email = (email or "").strip()
+                user.email_normalized = new_email
+                add_audit_event(
+                    session,
+                    actor_kind="admin",
+                    actor_id=admin_id,
+                    target_kind="user",
+                    target_id=user_id,
+                    event_code="identity_state_changed",
+                    outcome="succeeded",
+                    request_id=request_id,
+                    reason_code="email_changed",
+                )
+            if username is not None and new_username != user.username_normalized:
+                if new_username is not None and await session.scalar(
+                    select(User.id).where(User.username_normalized == new_username)
+                ):
+                    raise IdentityNotChanged("Another account already uses that username.")
+                user.username = username.strip() or None
+                user.username_normalized = new_username
+                add_audit_event(
+                    session,
+                    actor_kind="admin",
+                    actor_id=admin_id,
+                    target_kind="user",
+                    target_id=user_id,
+                    event_code="identity_state_changed",
+                    outcome="succeeded",
+                    request_id=request_id,
+                    reason_code="username_changed",
+                )
+            summary = _user_summary(user)
+            try:
+                await session.commit()
+            except IntegrityError:
+                # Taken between the check and the commit.
+                raise IdentityNotChanged(
+                    "Another account already uses that email or username."
+                ) from None
+        return summary
 
     async def set_expiry(
         self,
