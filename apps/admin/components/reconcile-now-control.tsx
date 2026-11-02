@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   type ReconcileNowResult,
@@ -29,6 +30,7 @@ export function describeReconciliation(result: ReconcileNowResult): string {
  * `targetId` for one. It repairs only what the sweep would repair on its own.
  */
 export function ReconcileNowControl({ targetId }: { targetId?: string }) {
+  const router = useRouter();
   const [summary, setSummary] = useState<string | null>(null);
 
   return (
@@ -46,13 +48,15 @@ export function ReconcileNowControl({ targetId }: { targetId?: string }) {
               ? "Asks its server about this one credential now. "
               : "Asks every running server about every live credential now. "}
             Safe drift is repaired and anything uncertain is only recorded,
-            exactly as the automatic run every 15 minutes does. Refresh the page
-            afterwards to see the new checks in the history.
+            exactly as the automatic run every 15 minutes does. The history
+            below shows the new checks when it finishes.
           </p>
         }
         action={() => reconcileNow(targetId)}
         onSuccess={(result) => {
           setSummary(describeReconciliation(result));
+          // The history on this page is server-rendered; fetch it again.
+          router.refresh();
         }}
       />
       {summary ? <span role="status"> {summary}</span> : null}

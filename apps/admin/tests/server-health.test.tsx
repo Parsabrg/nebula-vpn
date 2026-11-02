@@ -4,6 +4,7 @@ import ServerHealthPage from "@/app/(protected)/server-health/page";
 import { apiFetch } from "@/lib/api/client";
 
 vi.mock("@/lib/api/client", () => ({ apiFetch: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 afterEach(() => vi.resetAllMocks());
 
