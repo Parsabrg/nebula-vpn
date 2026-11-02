@@ -1,19 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { listAllPermissions } from "@/lib/access";
+import { groupByUser } from "@/lib/group-grants";
 import { listProtocolProfiles } from "@/lib/topology";
 import { ProfileForEveryone } from "@/components/everyone-access-button";
 import { DataTable } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { PaginationControls } from "@/components/pagination-controls";
-import { LocalTime } from "@/components/local-time";
-import { label } from "@/lib/labels";
 
 export const metadata: Metadata = {
   title: "Permissions",
 };
 
-const PAGE_SIZE = 25;
+// Rows come sorted by user, so a page holds whole users unless one has more
+// grants than fit; that user then continues on the next page.
+const PAGE_SIZE = 200;
 
 export default async function PermissionsPage({
   searchParams,
@@ -63,22 +64,16 @@ export default async function PermissionsPage({
         <>
           <DataTable
             caption="Permissions"
-            headers={["User", "Profile", "State", "Granted", "Expires"]}
+            headers={["User", "Protocols", "Revoked or expired"]}
             emptyMessage="No protocol permissions are granted."
-            rows={page.items.map((item) => ({
-              key: item.id,
+            rows={groupByUser(page.items).map((group) => ({
+              key: group.userId,
               cells: [
-                <Link key={item.id} href={`/users/${item.userId}`}>
-                  {item.userEmail}
+                <Link key={group.userId} href={`/users/${group.userId}`}>
+                  {group.userEmail}
                 </Link>,
-                item.profileDisplayName,
-                label(item.state),
-                <LocalTime key="time-1" value={item.grantedAt} />,
-                item.expiresAt ? (
-                  <LocalTime key="time-2" value={item.expiresAt} />
-                ) : (
-                  "—"
-                ),
+                group.enabled.length > 0 ? group.enabled.join(", ") : "None",
+                group.other,
               ],
             }))}
           />
