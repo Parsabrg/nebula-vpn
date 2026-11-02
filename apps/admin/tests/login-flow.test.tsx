@@ -145,6 +145,7 @@ describe("LoginFlow", () => {
             expires_in: 300,
             secret: "SECRET",
             provisioning_uri: "otpauth://totp/x",
+            qr_svg: '<svg xmlns="http://www.w3.org/2000/svg"></svg>',
           }),
         )
         .mockResolvedValueOnce(

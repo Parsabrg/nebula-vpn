@@ -117,6 +117,7 @@ class AdminEnrollmentResponse(AuthModel):
     expires_in: int
     secret: str
     provisioning_uri: str
+    qr_svg: str
 
 
 class AdminSessionResponse(AuthModel):

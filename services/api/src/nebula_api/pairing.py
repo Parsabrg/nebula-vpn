@@ -26,14 +26,12 @@ check it.
 """
 
 import hashlib
-import io
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 from urllib.parse import quote, urlencode
 from uuid import UUID
 
-import segno
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from fastapi import APIRouter, HTTPException, Request, Response, status
@@ -46,6 +44,7 @@ from nebula_api.db.engine import SessionFactory
 from nebula_api.models.deployment import Deployment
 from nebula_api.models.topology import ProtocolProfile, ServerProtocolCapability, VPNServer
 from nebula_api.models.types import CapabilityState, ServerState
+from nebula_api.qr import qr_svg
 from nebula_api.settings import Settings
 
 PAIRING_VERSION = 1
@@ -217,19 +216,11 @@ async def admin_pairing(request: Request, response: Response) -> AdminPairingRes
     await require_admin_session(request)
     record = await _record(request)
     link = record.link()
-    # A whole SVG document, namespace included: the panel shows it as an
-    # image, and an SVG without its namespace does not render as one. Black
-    # on white whatever the panel's theme, which is what cameras read.
-    image = io.BytesIO()
-    segno.make(link, error="m").save(
-        image, kind="svg", scale=6, border=4, dark="black", light="white", xmldecl=False
-    )
-    qr_svg = image.getvalue().decode("utf-8")
     apply_auth_response_headers(response)
     return AdminPairingResponse(
         link=link,
         app_link=record.app_link(),
-        qr_svg=qr_svg,
+        qr_svg=qr_svg(link),
         deployment_id=record.deployment_id,
         ca_sha256=record.trust.sha256 if record.trust else None,
     )
