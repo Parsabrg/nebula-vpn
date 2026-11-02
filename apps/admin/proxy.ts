@@ -27,6 +27,10 @@ export function proxy(request: NextRequest) {
   ].join("; ");
 
   const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(
+    "x-nebula-path",
+    request.nextUrl.pathname + request.nextUrl.search,
+  );
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", policy);
   const response = NextResponse.next({ request: { headers: requestHeaders } });

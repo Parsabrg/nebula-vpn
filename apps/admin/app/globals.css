@@ -784,6 +784,8 @@ h2 {
 }
 
 .dialog {
+  /* Dialogs open from table cells, some of which do not wrap. */
+  white-space: normal;
   width: min(28rem, calc(100vw - 2rem));
   padding: 1.5rem;
   border: 1px solid var(--border-strong);
@@ -1082,4 +1084,12 @@ h2 {
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+/* A few buttons side by side that wrap on a phone. */
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block: 0.75rem;
 }

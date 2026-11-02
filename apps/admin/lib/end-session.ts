@@ -14,8 +14,29 @@ export async function endSession(reason?: "expired"): Promise<void> {
       body: "{}",
     });
   } finally {
-    window.location.assign(reason ? `/login?reason=${reason}` : "/login");
+    const here = window.location.pathname + window.location.search;
+    window.location.assign(
+      reason
+        ? `/login?reason=${reason}&next=${encodeURIComponent(here)}`
+        : "/login",
+    );
   }
+}
+
+/** [value] if it is a page of this panel to return to, else "/". */
+export function safeReturnPath(value: string | null): string {
+  if (
+    !value ||
+    !value.startsWith("/") ||
+    value.startsWith("//") ||
+    value.startsWith("/\\") ||
+    value === "/login" ||
+    value.startsWith("/login?") ||
+    value.startsWith("/api/")
+  ) {
+    return "/";
+  }
+  return value;
 }
 
 /** True, after starting the sign-out, when an action found the session gone. */

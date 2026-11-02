@@ -56,6 +56,7 @@ Updated in the same pull request as the work (section 92).
 
 | Section | Item | State |
 | --- | --- | --- |
+| Panel sweep | Admin panel small fixes: return to the page asked for after signing in again (the proxy passes the path; only this panel's own pages are accepted), expiry quick choices counted from the later of now and the current date, Copy link on Pair a device, red confirm for refusing and removing, an approve result line, the reject note labelled as kept with the request and not sent, dialogs wrap inside table cells | Done; checked in the local stack |
 | Panel sweep | Admin panel in plain words: account, device, server and access states, audit events and kinds, email templates and every filter read as words (`lib/labels.ts`); audit targets link to the user or server; Permissions and Assignments say they are read-only views | Done; checked in the local stack |
 | Panel sweep | Admin panel redesign: the app's dark palette (light under a light system theme), Geist and Geist Mono bundled with the panel, a menu marking the current page and fading at the edge on a phone, every table stacking into labelled cards on a phone, outline buttons by default | Done; checked in the local stack at desktop and phone width |
 | 38, 108 F42 | Platform-wide accumulated traffic by engine, exact byte totals and newest collection timestamps in admin | Done, archive #274 |

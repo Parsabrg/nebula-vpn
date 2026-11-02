@@ -67,7 +67,12 @@ export function RequestRow({ request }: { request: AccountRequestListItem }) {
         <td data-label="Username">{request.username ?? "—"}</td>
         <td data-label="Requested">{requestedAt}</td>
         <td data-label="Actions">
-          <span className={`badge badge--${decision}`}>{label(decision)}</span>
+          <span className={`badge badge--${decision}`}>{label(decision)}</span>{" "}
+          <small>
+            {decision === "approved"
+              ? `Activation email sent to ${request.email}`
+              : "A not-approved email was sent"}
+          </small>
         </td>
       </tr>
     );
@@ -109,6 +114,7 @@ export function RequestRow({ request }: { request: AccountRequestListItem }) {
           onOpenChange={setRejectOpen}
           title={`Reject ${request.email}`}
           confirmLabel="Reject"
+          danger
           pending={pending}
           error={error}
           onConfirm={handleReject}
@@ -118,7 +124,7 @@ export function RequestRow({ request }: { request: AccountRequestListItem }) {
               htmlFor={`reject-reason-${request.id}`}
               className="field__label"
             >
-              Reason (optional)
+              Note for admins (optional)
             </label>
             <textarea
               id={`reject-reason-${request.id}`}
@@ -128,6 +134,10 @@ export function RequestRow({ request }: { request: AccountRequestListItem }) {
               }}
             />
           </div>
+          <p>
+            {request.email} gets a short &ldquo;not approved&rdquo; email; the
+            note is kept with the request and is not sent.
+          </p>
         </ConfirmDialog>
       </td>
     </tr>
