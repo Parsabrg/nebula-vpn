@@ -28,7 +28,7 @@ from nebula_api.models.topology import (
     UserServerAssignment,
     VPNServer,
 )
-from nebula_api.models.types import CapabilityState, LifecycleState
+from nebula_api.models.types import AccountState, CapabilityState, LifecycleState
 from nebula_api.settings import Settings
 
 Clock = Callable[[], datetime]
@@ -265,7 +265,7 @@ class AccessService:
             # Sorted, so two admins granting overlapping sets take the
             # advisory locks in the same order and cannot deadlock.
             summaries = [
-                await self._grant(session, user_id, profile_id, admin_id, request_id, now)
+                (await self._grant(session, user_id, profile_id, admin_id, request_id, now))[0]
                 for profile_id in sorted(set(protocol_profile_ids))
             ]
             await session.commit()
@@ -279,7 +279,7 @@ class AccessService:
         admin_id: UUID,
         request_id: UUID,
         now: datetime,
-    ) -> PermissionSummary:
+    ) -> tuple[PermissionSummary, bool]:
         await session.execute(
             text(
                 "SELECT pg_advisory_xact_lock(hashtext('nebula.permission_grant'), hashtext(:key))"
@@ -298,7 +298,7 @@ class AccessService:
             )
         )
         if permission is not None and permission.state == CapabilityState.ENABLED.value:
-            return _permission_summary(permission, profile)
+            return _permission_summary(permission, profile), False
         if permission is None:
             permission = UserProtocolPermission(
                 user_id=user_id,
@@ -325,7 +325,7 @@ class AccessService:
             request_id=request_id,
             reason_code="granted",
         )
-        return _permission_summary(permission, profile)
+        return _permission_summary(permission, profile), True
 
     async def revoke_permission(
         self,
@@ -392,54 +392,99 @@ class AccessService:
     ) -> AssignmentSummary:
         now = self._now()
         async with self._session_factory() as session:
-            await session.execute(
-                text(
-                    "SELECT pg_advisory_xact_lock(hashtext('nebula.server_assign'), hashtext(:key))"
-                ),
-                {"key": f"{user_id}:{vpn_server_id}"},
+            summary, _changed = await self._assign(
+                session, user_id, vpn_server_id, admin_id, request_id, now
             )
-            server = await session.scalar(select(VPNServer).where(VPNServer.id == vpn_server_id))
-            if server is None:
-                raise AccessRejected("Request was not accepted")
-            assignment = await session.scalar(
-                select(UserServerAssignment).where(
-                    UserServerAssignment.user_id == user_id,
-                    UserServerAssignment.vpn_server_id == vpn_server_id,
-                )
-            )
-            if assignment is not None and assignment.state == LifecycleState.ACTIVE.value:
-                summary = _assignment_summary(assignment, server)
-                await session.commit()
-                return summary
-            if assignment is None:
-                assignment = UserServerAssignment(
-                    user_id=user_id,
-                    vpn_server_id=vpn_server_id,
-                    assigned_by_admin_id=admin_id,
-                    state=LifecycleState.ACTIVE.value,
-                    assigned_at=now,
-                )
-                session.add(assignment)
-                await session.flush()
-            else:
-                assignment.state = LifecycleState.ACTIVE.value
-                assignment.assigned_by_admin_id = admin_id
-                assignment.assigned_at = now
-                assignment.revoked_at = None
-            add_audit_event(
-                session,
-                actor_kind="admin",
-                actor_id=admin_id,
-                target_kind="assignment",
-                target_id=assignment.id,
-                event_code="assignment_changed",
-                outcome="succeeded",
-                request_id=request_id,
-                reason_code="assigned",
-            )
-            summary = _assignment_summary(assignment, server)
             await session.commit()
         return summary
+
+    async def _assign(
+        self,
+        session: AsyncSession,
+        user_id: UUID,
+        vpn_server_id: UUID,
+        admin_id: UUID,
+        request_id: UUID,
+        now: datetime,
+    ) -> tuple[AssignmentSummary, bool]:
+        await session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtext('nebula.server_assign'), hashtext(:key))"),
+            {"key": f"{user_id}:{vpn_server_id}"},
+        )
+        server = await session.scalar(select(VPNServer).where(VPNServer.id == vpn_server_id))
+        if server is None:
+            raise AccessRejected("Request was not accepted")
+        assignment = await session.scalar(
+            select(UserServerAssignment).where(
+                UserServerAssignment.user_id == user_id,
+                UserServerAssignment.vpn_server_id == vpn_server_id,
+            )
+        )
+        if assignment is not None and assignment.state == LifecycleState.ACTIVE.value:
+            return _assignment_summary(assignment, server), False
+        if assignment is None:
+            assignment = UserServerAssignment(
+                user_id=user_id,
+                vpn_server_id=vpn_server_id,
+                assigned_by_admin_id=admin_id,
+                state=LifecycleState.ACTIVE.value,
+                assigned_at=now,
+            )
+            session.add(assignment)
+            await session.flush()
+        else:
+            assignment.state = LifecycleState.ACTIVE.value
+            assignment.assigned_by_admin_id = admin_id
+            assignment.assigned_at = now
+            assignment.revoked_at = None
+        add_audit_event(
+            session,
+            actor_kind="admin",
+            actor_id=admin_id,
+            target_kind="assignment",
+            target_id=assignment.id,
+            event_code="assignment_changed",
+            outcome="succeeded",
+            request_id=request_id,
+            reason_code="assigned",
+        )
+        return _assignment_summary(assignment, server), True
+
+    async def assign_server_to_everyone(
+        self, *, vpn_server_id: UUID, admin_id: UUID, request_id: UUID
+    ) -> int:
+        """Assign the server to every account that can use it; how many changed.
+
+        Disabled, suspended and deleted accounts are left out. One
+        transaction, so a refusal part-way leaves nothing half done.
+        """
+
+        now = self._now()
+        async with self._session_factory() as session:
+            changed = 0
+            for user_id in await _users_who_can_use_access(session):
+                _summary, did = await self._assign(
+                    session, user_id, vpn_server_id, admin_id, request_id, now
+                )
+                changed += did
+            await session.commit()
+        return changed
+
+    async def grant_profile_to_everyone(
+        self, *, protocol_profile_id: UUID, admin_id: UUID, request_id: UUID
+    ) -> int:
+        """Grant the protocol to every account that can use it; how many changed."""
+
+        now = self._now()
+        async with self._session_factory() as session:
+            changed = 0
+            for user_id in await _users_who_can_use_access(session):
+                _summary, did = await self._grant(
+                    session, user_id, protocol_profile_id, admin_id, request_id, now
+                )
+                changed += did
+            await session.commit()
+        return changed
 
     async def revoke_assignment(
         self,
@@ -524,4 +569,18 @@ def _assignment_summary(row: UserServerAssignment, server: VPNServer) -> Assignm
         assigned_at=row.assigned_at,
         expires_at=row.expires_at,
         revoked_at=row.revoked_at,
+    )
+
+
+async def _users_who_can_use_access(session: AsyncSession) -> list[UUID]:
+    """Active accounts and ones still to activate, in id order (lock order)."""
+
+    return list(
+        (
+            await session.scalars(
+                select(User.id)
+                .where(User.state.in_((AccountState.ACTIVE, AccountState.PENDING_ACTIVATION)))
+                .order_by(User.id)
+            )
+        ).all()
     )

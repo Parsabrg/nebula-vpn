@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { listAllPermissions } from "@/lib/access";
+import { listProtocolProfiles } from "@/lib/topology";
+import { ProfileForEveryone } from "@/components/everyone-access-button";
 import { DataTable } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { PaginationControls } from "@/components/pagination-controls";
@@ -20,7 +22,10 @@ export default async function PermissionsPage({
 }) {
   const params = await searchParams;
   const offset = Number(params.offset ?? 0) || 0;
-  const page = await listAllPermissions({ limit: PAGE_SIZE, offset });
+  const [page, profiles] = await Promise.all([
+    listAllPermissions({ limit: PAGE_SIZE, offset }),
+    listProtocolProfiles(),
+  ]);
 
   return (
     <>
@@ -28,8 +33,23 @@ export default async function PermissionsPage({
         <h1 id="permissions-title">Permissions</h1>
         <p>
           Which protocols each user may use. Grant or revoke them on the user
-          page.
+          page, or give one to every user below.
         </p>
+      </section>
+
+      <section aria-labelledby="everyone-title">
+        <h2 id="everyone-title">For every user</h2>
+        <div className="button-row">
+          {profiles
+            .filter((profile) => profile.state !== "deprecated")
+            .map((profile) => (
+              <ProfileForEveryone
+                key={profile.id}
+                profileId={profile.id}
+                name={profile.displayName}
+              />
+            ))}
+        </div>
       </section>
 
       {page.items.length === 0 ? (

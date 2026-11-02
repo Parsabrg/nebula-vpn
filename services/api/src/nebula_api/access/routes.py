@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from nebula_api.access.schemas import (
     AssignmentListItem,
     AssignmentListResponse,
+    EveryoneChangedResponse,
     GrantPermissionsRequest,
     PermissionListItem,
     PermissionListResponse,
@@ -288,3 +289,46 @@ async def revoke_assignment(
         _raise_access_error(error)
     apply_auth_response_headers(response)
     return _to_assignment_item(summary)
+
+
+@router.post("/vpn-servers/{vpn_server_id}/assign-everyone", response_model=EveryoneChangedResponse)
+async def assign_server_to_everyone(
+    vpn_server_id: UUID, request: Request, response: Response
+) -> EveryoneChangedResponse:
+    """Give every active or not-yet-activated account this server."""
+
+    principal = await authorize_admin_mutation(
+        request, allowed_roles=_MUTATION_ROLES, require_step_up=True
+    )
+    try:
+        changed = await _service(request).assign_server_to_everyone(
+            vpn_server_id=vpn_server_id, admin_id=principal.admin_id, request_id=uuid4()
+        )
+    except (AccessRejected, AuthStateUnavailable) as error:
+        _raise_access_error(error)
+    apply_auth_response_headers(response)
+    return EveryoneChangedResponse(changed=changed)
+
+
+@router.post(
+    "/protocol-profiles/{protocol_profile_id}/grant-everyone",
+    response_model=EveryoneChangedResponse,
+)
+async def grant_profile_to_everyone(
+    protocol_profile_id: UUID, request: Request, response: Response
+) -> EveryoneChangedResponse:
+    """Give every active or not-yet-activated account this protocol."""
+
+    principal = await authorize_admin_mutation(
+        request, allowed_roles=_MUTATION_ROLES, require_step_up=True
+    )
+    try:
+        changed = await _service(request).grant_profile_to_everyone(
+            protocol_profile_id=protocol_profile_id,
+            admin_id=principal.admin_id,
+            request_id=uuid4(),
+        )
+    except (AccessRejected, AuthStateUnavailable) as error:
+        _raise_access_error(error)
+    apply_auth_response_headers(response)
+    return EveryoneChangedResponse(changed=changed)

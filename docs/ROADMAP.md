@@ -56,6 +56,7 @@ Updated in the same pull request as the work (section 92).
 
 | Section | Item | State |
 | --- | --- | --- |
+| Panel sweep | Access for everyone at once: `POST /v1/admin/vpn-servers/{id}/assign-everyone` and `POST /v1/admin/protocol-profiles/{id}/grant-everyone` (step-up; active and not-yet-activated accounts; the single-user code in one transaction; returns how many changed); buttons on server cards and Permissions | Done; in the local stack against PostgreSQL each gave the one account missing it |
 | Panel sweep | Requests marks a clash up front: `GET /v1/admin/account-requests/` items carry `taken` (`email`, `username`) from two lookups for the whole list; the row says which value an existing account has | Done |
 | 95 | Admin panel: every id placed in an API path is URL-encoded (access and account-request actions were the last ones), as CodeQL's request-forgery check asks | Done |
 | Panel sweep | Change a user's email or username: `POST /v1/admin/users/{id}/identity` (step-up, audited per field as `email_changed` / `username_changed`; a taken or malformed value is refused with the reason, also when taken at commit); Edit dialog on the user page. Also fixed: a refusal after a step-up landed in the closed dialog | Done; in the local stack a too-short username showed its reason, a valid one changed and was put back |

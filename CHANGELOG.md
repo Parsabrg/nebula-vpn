@@ -18,6 +18,8 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 - A refused token refresh (rate limit, server busy) no longer disconnects the VPN (#20).
 
 ### Servers
+- Admin panel: give every user a server (from its card on Server health) or a protocol
+  (from Permissions) in one step.
 - Admin panel: a pending request whose email or username an existing account already has
   is marked in the list, before Approve would refuse it.
 - Admin panel: correct a user's email or username from their page. A refusal after the

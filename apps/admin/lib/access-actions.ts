@@ -123,3 +123,27 @@ export async function revokeAssignment(
     ).then(toAssignmentItem),
   );
 }
+
+/** Assign the server to every account that can use it. */
+export async function assignServerToEveryone(
+  vpnServerId: string,
+): Promise<ActionResult<{ changed: number }>> {
+  return toActionResult(
+    apiFetch<{ changed: number }>(
+      `/v1/admin/vpn-servers/${encodeURIComponent(vpnServerId)}/assign-everyone`,
+      { method: "POST" },
+    ),
+  );
+}
+
+/** Grant the protocol to every account that can use it. */
+export async function grantProfileToEveryone(
+  protocolProfileId: string,
+): Promise<ActionResult<{ changed: number }>> {
+  return toActionResult(
+    apiFetch<{ changed: number }>(
+      `/v1/admin/protocol-profiles/${encodeURIComponent(protocolProfileId)}/grant-everyone`,
+      { method: "POST" },
+    ),
+  );
+}
