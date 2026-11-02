@@ -112,8 +112,16 @@ function shortId(id: string): string {
 }
 
 /** The target, linked when the panel has a page for it. */
-function Target({ kind, id }: { kind: string; id: string }) {
-  const text = `${label(kind)} ${shortId(id)}`;
+function Target({
+  kind,
+  id,
+  name,
+}: {
+  kind: string;
+  id: string;
+  name: string | null;
+}) {
+  const text = name ?? `${label(kind)} ${shortId(id)}`;
   if (kind === "user") return <Link href={`/users/${id}`}>{text}</Link>;
   if (kind === "vpn_server") return <Link href="/server-health">{text}</Link>;
   return <span title={id}>{text}</span>;
@@ -179,9 +187,15 @@ export default async function AuditLogPage({
           cells: [
             <LocalTime key="time-1" value={item.recordedAt} />,
             item.actorId
-              ? `${label(item.actorKind)} ${shortId(item.actorId)}`
+              ? (item.actorName ??
+                `${label(item.actorKind)} ${shortId(item.actorId)}`)
               : label(item.actorKind),
-            <Target key="target" kind={item.targetKind} id={item.targetId} />,
+            <Target
+              key="target"
+              kind={item.targetKind}
+              id={item.targetId}
+              name={item.targetName}
+            />,
             label(item.eventCode),
             label(item.outcome),
             item.reasonCode ? label(item.reasonCode) : "—",

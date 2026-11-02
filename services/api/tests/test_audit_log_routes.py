@@ -79,7 +79,7 @@ def test_list_audit_log_returns_items_for_any_role() -> None:
         request_id=uuid4(),
         recorded_at=NOW,
     )
-    service.page = AuditLogPage(items=[entry], total=1)
+    service.page = AuditLogPage(items=[entry], total=1, names={entry.target_id: "ali@example.com"})
     with make_client(audit_service=service) as client:
         client.cookies.set(Settings(env="test").admin_cookie_name, "v1.session-canary")
         response = client.get("/v1/admin/audit-log/")
@@ -87,6 +87,8 @@ def test_list_audit_log_returns_items_for_any_role() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["total"] == 1
+    assert body["items"][0]["target_name"] == "ali@example.com"
+    assert body["items"][0]["actor_name"] is None
     assert body["items"][0]["event_code"] == "identity_state_changed"
     assert response.headers["cache-control"] == "no-store"
 

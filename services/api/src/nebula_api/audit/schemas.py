@@ -17,6 +17,8 @@ class AuditLogListItem(AuthModel):
     reason_code: str | None
     request_id: UUID | None
     recorded_at: datetime
+    actor_name: str | None = None
+    target_name: str | None = None
 
 
 class AuditLogListResponse(AuthModel):

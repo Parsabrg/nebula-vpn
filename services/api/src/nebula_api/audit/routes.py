@@ -57,7 +57,7 @@ async def list_audit_log(
     )
     apply_auth_response_headers(response)
     return AuditLogListResponse(
-        items=[_to_item(entry) for entry in page.items],
+        items=[_to_item(entry, page.names) for entry in page.items],
         total=page.total,
         limit=limit,
         offset=offset,
@@ -89,7 +89,7 @@ async def export_audit_log(request: Request) -> Response:
     return response
 
 
-def _to_item(entry: AuditLogEntry) -> AuditLogListItem:
+def _to_item(entry: AuditLogEntry, names: dict[UUID, str]) -> AuditLogListItem:
     return AuditLogListItem(
         id=entry.id,
         actor_kind=entry.actor_kind,
@@ -101,4 +101,6 @@ def _to_item(entry: AuditLogEntry) -> AuditLogListItem:
         reason_code=entry.reason_code,
         request_id=entry.request_id,
         recorded_at=entry.recorded_at,
+        actor_name=names.get(entry.actor_id) if entry.actor_id else None,
+        target_name=names.get(entry.target_id),
     )

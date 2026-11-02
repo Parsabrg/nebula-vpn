@@ -1,13 +1,17 @@
 """Read-only, filterable audit log listing for administrators."""
 
-from dataclasses import dataclass
+from collections.abc import Sequence
+from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import ColumnElement, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from nebula_api.db.engine import SessionFactory
+from nebula_api.models.identity import AdminUser, Device, User
 from nebula_api.models.operations import AuditLog
+from nebula_api.models.topology import VPNServer
 
 _MAX_LIMIT = 200
 
@@ -42,6 +46,9 @@ class AuditLogEntry:
 class AuditLogPage:
     items: list[AuditLogEntry]
     total: int
+    # What the panel shows for an id: a user's or admin's email, a
+    # server's or device's name. Ids of anything since deleted are absent.
+    names: dict[UUID, str] = field(default_factory=dict)
 
 
 class AuditLogService:
@@ -66,7 +73,8 @@ class AuditLogService:
             )
             rows = (await session.scalars(statement)).all()
             total = await session.scalar(count_statement)
-        return AuditLogPage(items=[_to_entry(row) for row in rows], total=total or 0)
+            names = await _names(session, rows)
+        return AuditLogPage(items=[_to_entry(row) for row in rows], total=total or 0, names=names)
 
     async def export_events(self, *, until: datetime) -> list[AuditLogEntry]:
         """Every event recorded before `until`, oldest first, in a fixed order."""
@@ -80,6 +88,32 @@ class AuditLogService:
             )
             rows = (await session.scalars(statement)).all()
         return [_to_entry(row) for row in rows]
+
+
+_NAMED = {
+    "user": (User.id, User.email),
+    "admin": (AdminUser.id, AdminUser.email),
+    "vpn_server": (VPNServer.id, VPNServer.display_name),
+    "device": (Device.id, Device.name),
+}
+
+
+async def _names(session: AsyncSession, rows: Sequence[AuditLog]) -> dict[UUID, str]:
+    """One lookup per kind on the page, not one per row."""
+
+    wanted: dict[str, set[UUID]] = {}
+    for row in rows:
+        if row.actor_id is not None:
+            wanted.setdefault(row.actor_kind, set()).add(row.actor_id)
+        wanted.setdefault(row.target_kind, set()).add(row.target_id)
+    names: dict[UUID, str] = {}
+    for kind, ids in wanted.items():
+        if kind not in _NAMED:
+            continue
+        id_column, name_column = _NAMED[kind]
+        result = await session.execute(select(id_column, name_column).where(id_column.in_(ids)))
+        names.update({row_id: name for row_id, name in result.all()})
+    return names
 
 
 def _conditions(filters: AuditLogFilters) -> list[ColumnElement[bool]]:
