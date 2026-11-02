@@ -117,7 +117,7 @@ export default async function UserDetailPage({
         {devices.length === 0 ? (
           <p role="status">This user has no devices.</p>
         ) : (
-          <table className="data-table" aria-label="Devices">
+          <table className="data-table data-table--stack" aria-label="Devices">
             <thead>
               <tr>
                 <th scope="col">Name</th>
@@ -143,7 +143,7 @@ export default async function UserDetailPage({
         {sessions.length === 0 ? (
           <p role="status">This user has no sessions.</p>
         ) : (
-          <table className="data-table" aria-label="Sessions">
+          <table className="data-table data-table--stack" aria-label="Sessions">
             <thead>
               <tr>
                 <th scope="col">Device</th>

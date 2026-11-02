@@ -52,7 +52,10 @@ export function PermissionsPanel({
       {permissions.length === 0 ? (
         <p role="status">This user has no protocol permissions.</p>
       ) : (
-        <table className="data-table" aria-label="Permissions">
+        <table
+          className="data-table data-table--stack"
+          aria-label="Permissions"
+        >
           <thead>
             <tr>
               <th scope="col">Profile</th>
@@ -64,14 +67,16 @@ export function PermissionsPanel({
           <tbody>
             {permissions.map((permission) => (
               <tr key={permission.id}>
-                <td>{permission.profileDisplayName}</td>
-                <td>
+                <td data-label="Profile">{permission.profileDisplayName}</td>
+                <td data-label="State">
                   <span className={`badge badge--${permission.state}`}>
                     {permission.state}
                   </span>
                 </td>
-                <td>{<LocalTime value={permission.grantedAt} />}</td>
-                <td>
+                <td data-label="Granted">
+                  {<LocalTime value={permission.grantedAt} />}
+                </td>
+                <td data-label="Actions">
                   {permission.state === "enabled" ? (
                     <MutationButton
                       triggerLabel="Revoke"

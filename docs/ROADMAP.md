@@ -56,6 +56,7 @@ Updated in the same pull request as the work (section 92).
 
 | Section | Item | State |
 | --- | --- | --- |
+| Panel sweep | Admin panel redesign: the app's dark palette (light under a light system theme), Geist and Geist Mono bundled with the panel, a menu marking the current page and fading at the edge on a phone, every table stacking into labelled cards on a phone, outline buttons by default | Done; checked in the local stack at desktop and phone width |
 | 38, 108 F42 | Platform-wide accumulated traffic by engine, exact byte totals and newest collection timestamps in admin | Done, archive #274 |
 | 12, 15, 26, 33, 108 D26 | Nebula's own resolver for Xray clients: AdGuard Home on the server (no filtering, no query log, no statistics, DNS-over-HTTPS upstreams), reached through a reserved address the agent redirects; the API hands it out as `client_dns` | Done, archive #364; live, seen on the phone (DNS 198.18.0.53) |
 | 13, 108 D27-D29 | DNS profiles: an admin gives an account default (the server's own resolver), ads or family, and a device may override it; the API hands Xray clients the matching resolvers; set from the user page in the admin panel (step-up, audited) | Done, archive #365; deployed (migration 0018), default profile seen on the phone |
