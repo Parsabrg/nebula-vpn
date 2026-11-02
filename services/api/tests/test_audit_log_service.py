@@ -25,9 +25,12 @@ class ScriptedSession:
         *,
         scalar_values: Iterable[object] = (),
         scalars_values: Iterable[Iterable[object]] = (),
+        execute_values: Iterable[Iterable[tuple[UUID, str]]] = (),
     ) -> None:
         self.scalar_values = list(scalar_values)
         self.scalars_values = [list(values) for values in scalars_values]
+        self.execute_values = [list(values) for values in execute_values]
+        self.executed = 0
 
     async def __aenter__(self) -> "ScriptedSession":
         return self
@@ -40,6 +43,10 @@ class ScriptedSession:
 
     async def scalars(self, _statement: object) -> ScalarRows:
         return ScalarRows(self.scalars_values.pop(0))
+
+    async def execute(self, _statement: object) -> ScalarRows:
+        self.executed += 1
+        return ScalarRows(self.execute_values.pop(0) if self.execute_values else [])
 
 
 class ScriptedFactory:
@@ -126,3 +133,24 @@ def test_export_events_returns_every_row_oldest_first() -> None:
     entries = asyncio.run(service.export_events(until=NOW))
 
     assert [e.id for e in entries] == [r.id for r in rows]
+
+
+def test_list_events_names_the_people_and_servers_on_the_page() -> None:
+    admin_id, user_id = uuid4(), uuid4()
+    rows = [
+        audit_row(actor_id=admin_id, target_id=user_id),
+        audit_row(actor_id=admin_id, target_kind="vpn_server"),
+        audit_row(actor_kind="system", actor_id=None, target_kind="setting"),
+    ]
+    session = ScriptedSession(
+        scalar_values=[3],
+        scalars_values=[rows],
+        execute_values=[[(admin_id, "owner@example.com")], [(user_id, "ali@example.com")]],
+    )
+    service = AuditLogService(cast(SessionFactory, ScriptedFactory(session)))
+
+    page = asyncio.run(service.list_events(filters=AuditLogFilters(), limit=50, offset=0))
+
+    # admin, user and vpn_server: one lookup each; "system" and "setting" have none.
+    assert session.executed == 3
+    assert page.names == {admin_id: "owner@example.com", user_id: "ali@example.com"}

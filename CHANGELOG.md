@@ -18,6 +18,8 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 - A refused token refresh (rate limit, server busy) no longer disconnects the VPN (#20).
 
 ### Servers
+- Audit log names who and what: the admin's or user's email, the server's or device's
+  name, instead of an id.
 - Admin authenticator setup shows a QR code to scan, beside the key.
 - Admin panel: signing in again returns to the page you were opening; expiry has
   +1 month, +3 months and +1 year; the pairing link has a Copy button; refusing or

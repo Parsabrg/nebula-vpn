@@ -10,6 +10,8 @@ export interface AuditLogListItem {
   eventCode: string;
   outcome: string;
   reasonCode: string | null;
+  actorName: string | null;
+  targetName: string | null;
   requestId: string | null;
   recordedAt: string;
 }
@@ -39,6 +41,8 @@ interface AuditLogListItemBody {
   event_code: string;
   outcome: string;
   reason_code: string | null;
+  actor_name?: string | null;
+  target_name?: string | null;
   request_id: string | null;
   recorded_at: string;
 }
@@ -60,6 +64,8 @@ function toItem(body: AuditLogListItemBody): AuditLogListItem {
     eventCode: body.event_code,
     outcome: body.outcome,
     reasonCode: body.reason_code,
+    actorName: body.actor_name ?? null,
+    targetName: body.target_name ?? null,
     requestId: body.request_id,
     recordedAt: body.recorded_at,
   };
