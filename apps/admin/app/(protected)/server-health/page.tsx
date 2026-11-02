@@ -11,6 +11,7 @@ import {
 import { ReconcileNowControl } from "@/components/reconcile-now-control";
 import { ServerNameControl } from "@/components/server-name-control";
 import { ServerStateControl } from "@/components/server-state-control";
+import { ServerForEveryone } from "@/components/everyone-access-button";
 import { DataTable } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { FilterBar } from "@/components/filter-bar";
@@ -189,6 +190,10 @@ export default async function ServerHealthPage({
                     initialState={server.state}
                   />
                 </header>
+                <ServerForEveryone
+                  serverId={server.id}
+                  name={server.displayName}
+                />
                 <p
                   className={`server-card__verdict ${healthy ? "is-ok" : "is-bad"}`}
                 >

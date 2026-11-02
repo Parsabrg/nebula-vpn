@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID, uuid4
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -88,6 +89,7 @@ class FakeAccessService:
         self.assignment_page = AssignmentPage(items=[], total=0)
         self.permission_summary = permission_summary()
         self.assignment_summary = assignment_summary()
+        self.everyone: list[dict[str, object]] = []
 
     def _raise_if_needed(self) -> None:
         if self.error is not None:
@@ -124,6 +126,16 @@ class FakeAccessService:
     async def revoke_assignment(self, **_kwargs: object) -> AssignmentSummary:
         self._raise_if_needed()
         return self.assignment_summary
+
+    async def assign_server_to_everyone(self, **kwargs: object) -> int:
+        self._raise_if_needed()
+        self.everyone.append(kwargs)
+        return 3
+
+    async def grant_profile_to_everyone(self, **kwargs: object) -> int:
+        self._raise_if_needed()
+        self.everyone.append(kwargs)
+        return 2
 
 
 def make_client(
@@ -345,3 +357,40 @@ def test_service_unavailable_returns_503() -> None:
         response = client.get("/v1/admin/permissions")
 
     assert response.status_code == 503
+
+
+@pytest.mark.parametrize(
+    ("path", "key", "expected"),
+    [
+        (f"/v1/admin/vpn-servers/{SERVER_ID}/assign-everyone", "vpn_server_id", 3),
+        (f"/v1/admin/protocol-profiles/{PROFILE_ID}/grant-everyone", "protocol_profile_id", 2),
+    ],
+)
+def test_everyone_routes_report_how_many_changed(path: str, key: str, expected: int) -> None:
+    service = FakeAccessService()
+    with make_client(access_service=service) as client:
+        headers = _authenticated_headers(client)
+        response = client.post(path, headers=headers, json={})
+
+    assert response.status_code == 200
+    assert response.json() == {"changed": expected}
+    assert str(service.everyone[0][key]) in path
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        f"/v1/admin/vpn-servers/{SERVER_ID}/assign-everyone",
+        f"/v1/admin/protocol-profiles/{PROFILE_ID}/grant-everyone",
+    ],
+)
+def test_everyone_routes_need_step_up_and_map_refusals(path: str) -> None:
+    with make_client(admin_service=FakeAdminAuthService(step_up=False)) as client:
+        headers = _authenticated_headers(client)
+        assert client.post(path, headers=headers, json={}).status_code == 403
+
+    service = FakeAccessService()
+    service.error = AccessRejected("Request was not accepted")
+    with make_client(access_service=service) as client:
+        headers = _authenticated_headers(client)
+        assert client.post(path, headers=headers, json={}).status_code == 400

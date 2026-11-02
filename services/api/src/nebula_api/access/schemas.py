@@ -69,3 +69,9 @@ class AssignmentListResponse(AuthModel):
     total: int
     limit: int
     offset: int
+
+
+class EveryoneChangedResponse(AuthModel):
+    """How many accounts gained the access; ones that had it are not counted."""
+
+    changed: int

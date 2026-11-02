@@ -49,8 +49,10 @@ class ScriptedSession:
         *,
         scalar_values: Iterable[object] = (),
         execute_rows: Iterable[Iterable[Mapping[str, object]]] = (),
+        scalars_values: Iterable[Iterable[object]] = (),
     ) -> None:
         self.scalar_values = list(scalar_values)
+        self.scalars_values = [list(values) for values in scalars_values]
         self.execute_rows = [list(rows) for rows in execute_rows]
         self.added: list[object] = []
         self.executed: list[object] = []
@@ -64,6 +66,15 @@ class ScriptedSession:
 
     async def scalar(self, _statement: object) -> Any:
         return self.scalar_values.pop(0)
+
+    async def scalars(self, _statement: object) -> Any:
+        values = self.scalars_values.pop(0)
+
+        class Rows:
+            def all(self) -> list[object]:
+                return values
+
+        return Rows()
 
     async def execute(self, statement: object, params: object = None) -> object:
         self.executed.append((statement, params))
@@ -626,3 +637,64 @@ def test_naive_clock_is_rejected() -> None:
                 request_id=uuid4(),
             )
         )
+
+
+def test_assign_server_to_everyone_counts_only_the_new_ones() -> None:
+    other = uuid4()
+    session = ScriptedSession(
+        scalars_values=[[USER_ID, other]],
+        # USER_ID: the server, no row yet. other: the server, already active.
+        scalar_values=[
+            vpn_server(),
+            None,
+            vpn_server(),
+            existing_assignment(user_id=other, state=LifecycleState.ACTIVE.value),
+        ],
+    )
+    instance = service(ScriptedFactory(session))
+
+    changed = asyncio.run(
+        instance.assign_server_to_everyone(
+            vpn_server_id=SERVER_ID, admin_id=ADMIN_ID, request_id=uuid4()
+        )
+    )
+
+    assert changed == 1
+    assert session.commits == 1
+    assert sum(type(item).__name__ == "AuditLog" for item in session.added) == 1
+
+
+def test_assign_server_to_everyone_refuses_an_unknown_server() -> None:
+    session = ScriptedSession(scalars_values=[[USER_ID]], scalar_values=[None])
+    instance = service(ScriptedFactory(session))
+
+    with pytest.raises(AccessRejected):
+        asyncio.run(
+            instance.assign_server_to_everyone(
+                vpn_server_id=SERVER_ID, admin_id=ADMIN_ID, request_id=uuid4()
+            )
+        )
+    assert session.commits == 0
+
+
+def test_grant_profile_to_everyone_counts_only_the_new_ones() -> None:
+    other = uuid4()
+    session = ScriptedSession(
+        scalars_values=[[USER_ID, other]],
+        scalar_values=[
+            protocol_profile(),
+            existing_permission(state=CapabilityState.DISABLED.value),
+            protocol_profile(),
+            existing_permission(user_id=other, state=CapabilityState.ENABLED.value),
+        ],
+    )
+    instance = service(ScriptedFactory(session))
+
+    changed = asyncio.run(
+        instance.grant_profile_to_everyone(
+            protocol_profile_id=PROFILE_ID, admin_id=ADMIN_ID, request_id=uuid4()
+        )
+    )
+
+    assert changed == 1
+    assert session.commits == 1
