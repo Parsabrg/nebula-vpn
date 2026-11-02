@@ -53,6 +53,8 @@ export function MutationButton<T>({
         return;
       }
       setError(result.message);
+      // After a step-up the dialog is closed; reopen it so the reason shows.
+      setConfirmOpen(true);
     });
   }
 

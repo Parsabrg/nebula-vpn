@@ -14,6 +14,7 @@ from nebula_api.usage.service import AccountUsage, DeviceActivity, UsageService
 from nebula_api.user_management.routes import _to_detail, router
 from nebula_api.user_management.service import (
     DeviceSummary,
+    IdentityNotChanged,
     UserDetail,
     UserManagementRejected,
     UserManagementService,
@@ -81,6 +82,7 @@ class FakeUserManagementService:
         self.expiries: list[tuple[UUID, datetime | None]] = []
         self.summary = user_summary()
         self.deleted: list[tuple[UUID, UUID]] = []
+        self.identity_changes: list[dict[str, object]] = []
         self.device_summary = DeviceSummary(
             id=DEVICE_ID,
             name="Laptop",
@@ -163,6 +165,11 @@ class FakeUserManagementService:
     async def revoke_session(self, **_kwargs: object) -> UserSessionSummary:
         self._raise_if_needed()
         return self.session_summary
+
+    async def change_identity(self, **kwargs: object) -> UserSummary:
+        self._raise_if_needed()
+        self.identity_changes.append(kwargs)
+        return self.summary
 
     async def delete_user(self, *, user_id: UUID, admin_id: UUID, **_kwargs: object) -> None:
         self._raise_if_needed()
@@ -790,3 +797,53 @@ class TestReissueActivation:
             )
 
         assert response.status_code == 503
+
+
+class TestChangeIdentity:
+    def test_requires_step_up(self) -> None:
+        with make_client(admin_service=FakeAdminAuthService(step_up=False)) as client:
+            headers = _authenticated_headers(client)
+            response = client.post(
+                f"/v1/admin/users/{USER_ID}/identity", headers=headers, json={"username": "x"}
+            )
+
+        assert response.status_code == 403
+
+    def test_passes_the_fields_on(self) -> None:
+        service = FakeUserManagementService()
+        with make_client(user_service=service) as client:
+            headers = _authenticated_headers(client)
+            response = client.post(
+                f"/v1/admin/users/{USER_ID}/identity",
+                headers=headers,
+                json={"email": "new@example.com"},
+            )
+
+        assert response.status_code == 200
+        assert service.identity_changes[0]["email"] == "new@example.com"
+        assert service.identity_changes[0]["username"] is None
+
+    def test_a_refusal_says_why(self) -> None:
+        service = FakeUserManagementService()
+        service.error = IdentityNotChanged("Another account already uses that email.")
+        with make_client(user_service=service) as client:
+            headers = _authenticated_headers(client)
+            response = client.post(
+                f"/v1/admin/users/{USER_ID}/identity",
+                headers=headers,
+                json={"email": "taken@example.com"},
+            )
+
+        assert response.status_code == 409
+        assert response.json()["detail"] == "Another account already uses that email."
+
+    def test_an_unknown_user_is_refused(self) -> None:
+        service = FakeUserManagementService()
+        service.error = UserManagementRejected("Request was not accepted")
+        with make_client(user_service=service) as client:
+            headers = _authenticated_headers(client)
+            response = client.post(
+                f"/v1/admin/users/{USER_ID}/identity", headers=headers, json={"username": ""}
+            )
+
+        assert response.status_code == 400

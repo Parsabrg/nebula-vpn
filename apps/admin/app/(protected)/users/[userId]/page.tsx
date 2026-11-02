@@ -4,6 +4,7 @@ import { getUserDetail } from "@/lib/users";
 import { listUserAssignments, listUserPermissions } from "@/lib/access";
 import { listProtocolProfiles, listVpnServers } from "@/lib/topology";
 import { UserAccountActions } from "@/components/user-account-actions";
+import { UserIdentityControl } from "@/components/user-identity-control";
 import { UserStatusControl } from "@/components/user-status-control";
 import { DeviceRow } from "@/components/device-row";
 import { SessionRow } from "@/components/session-row";
@@ -53,6 +54,11 @@ export default async function UserDetailPage({
         <h1 id="user-detail-title">{user.email}</h1>
         <p>{user.username ?? "No username set"}</p>
         <UserStatusControl userId={user.id} initialState={user.state} />
+        <UserIdentityControl
+          userId={user.id}
+          email={user.email}
+          username={user.username}
+        />
         <UserAccountActions
           userId={user.id}
           email={user.email}

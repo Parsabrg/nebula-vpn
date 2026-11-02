@@ -5,6 +5,7 @@ from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from nebula_api.auth.redis_state import RateBucket, RedisAuthState
 from nebula_api.db.engine import SessionFactory
@@ -22,6 +23,7 @@ from nebula_api.models.types import (
 )
 from nebula_api.settings import Settings
 from nebula_api.user_management.service import (
+    IdentityNotChanged,
     UserManagementRejected,
     UserManagementService,
 )
@@ -651,3 +653,80 @@ def test_set_device_limit_rejects_an_unknown_user() -> None:
                 device_limit=2,
             )
         )
+
+
+def _change(session: ScriptedSession, **fields: str | None) -> object:
+    instance = service(ScriptedFactory(session))
+    return asyncio.run(
+        instance.change_identity(
+            user_id=USER_ID,
+            admin_id=ADMIN_ID,
+            request_id=uuid4(),
+            email=fields.get("email"),
+            username=fields.get("username"),
+        )
+    )
+
+
+def _reasons(session: ScriptedSession) -> list[object]:
+    return [getattr(item, "reason_code", None) for item in session.added]
+
+
+class TestChangeIdentity:
+    def test_changes_the_email_and_audits_it(self) -> None:
+        user = active_user()
+        # The user, then nobody else holding the new address.
+        session = ScriptedSession(scalar_values=[user, None])
+
+        _change(session, email=" New@Example.com ")
+
+        assert user.email == "New@Example.com"
+        assert user.email_normalized == "new@example.com"
+        assert _reasons(session) == ["email_changed"]
+        assert session.commits == 1
+
+    def test_refuses_an_address_another_account_has(self) -> None:
+        user = active_user()
+        session = ScriptedSession(scalar_values=[user, uuid4()])
+
+        with pytest.raises(IdentityNotChanged, match="already uses that email"):
+            _change(session, email="taken@example.com")
+        assert user.email_normalized == "user@example.com"
+        assert session.commits == 0
+
+    def test_sets_and_clears_the_username(self) -> None:
+        user = active_user()
+        session = ScriptedSession(scalar_values=[user, None])
+        _change(session, username="Ali.R")
+        assert (user.username, user.username_normalized) == ("Ali.R", "ali.r")
+
+        session = ScriptedSession(scalar_values=[user])
+        _change(session, username="")
+        assert (user.username, user.username_normalized) == (None, None)
+        assert _reasons(session) == ["username_changed"]
+
+    def test_says_what_is_wrong_with_a_bad_username(self) -> None:
+        with pytest.raises(IdentityNotChanged, match=r"^Username must be 3-32 ASCII"):
+            _change(ScriptedSession(), username="a")
+
+    def test_the_same_values_change_nothing(self) -> None:
+        user = active_user(username="ali", username_normalized="ali")
+        session = ScriptedSession(scalar_values=[user])
+
+        _change(session, email="USER@example.com", username="ali")
+
+        assert session.added == []
+
+    def test_a_deleted_account_is_refused(self) -> None:
+        user = active_user(email_normalized="deleted-x@deleted.invalid")
+        with pytest.raises(UserManagementRejected):
+            _change(ScriptedSession(scalar_values=[user]), email="back@example.com")
+
+    def test_a_clash_at_commit_is_refused_too(self) -> None:
+        class ClashingSession(ScriptedSession):
+            async def commit(self) -> None:
+                raise IntegrityError("insert", {}, Exception("unique"))
+
+        session = ClashingSession(scalar_values=[active_user(), None])
+        with pytest.raises(IdentityNotChanged, match="already uses that email or username"):
+            _change(session, email="race@example.com")

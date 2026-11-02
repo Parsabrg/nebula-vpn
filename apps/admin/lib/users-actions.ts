@@ -209,6 +209,19 @@ export async function setDeviceDnsProfile(
 }
 
 /** How many devices the account may have active at once (1-100). */
+/** Correct the email or username; a field left out stays as it is. */
+export async function changeIdentity(
+  userId: string,
+  fields: { email?: string; username?: string },
+): Promise<ActionResult<UserListItem>> {
+  return toActionResult(
+    apiFetch<UserListItemBody>(
+      `/v1/admin/users/${encodeURIComponent(userId)}/identity`,
+      { method: "POST", body: fields },
+    ).then(toUserItem),
+  );
+}
+
 export async function setDeviceLimit(
   userId: string,
   deviceLimit: number,
