@@ -17,15 +17,15 @@ export function SessionRow({
 
   return (
     <tr>
-      <td>{current.deviceId}</td>
-      <td>
+      <td data-label="Device">{current.deviceId}</td>
+      <td data-label="State">
         <span className={`badge badge--${current.state}`}>{current.state}</span>
       </td>
-      <td>{<LocalTime value={current.expiresAt} />}</td>
-      <td>
+      <td data-label="Expires">{<LocalTime value={current.expiresAt} />}</td>
+      <td data-label="Last seen">
         {current.lastSeenAt ? <LocalTime value={current.lastSeenAt} /> : "—"}
       </td>
-      <td>
+      <td data-label="Actions">
         {current.state === "active" ? (
           <MutationButton
             triggerLabel="Revoke"

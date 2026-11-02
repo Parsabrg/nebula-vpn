@@ -19,7 +19,10 @@ export default async function RequestsPage() {
       {requests.length === 0 ? (
         <p role="status">No pending account requests.</p>
       ) : (
-        <table className="data-table" aria-label="Pending account requests">
+        <table
+          className="data-table data-table--stack"
+          aria-label="Pending account requests"
+        >
           <thead>
             <tr>
               <th scope="col">Email</th>

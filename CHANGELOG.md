@@ -18,6 +18,8 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 - A refused token refresh (rate limit, server busy) no longer disconnects the VPN (#20).
 
 ### Servers
+- Admin panel redesign to match the app: its dark palette and Geist type, a menu that
+  marks the page you are on, and tables that turn into cards on a phone.
 - Admin panel fixes from a full sweep: times show in your own time zone (labelled) with
   no browser error; the user page's one-click fixes ask for the authenticator code;
   Security flags a missing backup and an old agent certificate and lists the

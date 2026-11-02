@@ -38,13 +38,13 @@ export function DeviceRow({
 
   return (
     <tr>
-      <td>{current.name}</td>
-      <td>{current.platform}</td>
-      <td>{current.clientVersion}</td>
-      <td>
+      <td data-label="Name">{current.name}</td>
+      <td data-label="Platform">{current.platform}</td>
+      <td data-label="Client version">{current.clientVersion}</td>
+      <td data-label="State">
         <span className={`badge badge--${current.state}`}>{current.state}</span>
       </td>
-      <td>
+      <td data-label="Online">
         {/* The evidence goes beside the word: "Quiet" means the counters were
             read and nothing moved, "Unknown" that nobody has read them lately. */}
         <span
@@ -57,7 +57,7 @@ export function DeviceRow({
           traffic {ago(current.tunnelActiveAt)} · app {ago(current.appSeenAt)}
         </small>
       </td>
-      <td>
+      <td data-label="DNS">
         {current.state === "active" ? (
           <DnsProfileControl
             userId={userId}
@@ -68,7 +68,7 @@ export function DeviceRow({
           "—"
         )}
       </td>
-      <td>
+      <td data-label="Actions">
         {current.state === "active" ? (
           <MutationButton
             triggerLabel="Revoke"

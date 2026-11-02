@@ -62,10 +62,10 @@ export function RequestRow({ request }: { request: AccountRequestListItem }) {
   if (decision) {
     return (
       <tr>
-        <td>{request.email}</td>
-        <td>{request.username ?? "—"}</td>
-        <td>{requestedAt}</td>
-        <td>
+        <td data-label="Email">{request.email}</td>
+        <td data-label="Username">{request.username ?? "—"}</td>
+        <td data-label="Requested">{requestedAt}</td>
+        <td data-label="Actions">
           <span className={`badge badge--${decision}`}>{decision}</span>
         </td>
       </tr>
@@ -74,10 +74,10 @@ export function RequestRow({ request }: { request: AccountRequestListItem }) {
 
   return (
     <tr>
-      <td>{request.email}</td>
-      <td>{request.username ?? "—"}</td>
-      <td>{requestedAt}</td>
-      <td className="data-table__actions">
+      <td data-label="Email">{request.email}</td>
+      <td data-label="Username">{request.username ?? "—"}</td>
+      <td data-label="Requested">{requestedAt}</td>
+      <td data-label="Actions" className="data-table__actions">
         <button
           type="button"
           className="button button--primary"

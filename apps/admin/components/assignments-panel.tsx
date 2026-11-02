@@ -48,7 +48,10 @@ export function AssignmentsPanel({
       {assignments.length === 0 ? (
         <p role="status">This user has no server assignments.</p>
       ) : (
-        <table className="data-table" aria-label="Assignments">
+        <table
+          className="data-table data-table--stack"
+          aria-label="Assignments"
+        >
           <thead>
             <tr>
               <th scope="col">Server</th>
@@ -60,14 +63,16 @@ export function AssignmentsPanel({
           <tbody>
             {assignments.map((assignment) => (
               <tr key={assignment.id}>
-                <td>{assignment.serverDisplayName}</td>
-                <td>
+                <td data-label="Server">{assignment.serverDisplayName}</td>
+                <td data-label="State">
                   <span className={`badge badge--${assignment.state}`}>
                     {assignment.state}
                   </span>
                 </td>
-                <td>{<LocalTime value={assignment.assignedAt} />}</td>
-                <td>
+                <td data-label="Assigned">
+                  {<LocalTime value={assignment.assignedAt} />}
+                </td>
+                <td data-label="Actions">
                   {assignment.state === "active" ? (
                     <MutationButton
                       triggerLabel="Revoke"
