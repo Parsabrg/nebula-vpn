@@ -19,6 +19,7 @@ from uuid import UUID
 
 from sqlalchemy import ColumnElement, func, select
 
+from nebula_api.account_erasure import erase_account
 from nebula_api.auth import session_revocation
 from nebula_api.auth.audit import add_audit_event
 from nebula_api.auth.redis_state import RedisAuthState
@@ -208,6 +209,32 @@ class UserManagementService:
             summary = _user_summary(user)
             await session.commit()
         return summary
+
+    async def delete_user(self, *, user_id: UUID, admin_id: UUID, request_id: UUID) -> None:
+        """Delete the account as strictly as its owner can (see erase_account).
+
+        A deleted account is already disabled under a placeholder address; it
+        is refused rather than erased twice, so the audit log shows one deletion.
+        """
+
+        now = self._now()
+        async with self._session_factory() as session:
+            user = await session.scalar(select(User).where(User.id == user_id).with_for_update())
+            if user is None or user.email_normalized.endswith("@deleted.invalid"):
+                raise UserManagementRejected("Request was not accepted")
+            await erase_account(session, user, now=now)
+            add_audit_event(
+                session,
+                actor_kind="admin",
+                actor_id=admin_id,
+                target_kind="user",
+                target_id=user.id,
+                event_code="identity_state_changed",
+                outcome="succeeded",
+                request_id=request_id,
+                reason_code="account_deleted",
+            )
+            await session.commit()
 
     async def grant_traffic_quota(
         self,

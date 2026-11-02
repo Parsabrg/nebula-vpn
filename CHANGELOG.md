@@ -18,6 +18,8 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 - A refused token refresh (rate limit, server busy) no longer disconnects the VPN (#20).
 
 ### Servers
+- Admin panel: delete a user (the same strict deletion as the app's own) and send an
+  account's activation email again, from the user's page.
 - Audit log names who and what: the admin's or user's email, the server's or device's
   name, instead of an id.
 - Admin authenticator setup shows a QR code to scan, beside the key.

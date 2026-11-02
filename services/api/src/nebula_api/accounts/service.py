@@ -343,7 +343,7 @@ class AccountRequestService:
         )
         return summary
 
-    async def reissue_activation(self, *, email: str) -> datetime:
+    async def reissue_activation(self, *, email: str, admin_id: UUID | None = None) -> datetime:
         """Send a fresh activation link to an account that never activated.
 
         An activation token lasts a day. Miss it -- the mail lands in spam, the
@@ -442,17 +442,31 @@ class AccountRequestService:
             # which is format-checked rather than enumerated. `bootstrap` is
             # what every other command run on the host already records itself
             # as.
-            add_audit_event(
-                session,
-                actor_kind="bootstrap",
-                actor_id=None,
-                target_kind="account_request",
-                target_id=account_request.id,
-                event_code="account_request_changed",
-                outcome="succeeded",
-                request_id=uuid4(),
-                reason_code="activation_reissued",
-            )
+            # The panel names the admin; the CLI has no one to name.
+            if admin_id is not None:
+                add_audit_event(
+                    session,
+                    actor_kind="admin",
+                    actor_id=admin_id,
+                    target_kind="account_request",
+                    target_id=account_request.id,
+                    event_code="account_request_changed",
+                    outcome="succeeded",
+                    request_id=uuid4(),
+                    reason_code="activation_reissued",
+                )
+            else:
+                add_audit_event(
+                    session,
+                    actor_kind="bootstrap",
+                    actor_id=None,
+                    target_kind="account_request",
+                    target_id=account_request.id,
+                    event_code="account_request_changed",
+                    outcome="succeeded",
+                    request_id=uuid4(),
+                    reason_code="activation_reissued",
+                )
             username = user.username
             recipient = user.email
             await session.commit()

@@ -721,6 +721,19 @@ class TestReissuingAnActivation:
         assert entry.actor_id is None
         assert entry.reason_code == "activation_reissued"
 
+    def test_an_admin_asking_is_named_in_the_audit_row(self) -> None:
+        user = _pending_user()
+        request = _approved_request(user)
+        session = ScriptedSession(scalar_values=[user, request])
+        instance, _redis, _outbox = service(ScriptedFactory(session))
+        admin_id = uuid4()
+
+        asyncio.run(instance.reissue_activation(email=user.email, admin_id=admin_id))
+
+        entry = next(a for a in session.added if isinstance(a, AuditLog))
+        assert entry.actor_kind == "admin"
+        assert entry.actor_id == admin_id
+
     def test_an_account_with_no_request_behind_it_is_refused(self) -> None:
         # Nothing creates such a user today, but the foreign key means the
         # insert would fail rather than degrade -- so it is refused here,

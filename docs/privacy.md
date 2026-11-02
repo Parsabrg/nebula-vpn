@@ -87,6 +87,9 @@ in the platform's secure storage where they are secrets.
   - **Backups** still hold the old data until they expire, within 30 days.
   - An email already on its way when you delete may still arrive; its copy
     on the server expires within 24 hours and is never sent once deleted.
+- An administrator can delete an account from the admin panel, for example
+  when you ask them to. It is the same deletion as above; the audit entry
+  names the administrator who did it.
 
 ## A server's operator
 

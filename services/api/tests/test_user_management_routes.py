@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from nebula_api.accounts.service import ActivationNotReissued
 from nebula_api.auth.admin_service import AdminAuthService, AdminPrincipal
 from nebula_api.auth.http import install_auth_http_safeguards
 from nebula_api.models.types import AccountState, AdminRole, LifecycleState
@@ -79,6 +80,7 @@ class FakeUserManagementService:
         self.limit_error: Exception | None = None
         self.expiries: list[tuple[UUID, datetime | None]] = []
         self.summary = user_summary()
+        self.deleted: list[tuple[UUID, UUID]] = []
         self.device_summary = DeviceSummary(
             id=DEVICE_ID,
             name="Laptop",
@@ -162,6 +164,22 @@ class FakeUserManagementService:
         self._raise_if_needed()
         return self.session_summary
 
+    async def delete_user(self, *, user_id: UUID, admin_id: UUID, **_kwargs: object) -> None:
+        self._raise_if_needed()
+        self.deleted.append((user_id, admin_id))
+
+
+class FakeAccountRequestService:
+    def __init__(self) -> None:
+        self.error: Exception | None = None
+        self.calls: list[tuple[str, UUID | None]] = []
+
+    async def reissue_activation(self, *, email: str, admin_id: UUID | None = None) -> datetime:
+        self.calls.append((email, admin_id))
+        if self.error is not None:
+            raise self.error
+        return NOW
+
 
 class FakeUsageService:
     def __init__(self, usage: AccountUsage | None = None) -> None:
@@ -186,6 +204,7 @@ def make_client(
     usage_service: FakeUsageService | None = None,
     *,
     omit_usage_service: bool = False,
+    account_request_service: object | None = None,
 ) -> TestClient:
     settings = Settings(env="test")
     app = FastAPI()
@@ -196,6 +215,8 @@ def make_client(
     )
     if not omit_usage_service:
         app.state.usage_service = cast(UsageService, usage_service or FakeUsageService())
+    if account_request_service is not None:
+        app.state.account_request_service = account_request_service
     install_auth_http_safeguards(app, settings)
     app.include_router(router)
     return TestClient(app)
@@ -663,3 +684,109 @@ class TestOnlineStatus:
             response = client.get(f"/v1/admin/users/{USER_ID}")
 
         assert response.json()["devices"][0]["activity"] == "unknown"
+
+
+class TestDeleteUser:
+    def test_requires_step_up(self) -> None:
+        with make_client(admin_service=FakeAdminAuthService(step_up=False)) as client:
+            headers = _authenticated_headers(client)
+            response = client.post(f"/v1/admin/users/{USER_ID}/delete", headers=headers, json={})
+
+        assert response.status_code == 403
+        assert response.json()["detail"] == "step_up_required"
+
+    def test_rejects_auditor_role(self) -> None:
+        service = FakeUserManagementService()
+        with make_client(
+            user_service=service, admin_service=FakeAdminAuthService(role=AdminRole.AUDITOR)
+        ) as client:
+            headers = _authenticated_headers(client)
+            response = client.post(f"/v1/admin/users/{USER_ID}/delete", headers=headers, json={})
+
+        assert response.status_code == 403
+        assert service.deleted == []
+
+    def test_deletes_as_the_admin(self) -> None:
+        service = FakeUserManagementService()
+        with make_client(user_service=service) as client:
+            headers = _authenticated_headers(client)
+            response = client.post(f"/v1/admin/users/{USER_ID}/delete", headers=headers, json={})
+
+        assert response.status_code == 204
+        assert service.deleted == [(USER_ID, ADMIN_ID)]
+
+    def test_refused_deletion_is_400(self) -> None:
+        service = FakeUserManagementService()
+        service.error = UserManagementRejected("Request was not accepted")
+        with make_client(user_service=service) as client:
+            headers = _authenticated_headers(client)
+            response = client.post(f"/v1/admin/users/{USER_ID}/delete", headers=headers, json={})
+
+        assert response.status_code == 400
+
+
+class TestReissueActivation:
+    def _service_with_user(self) -> FakeUserManagementService:
+        service = FakeUserManagementService()
+        service.detail = UserDetail(user=user_summary(), devices=[], sessions=[])
+        return service
+
+    def test_requires_step_up(self) -> None:
+        accounts = FakeAccountRequestService()
+        with make_client(
+            user_service=self._service_with_user(),
+            admin_service=FakeAdminAuthService(step_up=False),
+            account_request_service=accounts,
+        ) as client:
+            headers = _authenticated_headers(client)
+            response = client.post(
+                f"/v1/admin/users/{USER_ID}/reissue-activation", headers=headers, json={}
+            )
+
+        assert response.status_code == 403
+        assert accounts.calls == []
+
+    def test_sends_to_the_account_address_as_the_admin(self) -> None:
+        accounts = FakeAccountRequestService()
+        service = self._service_with_user()
+        with make_client(user_service=service, account_request_service=accounts) as client:
+            headers = _authenticated_headers(client)
+            response = client.post(
+                f"/v1/admin/users/{USER_ID}/reissue-activation", headers=headers, json={}
+            )
+
+        assert response.status_code == 200
+        assert accounts.calls == [(service.detail.user.email, ADMIN_ID)]  # type: ignore[union-attr]
+        assert response.json()["expires_at"].startswith(NOW.date().isoformat())
+
+    def test_says_why_it_was_not_sent(self) -> None:
+        accounts = FakeAccountRequestService()
+        accounts.error = ActivationNotReissued("ali@example.com is active, so it has nothing")
+        with make_client(
+            user_service=self._service_with_user(), account_request_service=accounts
+        ) as client:
+            headers = _authenticated_headers(client)
+            response = client.post(
+                f"/v1/admin/users/{USER_ID}/reissue-activation", headers=headers, json={}
+            )
+
+        assert response.status_code == 409
+        assert "is active" in response.json()["detail"]
+
+    def test_unknown_user_is_404(self) -> None:
+        with make_client(account_request_service=FakeAccountRequestService()) as client:
+            headers = _authenticated_headers(client)
+            response = client.post(
+                f"/v1/admin/users/{USER_ID}/reissue-activation", headers=headers, json={}
+            )
+
+        assert response.status_code == 404
+
+    def test_without_the_account_service_is_503(self) -> None:
+        with make_client(user_service=self._service_with_user()) as client:
+            headers = _authenticated_headers(client)
+            response = client.post(
+                f"/v1/admin/users/{USER_ID}/reissue-activation", headers=headers, json={}
+            )
+
+        assert response.status_code == 503

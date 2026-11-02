@@ -104,9 +104,36 @@ export async function disableUser(
   userId: string,
 ): Promise<ActionResult<UserListItem>> {
   return toActionResult(
-    apiFetch<UserListItemBody>(`/v1/admin/users/${userId}/disable`, {
-      method: "POST",
-    }).then(toUserItem),
+    apiFetch<UserListItemBody>(
+      `/v1/admin/users/${encodeURIComponent(userId)}/disable`,
+      {
+        method: "POST",
+      },
+    ).then(toUserItem),
+  );
+}
+
+/** Sends the activation link again; returns when the new link expires. */
+export async function reissueActivation(
+  userId: string,
+): Promise<ActionResult<{ expiresAt: string }>> {
+  return toActionResult(
+    apiFetch<{ expires_at: string }>(
+      `/v1/admin/users/${encodeURIComponent(userId)}/reissue-activation`,
+      { method: "POST" },
+    ).then((body) => ({ expiresAt: body.expires_at })),
+  );
+}
+
+/** Deletes the account strictly (see docs/privacy.md). */
+export async function deleteUser(userId: string): Promise<ActionResult<null>> {
+  return toActionResult(
+    apiFetch<undefined>(
+      `/v1/admin/users/${encodeURIComponent(userId)}/delete`,
+      {
+        method: "POST",
+      },
+    ).then(() => null),
   );
 }
 
@@ -114,9 +141,12 @@ export async function reactivateUser(
   userId: string,
 ): Promise<ActionResult<UserListItem>> {
   return toActionResult(
-    apiFetch<UserListItemBody>(`/v1/admin/users/${userId}/reactivate`, {
-      method: "POST",
-    }).then(toUserItem),
+    apiFetch<UserListItemBody>(
+      `/v1/admin/users/${encodeURIComponent(userId)}/reactivate`,
+      {
+        method: "POST",
+      },
+    ).then(toUserItem),
   );
 }
 
@@ -219,7 +249,7 @@ export async function revokeDevice(
 ): Promise<ActionResult<DeviceListItem>> {
   return toActionResult(
     apiFetch<DeviceListItemBody>(
-      `/v1/admin/users/${userId}/devices/${deviceId}/revoke`,
+      `/v1/admin/users/${encodeURIComponent(userId)}/devices/${encodeURIComponent(deviceId)}/revoke`,
       {
         method: "POST",
       },
@@ -233,7 +263,7 @@ export async function revokeUserSession(
 ): Promise<ActionResult<UserSessionListItem>> {
   return toActionResult(
     apiFetch<UserSessionListItemBody>(
-      `/v1/admin/users/${userId}/sessions/${sessionId}/revoke`,
+      `/v1/admin/users/${encodeURIComponent(userId)}/sessions/${encodeURIComponent(sessionId)}/revoke`,
       {
         method: "POST",
       },
