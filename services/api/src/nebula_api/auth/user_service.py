@@ -677,13 +677,17 @@ class UserAuthService:
             user = await self._confirm_password(
                 session, principal, password, request_id=request_id, now=now
             )
-            await erase_account(
+            await erase_account(session, user, now=now)
+            _add_audit(
                 session,
-                user,
-                now=now,
                 actor_kind="user",
                 actor_id=user.id,
+                target_kind="user",
+                target_id=user.id,
+                event_code="identity_state_changed",
+                outcome="succeeded",
                 request_id=request_id,
+                reason_code="account_deleted",
             )
             await session.commit()
 

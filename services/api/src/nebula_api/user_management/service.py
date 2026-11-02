@@ -222,13 +222,17 @@ class UserManagementService:
             user = await session.scalar(select(User).where(User.id == user_id).with_for_update())
             if user is None or user.email_normalized.endswith("@deleted.invalid"):
                 raise UserManagementRejected("Request was not accepted")
-            await erase_account(
+            await erase_account(session, user, now=now)
+            add_audit_event(
                 session,
-                user,
-                now=now,
                 actor_kind="admin",
                 actor_id=admin_id,
+                target_kind="user",
+                target_id=user.id,
+                event_code="identity_state_changed",
+                outcome="succeeded",
                 request_id=request_id,
+                reason_code="account_deleted",
             )
             await session.commit()
 

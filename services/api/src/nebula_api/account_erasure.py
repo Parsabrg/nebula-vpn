@@ -1,12 +1,11 @@
 """Deleting an account, strictly: shared by the person's own request and an admin's."""
 
 from datetime import datetime
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nebula_api.auth.audit import add_audit_event
 from nebula_api.models.approval import (
     AccountRequest,
     AccountRequestEvent,
@@ -25,11 +24,8 @@ async def erase_account(
     user: User,
     *,
     now: datetime,
-    actor_kind: str,
-    actor_id: UUID,
-    request_id: UUID,
 ) -> None:
-    """Leave nothing that names the person; the caller commits.
+    """Leave nothing that names the person; the caller audits and commits.
 
     Removed: email, username and password; device names and hardware
     hashes; every session, token, activation and reset link; the account
@@ -38,7 +34,8 @@ async def erase_account(
     to REVOKING, which reconciliation removes from each server.
 
     Kept, under the account's random id and nothing else: audit rows and
-    traffic totals. The deletion's own audit row names no address.
+    traffic totals. The deletion's own audit row (written by the caller,
+    with reason_code account_deleted) names no address.
     Backups still hold the old data until they age out (30 days).
     """
 
@@ -95,14 +92,3 @@ async def erase_account(
     user.password_hash = None
     user.state = AccountState.DISABLED
     user.disabled_at = now
-    add_audit_event(
-        session,
-        actor_kind=actor_kind,
-        actor_id=actor_id,
-        target_kind="user",
-        target_id=user.id,
-        event_code="identity_state_changed",
-        outcome="succeeded",
-        request_id=request_id,
-        reason_code="account_deleted",
-    )
