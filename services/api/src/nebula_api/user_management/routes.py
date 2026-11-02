@@ -6,12 +6,14 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 
+from nebula_api.accounts.service import AccountRequestService, ActivationNotReissued
 from nebula_api.auth.admin_authorization import authorize_admin_mutation, require_admin_session
 from nebula_api.auth.http import apply_auth_response_headers, client_network_prefix
 from nebula_api.auth.redis_state import AuthStateUnavailable
 from nebula_api.models.types import AdminRole
 from nebula_api.usage.service import AccountUsage, DeviceActivity, UsageService
 from nebula_api.user_management.schemas import (
+    ActivationReissuedResponse,
     DeviceListItem,
     GrantTrafficQuotaRequest,
     SetDeviceDnsProfileRequest,
@@ -417,6 +419,57 @@ async def reactivate_user(user_id: UUID, request: Request, response: Response) -
         _raise_user_management_error(error)
     apply_auth_response_headers(response)
     return _to_user_item(summary)
+
+
+@router.post("/{user_id}/reissue-activation", response_model=ActivationReissuedResponse)
+async def reissue_activation(
+    user_id: UUID, request: Request, response: Response
+) -> ActivationReissuedResponse:
+    """Send the activation link again (the CLI's reissue-activation)."""
+
+    principal = await authorize_admin_mutation(
+        request, allowed_roles=_MUTATION_ROLES, require_step_up=True
+    )
+    accounts = cast(
+        AccountRequestService | None, getattr(request.app.state, "account_request_service", None)
+    )
+    detail = await _service(request).get_user_detail(user_id)
+    if detail is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_GENERIC_DETAIL)
+    if accounts is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="User management is temporarily unavailable",
+        )
+    try:
+        expires_at = await accounts.reissue_activation(
+            email=detail.user.email, admin_id=principal.admin_id
+        )
+    except ActivationNotReissued as error:
+        # Says why (already active, no request on file); only admins see it.
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from None
+    except AuthStateUnavailable as error:
+        _raise_user_management_error(error)
+    apply_auth_response_headers(response)
+    return ActivationReissuedResponse(expires_at=expires_at)
+
+
+@router.post("/{user_id}/delete", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(user_id: UUID, request: Request, response: Response) -> Response:
+    """Delete the account strictly, as its owner can from the app."""
+
+    principal = await authorize_admin_mutation(
+        request, allowed_roles=_MUTATION_ROLES, require_step_up=True
+    )
+    try:
+        await _service(request).delete_user(
+            user_id=user_id, admin_id=principal.admin_id, request_id=uuid4()
+        )
+    except (UserManagementRejected, AuthStateUnavailable) as error:
+        _raise_user_management_error(error)
+    response.status_code = status.HTTP_204_NO_CONTENT
+    apply_auth_response_headers(response)
+    return response
 
 
 @router.post("/{user_id}/devices/{device_id}/revoke", response_model=DeviceListItem)

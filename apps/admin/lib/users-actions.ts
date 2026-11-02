@@ -110,6 +110,27 @@ export async function disableUser(
   );
 }
 
+/** Sends the activation link again; returns when the new link expires. */
+export async function reissueActivation(
+  userId: string,
+): Promise<ActionResult<{ expiresAt: string }>> {
+  return toActionResult(
+    apiFetch<{ expires_at: string }>(
+      `/v1/admin/users/${userId}/reissue-activation`,
+      { method: "POST" },
+    ).then((body) => ({ expiresAt: body.expires_at })),
+  );
+}
+
+/** Deletes the account strictly (see docs/privacy.md). */
+export async function deleteUser(userId: string): Promise<ActionResult<null>> {
+  return toActionResult(
+    apiFetch<undefined>(`/v1/admin/users/${userId}/delete`, {
+      method: "POST",
+    }).then(() => null),
+  );
+}
+
 export async function reactivateUser(
   userId: string,
 ): Promise<ActionResult<UserListItem>> {

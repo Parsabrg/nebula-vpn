@@ -117,3 +117,7 @@ class UserDetailResponse(AuthModel):
     devices: list[DeviceListItem]
     sessions: list[UserSessionListItem]
     traffic: TrafficAllowanceItem
+
+
+class ActivationReissuedResponse(AuthModel):
+    expires_at: datetime

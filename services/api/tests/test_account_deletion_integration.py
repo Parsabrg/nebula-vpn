@@ -20,6 +20,7 @@ from nebula_api.auth.user_service import AuthenticatedUser, UserAuthService
 from nebula_api.db.engine import create_database_engine, create_session_factory
 from nebula_api.passwords import hash_password
 from nebula_api.settings import Settings
+from nebula_api.user_management.service import UserManagementRejected, UserManagementService
 
 PASSWORD = "deletion-test-password"  # noqa: S105 - test fixture
 
@@ -43,7 +44,8 @@ def _keys() -> AuthKeyMaterial:
 
 
 @pytest.mark.skipif(not _database_url(), reason="PostgreSQL is not configured")
-def test_deleting_an_account_leaves_nothing_that_names_the_person() -> None:
+@pytest.mark.parametrize("by_admin", [False, True], ids=["by-the-person", "by-an-admin"])
+def test_deleting_an_account_leaves_nothing_that_names_the_person(by_admin: bool) -> None:
     engine = create_database_engine(_database_url())
     unique = uuid4().hex[:10]
     email = f"delete-me-{unique}@example.test"
@@ -142,7 +144,18 @@ def test_deleting_an_account_leaves_nothing_that_names_the_person() -> None:
             Settings(env="test"),
         )
         principal = AuthenticatedUser(user_id=user_id, session_id=session_id, device_id=device_id)
-        await auth.delete_account(principal=principal, password=PASSWORD, request_id=uuid4())
+        if by_admin:
+            admin = UserManagementService(
+                create_session_factory(engine),
+                _AllowingRedis(),  # type: ignore[arg-type]
+                Settings(env="test"),
+            )
+            await admin.delete_user(user_id=user_id, admin_id=uuid4(), request_id=uuid4())
+            # A second deletion is refused, so the log shows only one.
+            with pytest.raises(UserManagementRejected):
+                await admin.delete_user(user_id=user_id, admin_id=uuid4(), request_id=uuid4())
+        else:
+            await auth.delete_account(principal=principal, password=PASSWORD, request_id=uuid4())
 
         async with engine.begin() as connection:
             row = (
@@ -183,8 +196,9 @@ def test_deleting_an_account_leaves_nothing_that_names_the_person() -> None:
         assert (
             await count(
                 "select count(*) from audit_logs where target_id = :id "
-                "and reason_code = 'account_deleted'",
+                "and reason_code = 'account_deleted' and actor_kind = :actor",
                 id=user_id,
+                actor="admin" if by_admin else "user",
             )
             == 1
         )

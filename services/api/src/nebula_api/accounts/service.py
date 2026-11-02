@@ -343,7 +343,7 @@ class AccountRequestService:
         )
         return summary
 
-    async def reissue_activation(self, *, email: str) -> datetime:
+    async def reissue_activation(self, *, email: str, admin_id: UUID | None = None) -> datetime:
         """Send a fresh activation link to an account that never activated.
 
         An activation token lasts a day. Miss it -- the mail lands in spam, the
@@ -444,8 +444,9 @@ class AccountRequestService:
             # as.
             add_audit_event(
                 session,
-                actor_kind="bootstrap",
-                actor_id=None,
+                # The panel names the admin; the CLI has no one to name.
+                actor_kind="admin" if admin_id else "bootstrap",
+                actor_id=admin_id,
                 target_kind="account_request",
                 target_id=account_request.id,
                 event_code="account_request_changed",
