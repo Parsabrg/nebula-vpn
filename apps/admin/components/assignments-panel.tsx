@@ -6,6 +6,7 @@ import type { UserAssignmentListItem } from "@/lib/access";
 import type { VpnServerListItem } from "@/lib/topology";
 import { MutationButton } from "./mutation-button";
 import { LocalTime } from "@/components/local-time";
+import { label } from "@/lib/labels";
 
 function upsertById<T extends { id: string }>(items: T[], item: T): T[] {
   const index = items.findIndex((current) => current.id === item.id);
@@ -66,7 +67,7 @@ export function AssignmentsPanel({
                 <td data-label="Server">{assignment.serverDisplayName}</td>
                 <td data-label="State">
                   <span className={`badge badge--${assignment.state}`}>
-                    {assignment.state}
+                    {label(assignment.state)}
                   </span>
                 </td>
                 <td data-label="Assigned">

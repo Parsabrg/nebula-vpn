@@ -10,6 +10,7 @@ import type { UserPermissionListItem } from "@/lib/access";
 import type { ProtocolProfileListItem } from "@/lib/topology";
 import { MutationButton } from "./mutation-button";
 import { LocalTime } from "@/components/local-time";
+import { label } from "@/lib/labels";
 
 function upsertById<T extends { id: string }>(items: T[], item: T): T[] {
   const index = items.findIndex((current) => current.id === item.id);
@@ -70,7 +71,7 @@ export function PermissionsPanel({
                 <td data-label="Profile">{permission.profileDisplayName}</td>
                 <td data-label="State">
                   <span className={`badge badge--${permission.state}`}>
-                    {permission.state}
+                    {label(permission.state)}
                   </span>
                 </td>
                 <td data-label="Granted">

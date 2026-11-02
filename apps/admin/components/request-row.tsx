@@ -9,6 +9,7 @@ import type { AccountRequestListItem } from "@/lib/account-requests";
 import { ConfirmDialog } from "./confirm-dialog";
 import { endedSession } from "@/lib/end-session";
 import { LocalTime } from "@/components/local-time";
+import { label } from "@/lib/labels";
 
 export function RequestRow({ request }: { request: AccountRequestListItem }) {
   const [approveOpen, setApproveOpen] = useState(false);
@@ -66,7 +67,7 @@ export function RequestRow({ request }: { request: AccountRequestListItem }) {
         <td data-label="Username">{request.username ?? "—"}</td>
         <td data-label="Requested">{requestedAt}</td>
         <td data-label="Actions">
-          <span className={`badge badge--${decision}`}>{decision}</span>
+          <span className={`badge badge--${decision}`}>{label(decision)}</span>
         </td>
       </tr>
     );

@@ -5,6 +5,7 @@ import { DataTable } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { PaginationControls } from "@/components/pagination-controls";
 import { LocalTime } from "@/components/local-time";
+import { label } from "@/lib/labels";
 
 export const metadata: Metadata = {
   title: "Permissions",
@@ -25,7 +26,10 @@ export default async function PermissionsPage({
     <>
       <section className="page-heading" aria-labelledby="permissions-title">
         <h1 id="permissions-title">Permissions</h1>
-        <p>Grant and review which users may reach which VPN servers.</p>
+        <p>
+          Which protocols each user may use. Grant or revoke them on the user
+          page.
+        </p>
       </section>
 
       {page.items.length === 0 ? (
@@ -48,7 +52,7 @@ export default async function PermissionsPage({
                   {item.userEmail}
                 </Link>,
                 item.profileDisplayName,
-                item.state,
+                label(item.state),
                 <LocalTime key="time-1" value={item.grantedAt} />,
                 item.expiresAt ? (
                   <LocalTime key="time-2" value={item.expiresAt} />

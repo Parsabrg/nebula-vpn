@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { type ServerState, setServerState } from "@/lib/topology-actions";
 import { MutationButton } from "./mutation-button";
+import { label } from "@/lib/labels";
 
 /** What each state does, said where the choice is made. */
 const MEANING: Record<ServerState, string> = {
@@ -29,7 +30,7 @@ export function ServerStateControl({
 
   return (
     <>
-      <span className={`badge badge--${state}`}>{state}</span>{" "}
+      <span className={`badge badge--${state}`}>{label(state)}</span>{" "}
       <MutationButton
         triggerLabel="Change"
         triggerClassName="button"

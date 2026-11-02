@@ -5,6 +5,7 @@ import { revokeUserSession } from "@/lib/users-actions";
 import type { UserSessionListItem } from "@/lib/users";
 import { MutationButton } from "./mutation-button";
 import { LocalTime } from "@/components/local-time";
+import { label } from "@/lib/labels";
 
 export function SessionRow({
   userId,
@@ -19,7 +20,9 @@ export function SessionRow({
     <tr>
       <td data-label="Device">{current.deviceId}</td>
       <td data-label="State">
-        <span className={`badge badge--${current.state}`}>{current.state}</span>
+        <span className={`badge badge--${current.state}`}>
+          {label(current.state)}
+        </span>
       </td>
       <td data-label="Expires">{<LocalTime value={current.expiresAt} />}</td>
       <td data-label="Last seen">

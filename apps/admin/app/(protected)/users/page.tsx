@@ -5,6 +5,7 @@ import { DataTable } from "@/components/data-table";
 import { FilterBar, type FilterField } from "@/components/filter-bar";
 import { PaginationControls } from "@/components/pagination-controls";
 import { LocalTime } from "@/components/local-time";
+import { codeOptions, label } from "@/lib/labels";
 
 export const metadata: Metadata = {
   title: "Users",
@@ -19,7 +20,7 @@ const FILTER_FIELDS: FilterField[] = [
     name: "state",
     label: "State",
     type: "select",
-    options: STATES.map((value) => ({ value, label: value })),
+    options: codeOptions(STATES),
   },
   { name: "email_prefix", label: "Email starts with", type: "text" },
   { name: "username_prefix", label: "Username starts with", type: "text" },
@@ -75,7 +76,7 @@ export default async function UsersPage({
               {user.email}
             </Link>,
             user.username ?? "—",
-            user.state,
+            label(user.state),
             user.deviceLimit,
             <LocalTime key="time-1" value={user.createdAt} />,
           ],

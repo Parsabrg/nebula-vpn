@@ -5,6 +5,7 @@ import { revokeDevice } from "@/lib/users-actions";
 import type { DeviceListItem } from "@/lib/users";
 import { DnsProfileControl } from "./dns-profile-control";
 import { MutationButton } from "./mutation-button";
+import { label } from "@/lib/labels";
 
 /** "2 min ago", or "—" with no evidence at all. */
 export function ago(iso: string | null, now: number = Date.now()): string {
@@ -42,7 +43,9 @@ export function DeviceRow({
       <td data-label="Platform">{current.platform}</td>
       <td data-label="Client version">{current.clientVersion}</td>
       <td data-label="State">
-        <span className={`badge badge--${current.state}`}>{current.state}</span>
+        <span className={`badge badge--${current.state}`}>
+          {label(current.state)}
+        </span>
       </td>
       <td data-label="Online">
         {/* The evidence goes beside the word: "Quiet" means the counters were

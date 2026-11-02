@@ -4,6 +4,7 @@ import { useState } from "react";
 import { disableUser, reactivateUser } from "@/lib/users-actions";
 import type { UserState } from "@/lib/users";
 import { MutationButton } from "./mutation-button";
+import { label } from "@/lib/labels";
 
 export function UserStatusControl({
   userId,
@@ -16,7 +17,7 @@ export function UserStatusControl({
 
   return (
     <span className="user-status-control">
-      <span className={`badge badge--${state}`}>{state}</span>
+      <span className={`badge badge--${state}`}>{label(state)}</span>
       {state === "active" ? (
         <MutationButton
           triggerLabel="Disable"
