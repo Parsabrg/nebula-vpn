@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID, uuid4
@@ -247,6 +248,18 @@ def test_admin_list_returns_pending_requests() -> None:
     assert response.status_code == 200
     assert response.json()["items"][0]["state"] == "pending"
     assert response.headers["cache-control"] == "no-store"
+
+
+def test_admin_list_says_what_an_existing_account_already_has() -> None:
+    service = FakeAccountRequestService()
+    service.pending = [
+        replace(_summary(uuid4(), state=RequestState.PENDING), taken=("email", "username"))
+    ]
+    with make_client(account_service=service) as client:
+        client.cookies.set(Settings(env="test").admin_cookie_name, "v1.session-canary")
+        response = client.get("/v1/admin/account-requests/")
+
+    assert response.json()["items"][0]["taken"] == ["email", "username"]
 
 
 def test_admin_approve_requires_origin_and_csrf_match() -> None:

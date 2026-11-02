@@ -10,6 +10,8 @@ export interface AccountRequestListItem {
   username: string | null;
   state: AccountRequestState;
   createdAt: string;
+  /** What an existing account already has: approving would be refused. */
+  taken: ("email" | "username")[];
 }
 
 interface AccountRequestItemBody {
@@ -18,6 +20,7 @@ interface AccountRequestItemBody {
   username: string | null;
   state: AccountRequestState;
   created_at: string;
+  taken?: ("email" | "username")[];
 }
 
 interface AccountRequestListResponseBody {
@@ -31,6 +34,7 @@ function toItem(body: AccountRequestItemBody): AccountRequestListItem {
     username: body.username,
     state: body.state,
     createdAt: body.created_at,
+    taken: body.taken ?? [],
   };
 }
 
