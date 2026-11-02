@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { MfaCodeInput } from "./mfa-code-input";
+import { safeReturnPath } from "@/lib/end-session";
 
 interface ChallengeResponseBody {
   challenge: string;
@@ -70,7 +71,9 @@ export function LoginFlow() {
   const [pending, setPending] = useState(false);
 
   function goToDashboard() {
-    router.push("/");
+    router.push(
+      safeReturnPath(new URLSearchParams(window.location.search).get("next")),
+    );
     router.refresh();
   }
 

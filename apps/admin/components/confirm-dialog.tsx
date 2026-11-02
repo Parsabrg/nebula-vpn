@@ -11,6 +11,8 @@ interface ConfirmDialogProps {
   error: string | null;
   onConfirm: () => void;
   children?: ReactNode;
+  /** Removing or refusing: the confirm button is red, not blue. */
+  danger?: boolean;
 }
 
 /**
@@ -27,6 +29,7 @@ export function ConfirmDialog({
   error,
   onConfirm,
   children,
+  danger = false,
 }: ConfirmDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
@@ -80,7 +83,9 @@ export function ConfirmDialog({
           </button>
           <button
             type="submit"
-            className="button button--primary"
+            className={
+              danger ? "button button--danger" : "button button--primary"
+            }
             disabled={pending}
           >
             {pending ? "Working…" : confirmLabel}

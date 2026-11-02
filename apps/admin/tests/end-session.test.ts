@@ -70,7 +70,9 @@ describe("an action that finds the session gone", () => {
 
     expect(endedSession({ ok: false, code: "signed_out" })).toBe(true);
     await vi.waitFor(() => {
-      expect(assign).toHaveBeenCalledWith("/login?reason=expired");
+      expect(assign).toHaveBeenCalledWith(
+        expect.stringMatching(/^\/login\?reason=expired&next=%2F/),
+      );
     });
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/admin/auth/logout",

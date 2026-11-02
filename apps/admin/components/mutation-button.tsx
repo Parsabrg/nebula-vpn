@@ -69,6 +69,7 @@ export function MutationButton<T>({
         {triggerLabel}
       </button>
       <ConfirmDialog
+        danger={triggerClassName.includes("button--danger")}
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title={confirmTitle}

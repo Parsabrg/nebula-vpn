@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getDevicePairing } from "@/lib/pairing";
+import { CopyButton } from "@/components/copy-button";
 
 export const metadata: Metadata = {
   title: "Pair a device",
@@ -33,6 +34,7 @@ export default async function PairDevicePage() {
           into the app&apos;s first screen.
         </p>
         <p className="mfa-secret">{pairing.link}</p>
+        <CopyButton text={pairing.link} label="Copy link" />
       </section>
 
       <section className="status-card" aria-labelledby="pair-device-trust">

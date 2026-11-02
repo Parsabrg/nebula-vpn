@@ -12,6 +12,34 @@ function toLocalInput(iso: string): string {
   return date.toISOString().slice(0, 16);
 }
 
+/** [months] after the current expiry, or after [now] if there is none
+ * or it has passed; as a datetime-local value. Jan 31 + 1 month is Feb 28. */
+export function extendBy(
+  expiresAt: string | null,
+  months: number,
+  now: Date = new Date(),
+): string {
+  const current = expiresAt ? new Date(expiresAt) : null;
+  const base = current && current > now ? current : now;
+  const day = base.getDate();
+  const next = new Date(base);
+  next.setDate(1);
+  next.setMonth(next.getMonth() + months);
+  const lastDay = new Date(
+    next.getFullYear(),
+    next.getMonth() + 1,
+    0,
+  ).getDate();
+  next.setDate(Math.min(day, lastDay));
+  return toLocalInput(next.toISOString());
+}
+
+const PRESETS = [
+  { months: 1, text: "+1 month" },
+  { months: 3, text: "+3 months" },
+  { months: 12, text: "+1 year" },
+];
+
 /**
  * When the account's access ends. Past that time sign-in stops and its VPN
  * credentials are taken away on the next expiry run.
@@ -48,6 +76,18 @@ export function ExpiryControl({
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
               />
+            </div>
+            <div className="button-row">
+              {PRESETS.map((preset) => (
+                <button
+                  key={preset.months}
+                  type="button"
+                  className="button"
+                  onClick={() => setDraft(extendBy(expiresAt, preset.months))}
+                >
+                  {preset.text}
+                </button>
+              ))}
             </div>
             <p>
               After this time the account cannot sign in and its devices lose
