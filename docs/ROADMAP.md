@@ -56,6 +56,7 @@ Updated in the same pull request as the work (section 92).
 
 | Section | Item | State |
 | --- | --- | --- |
+| Panel sweep | Requests: the result of approving or rejecting stays as a note above the list; the line added in the small-fixes PR was inside the row, which leaves the list as soon as it reloads | Done; seen in the local stack after approving |
 | Panel sweep | Admin user actions: `POST /v1/admin/users/{id}/delete` (step-up; the app's own strict deletion, now shared as `account_erasure.erase_account`; audited as the admin; a deleted account is refused) and `POST /v1/admin/users/{id}/reissue-activation` (step-up; the CLI's reissue, audited as the admin; says why when it cannot); buttons on the user page | Done; in the local stack an approved account was sent a new link, then deleted: row anonymised, its emails and request gone, audit row by the admin |
 | Panel sweep | Audit log names actors and targets: `GET /v1/admin/audit-log/` adds `actor_name` and `target_name` (a user's or admin's email, a server's or device's name; one lookup per kind on the page); the panel shows them, falling back to kind and short id for anything else or since deleted. The hash-chain export is unchanged | Done; checked in the local stack |
 | Panel sweep | Admin authenticator setup shows a QR code of the `otpauth://` link (drawn by the API, `nebula_api/qr.py`, shared with the pairing QR) beside the typed key | Done; enrolled from the QR in the local stack |
