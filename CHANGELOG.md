@@ -7,6 +7,8 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 
 ## Unreleased
 
+## 0.1.34 — 2026-11-03
+
 ### Apps
 - Disconnect is instant: Off as soon as the tunnel is down, the server told after. The
   checks after a connect run together ("Protected" in about half the time), and the
