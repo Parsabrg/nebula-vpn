@@ -314,29 +314,37 @@ mixin _SpeedTests on _DevicesCore {
     ProtocolDelay delay = const ProtocolDelay.failed();
     try {
       final WireGuardKeyPair keyPair = await _currentOrNewKeyPair();
+      final WireGuardPeerStore peers = ref.read(wireGuardPeerStoreProvider);
       final WireGuardPeerResult peer = connected
           ? state.peer!
-          : await _repository.requestPeer(
-              deviceId: deviceId,
-              serverCode: serverCode,
-              protocolProfileCode: profiles.first.code,
-              publicKey: keyPair.publicKeyBase64,
-            );
+          : await peers.read(
+                  serverCode: serverCode,
+                  profileCode: profiles.first.code,
+                  publicKey: keyPair.publicKeyBase64,
+                ) ??
+                await _repository.requestPeer(
+                  deviceId: deviceId,
+                  serverCode: serverCode,
+                  protocolProfileCode: profiles.first.code,
+                  publicKey: keyPair.publicKeyBase64,
+                );
+      if (!connected) {
+        // Kept, as a connect keeps it: the next connect starts from it.
+        await peers.write(
+          serverCode: serverCode,
+          profileCode: profiles.first.code,
+          publicKey: keyPair.publicKeyBase64,
+          peer: peer,
+        );
+      }
       delay = await _measure(
         renderWireGuardDelayProbeConfigJson(
           privateKeyBase64: keyPair.privateKeyBase64,
           peer: peer,
         ),
       );
-      if (!connected) {
-        await _repository.revokePeer(
-          deviceId: deviceId,
-          serverCode: serverCode,
-        );
-      }
     } catch (_) {
-      // No peer is a failed test; a revoke that did not go through is left
-      // for the server's own cleanup, not a reason to change the answer.
+      // No peer is a failed test.
     }
     for (final AvailableProfile profile in profiles) {
       record(profile, delay);

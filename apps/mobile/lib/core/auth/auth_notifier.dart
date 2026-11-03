@@ -256,6 +256,7 @@ class AuthNotifier extends Notifier<AuthState> {
     await _tokenStore.clear();
     try {
       await ref.read(xrayCredentialStoreProvider).clear();
+      await ref.read(wireGuardPeerStoreProvider).clear();
     } catch (_) {
       // An unreadable keystore holds nothing usable either; never a reason
       // to leave someone signed in.

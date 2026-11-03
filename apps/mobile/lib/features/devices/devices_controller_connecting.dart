@@ -311,6 +311,9 @@ mixin _Connecting on _DevicesCore {
           protocolProfileCode: profileCode,
         );
       } else {
+        await ref
+            .read(wireGuardPeerStoreProvider)
+            .forget(serverCode: serverCode, profileCode: profileCode);
         await _repository.revokePeer(
           deviceId: deviceId,
           serverCode: serverCode,
@@ -326,6 +329,7 @@ mixin _Connecting on _DevicesCore {
     required String deviceId,
     required String serverCode,
     required String protocolProfileCode,
+    bool trySaved = true,
   }) async {
     // WireGuard is a VPN protocol with no proxy to run as. Connecting it as
     // a VPN anyway would quietly do the opposite of the switch.
@@ -339,23 +343,52 @@ mixin _Connecting on _DevicesCore {
     }
     state = state.copyWith(isSubmitting: true, actionErrorMessage: () => null);
     try {
-      final Future<void>? release = _peerRelease;
-      if (release != null) {
-        await release;
-        _peerRelease = null;
-      }
       final WireGuardKeyPair keyPair = await _currentOrNewKeyPair();
       _mark('wireguard: key ready');
-      final WireGuardPeerResult result = await runGuarded(
-        ref,
-        () => _repository.requestPeer(
-          deviceId: deviceId,
-          serverCode: serverCode,
-          protocolProfileCode: protocolProfileCode,
-          publicKey: keyPair.publicKeyBase64,
-        ),
+      // The peer this device already holds, first: the server keeps it
+      // between connects, and asking it again is a round trip to the API and
+      // on to the server's agent -- most of a WireGuard connect from Iran
+      // (2026-11-03), where v2rayNG starts from its saved config at once. A
+      // saved peer that does not answer is forgotten and asked for below.
+      final WireGuardPeerStore peers = ref.read(wireGuardPeerStoreProvider);
+      WireGuardPeerResult? saved;
+      if (trySaved) {
+        try {
+          saved = await peers.read(
+            serverCode: serverCode,
+            profileCode: protocolProfileCode,
+            publicKey: keyPair.publicKeyBase64,
+          );
+        } on Object {
+          saved = null;
+        }
+      }
+      final WireGuardPeerResult result =
+          saved ??
+          await runGuarded(
+            ref,
+            () => _repository.requestPeer(
+              deviceId: deviceId,
+              serverCode: serverCode,
+              protocolProfileCode: protocolProfileCode,
+              publicKey: keyPair.publicKeyBase64,
+            ),
+          );
+      _mark(
+        saved != null ? 'wireguard: saved peer' : 'wireguard: peer from server',
       );
-      _mark('wireguard: peer from server');
+      if (saved == null) {
+        try {
+          await peers.write(
+            serverCode: serverCode,
+            profileCode: protocolProfileCode,
+            publicKey: keyPair.publicKeyBase64,
+            peer: result,
+          );
+        } on Object {
+          // Not kept: the next connect asks the server, as before.
+        }
+      }
       if (!ref.mounted) {
         return;
       }
@@ -431,6 +464,35 @@ mixin _Connecting on _DevicesCore {
         }
         state = state.copyWith(isSubmitting: false, tunnelEstablished: true);
         await disconnect(deviceId);
+        // A peer that did not answer is not started from again.
+        try {
+          await peers.forget(
+            serverCode: serverCode,
+            profileCode: protocolProfileCode,
+          );
+        } on Object {
+          // Then the next connect tries it, fails, and asks again.
+        }
+        if (saved != null && ref.mounted && !_cancelled(attempt)) {
+          // The saved peer may be one the server has since removed: ask for
+          // a fresh one, once, before saying the server does not answer.
+          return _connectWireGuard(
+            attempt: attempt,
+            deviceId: deviceId,
+            serverCode: serverCode,
+            protocolProfileCode: protocolProfileCode,
+            trySaved: false,
+          );
+        }
+        // A fresh peer that never answered is undone on the server too.
+        try {
+          await _repository.revokePeer(
+            deviceId: deviceId,
+            serverCode: serverCode,
+          );
+        } catch (_) {
+          // The server prunes a peer nobody connects with.
+        }
         if (ref.mounted) {
           state = state.copyWith(
             actionErrorMessage: () =>
@@ -951,38 +1013,10 @@ mixin _Connecting on _DevicesCore {
       localProxy: () => null,
     );
     _mark('disconnect: off');
-    // An Xray credential is kept: the server hands the same one back on the
-    // next connect, and the saved copy is what an offline connect uses. It
-    // is revoked on sign-out, by an admin, or when the account's access or
-    // data runs out -- all on the server, for every credential the device
-    // holds. A WireGuard peer is given back, in the background; the next
-    // connect waits for that first (see [_peerRelease]), so a late release
-    // can never remove the peer it is given.
-    if (!isXray) {
-      _peerRelease = _releasePeer(deviceId: deviceId, serverCode: serverCode);
-    }
-  }
-
-  /// Tells the server this device's WireGuard peer on [serverCode] is no
-  /// longer used. Best effort: a peer that stays behind is replaced by the
-  /// next connect's request, and the server's own sweeps remove it.
-  Future<void> _releasePeer({
-    required String deviceId,
-    required String serverCode,
-  }) async {
-    // Removing the VPN interface makes Android briefly report no network
-    // while it moves the default route back to Wi-Fi or mobile data; a
-    // request in that window fails with a spurious "offline".
-    await Future<void>.delayed(ref.read(peerReleaseDelayProvider));
-    try {
-      await runGuarded(
-        ref,
-        () =>
-            _repository.revokePeer(deviceId: deviceId, serverCode: serverCode),
-      );
-    } on Object {
-      // Nothing for the person to do about it.
-    }
+    // Nothing is given back: an Xray credential and a WireGuard peer are
+    // both kept, so the next connect starts from the saved copy at once. The
+    // server removes them on sign-out, by an admin, or when the account's
+    // access or data runs out -- for every credential the device holds.
   }
 
   /// Looks up the currently selected server's profile to find which
