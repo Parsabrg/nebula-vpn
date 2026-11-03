@@ -21,7 +21,8 @@ export function UserStatusControl({
       {state === "active" ? (
         <MutationButton
           triggerLabel="Disable"
-          triggerClassName="button button--danger"
+          triggerClassName="button"
+          confirmDanger
           confirmTitle="Disable this user"
           confirmLabel="Disable"
           confirmBody={
