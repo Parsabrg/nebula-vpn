@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../theme/color_tokens.dart';
 import '../../theme/type_scale.dart';
@@ -87,20 +88,77 @@ class PanelCta extends StatelessWidget {
         );
     }
 
-    return SizedBox(
-      height: 60,
-      width: double.infinity,
-      child: FilledButton(
-        onPressed: onPressed,
-        style: buttonStyle.copyWith(
-          shape: WidgetStatePropertyAll<OutlinedBorder>(
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    return _Pressable(
+      onPressed: onPressed,
+      builder: (VoidCallback? press) => SizedBox(
+        height: 60,
+        width: double.infinity,
+        child: FilledButton(
+          onPressed: press,
+          style: buttonStyle.copyWith(
+            shape: WidgetStatePropertyAll<OutlinedBorder>(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            // Flat by design: elevation would put a shadow on a near-black
+            // background, which reads as a smudge rather than as depth.
+            elevation: const WidgetStatePropertyAll<double>(0),
           ),
-          // Flat by design: elevation would put a shadow on a near-black
-          // background, which reads as a smudge rather than as depth.
-          elevation: const WidgetStatePropertyAll<double>(0),
+          child: content,
         ),
-        child: content,
+      ),
+    );
+  }
+}
+
+/// A press that is felt: the button sinks a little under the finger and the
+/// phone ticks the moment the tap lands, and a second tap within
+/// [_repeatWindow] is ignored -- a hesitant double tap was a connect and an
+/// immediate disconnect, which read as "had to press it twice".
+class _Pressable extends StatefulWidget {
+  const _Pressable({required this.onPressed, required this.builder});
+
+  final VoidCallback? onPressed;
+  final Widget Function(VoidCallback? press) builder;
+
+  @override
+  State<_Pressable> createState() => _PressableState();
+}
+
+const Duration _repeatWindow = Duration(milliseconds: 400);
+
+class _PressableState extends State<_Pressable> {
+  bool _down = false;
+  DateTime? _lastPress;
+
+  void _press() {
+    final DateTime now = DateTime.now();
+    final DateTime? last = _lastPress;
+    if (last != null && now.difference(last) < _repeatWindow) {
+      return;
+    }
+    _lastPress = now;
+    HapticFeedback.mediumImpact();
+    widget.onPressed?.call();
+  }
+
+  void _setDown(bool down) {
+    if (_down != down && mounted) {
+      setState(() => _down = down);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool enabled = widget.onPressed != null;
+    return Listener(
+      onPointerDown: enabled ? (_) => _setDown(true) : null,
+      onPointerUp: (_) => _setDown(false),
+      onPointerCancel: (_) => _setDown(false),
+      child: AnimatedScale(
+        scale: _down && enabled ? 0.97 : 1,
+        duration: const Duration(milliseconds: 90),
+        curve: Curves.easeOut,
+        child: widget.builder(enabled ? _press : null),
       ),
     );
   }

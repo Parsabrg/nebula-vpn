@@ -229,6 +229,7 @@ _harness({
       advancedSettingsStoreProvider.overrideWithValue(advancedStore),
       // Waiting out a stopped tunnel is real time on a phone and none here.
       tunnelSettleStepProvider.overrideWithValue(Duration.zero),
+      peerReleaseDelayProvider.overrideWithValue(Duration.zero),
       // A fixed proxy rather than a bound socket per connect.
       localProxyFactoryProvider.overrideWithValue(
         () async => const LocalProxy(
@@ -613,6 +614,9 @@ void main() {
       expect(delays['wg-adblock']?.outcome, DelayOutcome.measured);
       // The WireGuard peer is given back, as Disconnect gives one back.
       expect(harness.repository.requestPeerCalls, 1);
+      await harness.container
+          .read(devicesControllerProvider.notifier)
+          .peerReleased;
       expect(harness.repository.revokePeerCalls, 1);
       expect(
         harness.container.read(devicesControllerProvider).pinging,
@@ -983,6 +987,9 @@ void main() {
       expect(state.isSubmitting, isFalse);
       // Undone on both ends, not merely hidden.
       expect(harness.tunnel.disconnectCalls, 1);
+      await harness.container
+          .read(devicesControllerProvider.notifier)
+          .peerReleased;
       expect(harness.repository.revokePeerCalls, 1);
       expect(state.actionErrorMessage, contains('blocking'));
       // Three attempts' worth of waiting, not one look.
@@ -1077,6 +1084,9 @@ void main() {
       expect(state.tunnelEstablished, isTrue);
       expect(state.actionErrorMessage, isNull);
       expect(harness.tunnel.hasHandshakeCalls, 4);
+      await harness.container
+          .read(devicesControllerProvider.notifier)
+          .peerReleased;
       expect(harness.repository.revokePeerCalls, 0);
     });
 
@@ -1385,7 +1395,7 @@ void main() {
         () async {
           int probes = 0;
           // The first tunnel (old credential) carries nothing; the next does.
-          final harness = _harness(tunnelCarries: (_) async => ++probes > 3);
+          final harness = _harness(tunnelCarries: (_) async => ++probes > 6);
           addTearDown(harness.container.dispose);
           final DevicesController notifier = await saved(harness);
           const XrayClientResult rotated = XrayClientResult(
@@ -1690,7 +1700,8 @@ void main() {
       final DevicesState state = harness.container.read(
         devicesControllerProvider,
       );
-      expect(probes, 3);
+      // Three tries, two requests at a time.
+      expect(probes, 6);
       expect(harness.xrayTunnel.connectCalls, 1);
       expect(harness.xrayTunnel.disconnectCalls, greaterThanOrEqualTo(1));
       expect(state.tunnelEstablished, isFalse);
@@ -1858,8 +1869,8 @@ void main() {
       // this network, the next one may not be.
       test('moves to the next protocol when one carries nothing', () async {
         int probes = 0;
-        // Three tries per protocol: the first one fails all three.
-        final harness = _harness(tunnelCarries: (_) async => ++probes > 3);
+        // Three tries per protocol, two requests each: the first fails all.
+        final harness = _harness(tunnelCarries: (_) async => ++probes > 6);
         addTearDown(harness.container.dispose);
         final DevicesController notifier = await setUpAutomatic(harness);
 
@@ -1950,7 +1961,7 @@ void main() {
 
       test('records what each protocol did', () async {
         int probes = 0;
-        final harness = _harness(tunnelCarries: (_) async => ++probes > 3);
+        final harness = _harness(tunnelCarries: (_) async => ++probes > 6);
         addTearDown(harness.container.dispose);
         final DevicesController notifier = await setUpAutomatic(harness);
 
@@ -2130,8 +2141,8 @@ void main() {
 
       await notifier.connect(_deviceId);
 
-      // The answer, and one more after it.
-      expect(probes, 3);
+      // Two at a time: the first pair fails, the second pair answers.
+      expect(probes, 4);
       expect(
         harness.container.read(devicesControllerProvider).tunnelEstablished,
         isTrue,
@@ -2252,6 +2263,9 @@ void main() {
         );
         expect(state.isConnected, isFalse);
         expect(state.tunnelEstablished, isFalse);
+        await harness.container
+            .read(devicesControllerProvider.notifier)
+            .peerReleased;
         expect(harness.repository.revokePeerCalls, 1);
         expect(harness.repository.lastRevokedServerCode, 'ams-1');
         // The local tunnel must be torn down before the server-side peer is
@@ -2280,6 +2294,9 @@ void main() {
         await notifier.disconnect(_deviceId);
 
         expect(harness.tunnel.disconnectCalls, 0);
+        await harness.container
+            .read(devicesControllerProvider.notifier)
+            .peerReleased;
         expect(harness.repository.revokePeerCalls, 1);
       },
     );
@@ -2293,6 +2310,9 @@ void main() {
 
       await notifier.disconnect(_deviceId);
 
+      await harness.container
+          .read(devicesControllerProvider.notifier)
+          .peerReleased;
       expect(harness.repository.revokePeerCalls, 0);
     });
 
@@ -2319,6 +2339,9 @@ void main() {
       expect(harness.repository.revokeXrayClientCalls, 0);
       expect(harness.xrayTunnel.disconnectCalls, 1);
       expect(harness.tunnel.disconnectCalls, 0);
+      await harness.container
+          .read(devicesControllerProvider.notifier)
+          .peerReleased;
       expect(harness.repository.revokePeerCalls, 0);
     });
   });
@@ -2988,6 +3011,9 @@ void _tunnelHonestyTests() {
     expect(state.tunnelEstablishedAt, isNull);
     // Over, not failing: revoked on the server and shown as Off.
     expect(state.isConnected, isFalse);
+    await harness.container
+        .read(devicesControllerProvider.notifier)
+        .peerReleased;
     expect(harness.repository.revokePeerCalls, 1);
   });
 
@@ -3006,6 +3032,9 @@ void _tunnelHonestyTests() {
     );
     expect(state.isConnected, isFalse);
     expect(state.tunnelEstablished, isFalse);
+    await harness.container
+        .read(devicesControllerProvider.notifier)
+        .peerReleased;
     expect(harness.repository.revokePeerCalls, 1);
     // Nothing of this app's is left to stop: Android already stopped it.
     expect(harness.tunnel.disconnectCalls, 0);
@@ -3084,6 +3113,9 @@ void _tunnelHonestyTests() {
     // still not answering, so it ends Off rather than flapping.
     expect(harness.tunnel.connectCalls, 2);
     // Kept on the server, so the reconnect reused it.
+    await harness.container
+        .read(devicesControllerProvider.notifier)
+        .peerReleased;
     expect(harness.repository.revokePeerCalls, 0);
   });
 
@@ -3152,11 +3184,17 @@ void _tunnelHonestyTests() {
     // The engine runs on when its server is blocked partway through a
     // session, and the process check sees nothing wrong.
     bool carries = true;
+    // The way is open again for the reconnect, as soon as it starts:
+    // flipping `carries` from the test raced an instant disconnect.
+    bool backForReconnect = false;
+    int Function() connects = () => 0;
     final harness = _harness(
       watchInterval: interval,
       trafficInterval: interval,
-      tunnelCarries: (_) async => carries,
+      tunnelCarries: (_) async =>
+          carries || (backForReconnect && connects() >= 2),
     );
+    connects = () => harness.xrayTunnel.connectCalls;
     addTearDown(harness.container.dispose);
     final DevicesController notifier = await xraySelected(
       harness.container,
@@ -3165,6 +3203,7 @@ void _tunnelHonestyTests() {
     harness.xrayTunnel.sharedVpn = harness.tunnel;
     await notifier.connect(_deviceId);
     carries = false;
+    backForReconnect = true;
 
     await Future<void>.delayed(interval * 2);
     // One or two unanswered requests are a blip, not a dead tunnel.
@@ -3186,6 +3225,9 @@ void _tunnelHonestyTests() {
     );
     expect(harness.xrayTunnel.connectCalls, 2);
     expect(state.tunnelEstablished, isTrue);
+    await harness.container
+        .read(devicesControllerProvider.notifier)
+        .peerReleased;
     expect(harness.repository.revokePeerCalls, 0);
   });
 
@@ -3253,11 +3295,17 @@ void _tunnelHonestyTests() {
     // One retry per interval: the second stall ends Off, and the screen must
     // not promise a reconnect that is not coming.
     bool carries = true;
+    // The way is open again for the reconnect, as soon as it starts:
+    // flipping `carries` from the test raced an instant disconnect.
+    bool backForReconnect = false;
+    int Function() connects = () => 0;
     final harness = _harness(
       watchInterval: interval,
       trafficInterval: interval,
-      tunnelCarries: (_) async => carries,
+      tunnelCarries: (_) async =>
+          carries || (backForReconnect && connects() >= 2),
     );
+    connects = () => harness.xrayTunnel.connectCalls;
     addTearDown(harness.container.dispose);
     final DevicesController notifier = await xraySelected(
       harness.container,
@@ -3266,6 +3314,7 @@ void _tunnelHonestyTests() {
     harness.xrayTunnel.sharedVpn = harness.tunnel;
     await notifier.connect(_deviceId);
     carries = false;
+    backForReconnect = true;
     while (harness.xrayTunnel.connectCalls < 2) {
       await Future<void>.delayed(interval);
     }
@@ -3276,6 +3325,7 @@ void _tunnelHonestyTests() {
       await Future<void>.delayed(interval);
     }
     carries = false;
+    backForReconnect = false;
     for (int waited = 0; waited < 200; waited++) {
       if (!harness.container
           .read(devicesControllerProvider)
@@ -4705,6 +4755,9 @@ void _cancelTests() {
     expect(after.actionErrorMessage, isNull);
     expect(harness.tunnel.connectCalls, 1);
     expect(harness.tunnel.disconnectCalls, greaterThan(0));
+    await harness.container
+        .read(devicesControllerProvider.notifier)
+        .peerReleased;
     expect(harness.repository.revokePeerCalls, 1);
     // Stood down at once rather than asking again for the whole wait.
     expect(harness.tunnel.hasHandshakeCalls, 1);
