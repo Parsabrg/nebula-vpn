@@ -43,7 +43,6 @@ written plan (or an ADR in `docs/adr/`) and the owner's OK before building.
 - Signed Windows builds (SignPath, needs the owner's sign-up).
 - *plan* iOS and macOS apps.
 - `devices_controller.dart` split by concern, no change in behaviour.
-- Persian (right-to-left) admin panel.
 
 **Project**
 - Python dependencies locked with hashes and installed with `--require-hashes`.
@@ -56,6 +55,7 @@ Updated in the same pull request as the work (section 92).
 
 | Section | Item | State |
 | --- | --- | --- |
+| Panel sweep | Panel polish: Permissions gives a protocol to every user from one picker (not twenty buttons) and lists each user's protocols as chips; a user's state and actions sit in one row (Disable is an outline button, its confirm still red); the summary keeps every field in one row with small Change buttons and hides an empty Disabled; table headers stay on one line. The Persian panel is dropped (owner's decision, 2026-11-03) | Done; checked in the local stack at desktop and phone width |
 | Panel sweep | Admin's own sign-in: `POST /v1/admin/auth/password` (step-up and current password; `admin_users.sessions_valid_after`, migration 0020, ends every older session; the caller gets a new one) and `POST /v1/admin/auth/mfa/replace` + `/confirm` (step-up; new authenticator pending until a right code, then the old one and its recovery codes are revoked and new codes returned); both on Security | Done; in the local stack: password changed after a code, old password refused, new authenticator confirmed (old code refused first), signed in with both |
 | Panel sweep | Security's Reconciliation row asks the agents live and warns "Not checking <server>: agent unreachable" instead of "Clean" from records alone | Done |
 | Panel sweep | Permissions one row per user: the list API orders by user then protocol; the page groups a user's grants (protocols in use, count revoked or expired), 200 grants a page | Done |

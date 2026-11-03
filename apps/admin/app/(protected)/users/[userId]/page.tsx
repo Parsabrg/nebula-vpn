@@ -53,17 +53,20 @@ export default async function UserDetailPage({
       <section className="page-heading" aria-labelledby="user-detail-title">
         <h1 id="user-detail-title">{user.email}</h1>
         <p>{user.username ?? "No username set"}</p>
-        <UserStatusControl userId={user.id} initialState={user.state} />
-        <UserIdentityControl
-          userId={user.id}
-          email={user.email}
-          username={user.username}
-        />
-        <UserAccountActions
-          userId={user.id}
-          email={user.email}
-          state={user.state}
-        />
+        {/* One row: the state first, then every account action. */}
+        <div className="user-actions">
+          <UserIdentityControl
+            userId={user.id}
+            email={user.email}
+            username={user.username}
+          />
+          <UserStatusControl userId={user.id} initialState={user.state} />
+          <UserAccountActions
+            userId={user.id}
+            email={user.email}
+            state={user.state}
+          />
+        </div>
       </section>
 
       <AccessReadiness
@@ -116,12 +119,14 @@ export default async function UserDetailPage({
             <ExpiryControl userId={user.id} initialExpiresAt={user.expiresAt} />
           </dd>
         </div>
-        <div>
-          <dt>Disabled</dt>
-          <dd>
-            {user.disabledAt ? <LocalTime value={user.disabledAt} /> : "—"}
-          </dd>
-        </div>
+        {user.disabledAt ? (
+          <div>
+            <dt>Disabled</dt>
+            <dd>
+              <LocalTime value={user.disabledAt} />
+            </dd>
+          </div>
+        ) : null}
       </dl>
 
       <section aria-labelledby="devices-title">

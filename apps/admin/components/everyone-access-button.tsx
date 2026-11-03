@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { ActionResult } from "@/lib/api/action-result";
 import {
   assignServerToEveryone,
@@ -13,8 +13,10 @@ function EveryoneAccessButton({
   label,
   what,
   action,
+  className = "button",
 }: {
   label: string;
+  className?: string;
   /** "Amsterdam 1", "VLESS (XHTTP+TLS)". */
   what: string;
   action: () => Promise<ActionResult<{ changed: number }>>;
@@ -24,7 +26,7 @@ function EveryoneAccessButton({
     <>
       <MutationButton
         triggerLabel={label}
-        triggerClassName="button"
+        triggerClassName={className}
         confirmTitle={`${what} for every user`}
         confirmLabel="Give access"
         confirmBody={
@@ -43,7 +45,11 @@ function EveryoneAccessButton({
           )
         }
       />
-      {result ? <span role="status"> {result}</span> : null}
+      {result ? (
+        <span role="status" className="everyone__result">
+          {result}
+        </span>
+      ) : null}
     </>
   );
 }
@@ -64,18 +70,42 @@ export function ServerForEveryone({
   );
 }
 
-export function ProfileForEveryone({
-  profileId,
-  name,
+/** Pick a protocol, then give it to every user: one control, not a button
+ * per protocol. */
+export function ProfilesForEveryone({
+  profiles,
 }: {
-  profileId: string;
-  name: string;
+  profiles: { id: string; name: string }[];
 }) {
+  const selectId = useId();
+  const [selected, setSelected] = useState(profiles[0]?.id ?? "");
+  const profile = profiles.find((item) => item.id === selected);
+  if (!profile) return null;
   return (
-    <EveryoneAccessButton
-      label={`Give every user ${name}`}
-      what={name}
-      action={() => grantProfileToEveryone(profileId)}
-    />
+    <div className="everyone">
+      <div className="field everyone__field">
+        <label htmlFor={selectId} className="field__label">
+          Protocol
+        </label>
+        <select
+          id={selectId}
+          value={selected}
+          onChange={(event) => setSelected(event.target.value)}
+        >
+          {profiles.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <EveryoneAccessButton
+        key={profile.id}
+        label="Give to every user"
+        what={profile.name}
+        className="button button--primary"
+        action={() => grantProfileToEveryone(profile.id)}
+      />
+    </div>
   );
 }

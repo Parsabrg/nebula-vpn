@@ -3,7 +3,7 @@ import Link from "next/link";
 import { listAllPermissions } from "@/lib/access";
 import { groupByUser } from "@/lib/group-grants";
 import { listProtocolProfiles } from "@/lib/topology";
-import { ProfileForEveryone } from "@/components/everyone-access-button";
+import { ProfilesForEveryone } from "@/components/everyone-access-button";
 import { DataTable } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { PaginationControls } from "@/components/pagination-controls";
@@ -38,19 +38,17 @@ export default async function PermissionsPage({
         </p>
       </section>
 
-      <section aria-labelledby="everyone-title">
+      <section className="status-card" aria-labelledby="everyone-title">
         <h2 id="everyone-title">For every user</h2>
-        <div className="button-row">
-          {profiles
+        <p className="section-note">
+          Every active account, and every account still to be activated, gets
+          the protocol. Users who already have it are not changed.
+        </p>
+        <ProfilesForEveryone
+          profiles={profiles
             .filter((profile) => profile.state !== "deprecated")
-            .map((profile) => (
-              <ProfileForEveryone
-                key={profile.id}
-                profileId={profile.id}
-                name={profile.displayName}
-              />
-            ))}
-        </div>
+            .map((profile) => ({ id: profile.id, name: profile.displayName }))}
+        />
       </section>
 
       {page.items.length === 0 ? (
@@ -64,7 +62,7 @@ export default async function PermissionsPage({
         <>
           <DataTable
             caption="Permissions"
-            headers={["User", "Protocols", "Revoked or expired"]}
+            headers={["User", "Protocols", "Not in use"]}
             emptyMessage="No protocol permissions are granted."
             rows={groupByUser(page.items).map((group) => ({
               key: group.userId,
@@ -72,7 +70,15 @@ export default async function PermissionsPage({
                 <Link key={group.userId} href={`/users/${group.userId}`}>
                   {group.userEmail}
                 </Link>,
-                group.enabled.length > 0 ? group.enabled.join(", ") : "None",
+                group.enabled.length > 0 ? (
+                  <ul key="protocols" className="chips">
+                    {group.enabled.map((name) => (
+                      <li key={name}>{name}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  "None"
+                ),
                 group.other,
               ],
             }))}

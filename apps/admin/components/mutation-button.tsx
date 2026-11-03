@@ -14,6 +14,8 @@ interface MutationButtonProps<T> {
   confirmBody: ReactNode;
   action: () => Promise<ActionResult<T>>;
   onSuccess: (data: T) => void;
+  /** Red confirm without a red trigger (reversible but serious). */
+  confirmDanger?: boolean;
 }
 
 /**
@@ -29,6 +31,7 @@ export function MutationButton<T>({
   confirmBody,
   action,
   onSuccess,
+  confirmDanger,
 }: MutationButtonProps<T>) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [stepUpOpen, setStepUpOpen] = useState(false);
@@ -71,7 +74,7 @@ export function MutationButton<T>({
         {triggerLabel}
       </button>
       <ConfirmDialog
-        danger={triggerClassName.includes("button--danger")}
+        danger={confirmDanger ?? triggerClassName.includes("button--danger")}
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title={confirmTitle}
