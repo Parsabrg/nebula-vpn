@@ -80,6 +80,10 @@ def _fetch_public_certificate(url: str) -> x509.Certificate:
     return x509.load_pem_x509_certificate(pem.encode())
 
 
+# How long the Security page waits for the agents before saying so.
+AGENT_CHECK_SECONDS = 3.0
+
+
 class SecurityStatusService:
     def __init__(
         self,
@@ -218,11 +222,22 @@ class SecurityStatusService:
         # The records say what was last checked; an agent that cannot be
         # reached now means nothing on its server is being checked.
         try:
+            # Capped: an agent across a slow international link can take
+            # seconds, and this page should not wait for it.
             unreachable = [
                 entry.code
-                for entry in await self._topology.get_vpn_server_health()
+                for entry in await asyncio.wait_for(
+                    self._topology.get_vpn_server_health(), AGENT_CHECK_SECONDS
+                )
                 if entry.state == "unreachable"
             ]
+        except TimeoutError:
+            return Check(
+                "reconciliation",
+                "Reconciliation",
+                "unknown",
+                "The servers took too long to answer; see Server health",
+            )
         except Exception:
             unreachable = []
         if unreachable:

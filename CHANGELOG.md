@@ -18,6 +18,9 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 - A refused token refresh (rate limit, server busy) no longer disconnects the VPN (#20).
 
 ### Servers
+- Admin panel: Server health and Security no longer wait for the servers' agents before
+  showing; Server health fills each card in when its agent answers, and again every
+  30 seconds.
 - Admin panel: "All 20 protocols" instead of twenty chips, deleted accounts named as such in
   the audit log, and the user page's Grant all / Assign all show that they are working.
 - Admin panel polish: one protocol picker on Permissions, protocols as chips, a user's

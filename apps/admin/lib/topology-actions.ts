@@ -2,6 +2,12 @@
 
 import { type ActionResult, toActionResult } from "@/lib/api/action-result";
 import { apiFetch } from "@/lib/api/client";
+import {
+  getVpnServerHealth,
+  getVpnServerXrayHealth,
+  type VpnServerHealthItem,
+  type VpnServerXrayHealthItem,
+} from "@/lib/topology";
 
 export type ServerState = "active" | "maintenance" | "disabled";
 
@@ -80,5 +86,21 @@ export async function renameServer(
       `/v1/admin/vpn-servers/${encodeURIComponent(serverId)}/name`,
       { method: "POST", body: { display_name: displayName } },
     ).then((body) => body.display_name),
+  );
+}
+
+export interface LiveServerHealth {
+  health: VpnServerHealthItem[];
+  xray: VpnServerXrayHealthItem[];
+}
+
+/** Every server's agent, asked now (Server health fills its cards with it). */
+export async function loadServerHealth(): Promise<
+  ActionResult<LiveServerHealth>
+> {
+  return toActionResult(
+    Promise.all([getVpnServerHealth(), getVpnServerXrayHealth()]).then(
+      ([health, xray]) => ({ health, xray }),
+    ),
   );
 }

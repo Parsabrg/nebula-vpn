@@ -1198,3 +1198,8 @@ h2 {
   font-size: 0.78rem;
   white-space: nowrap;
 }
+
+/* A server card while its agent's answer is on its way. */
+.server-card__verdict.is-checking {
+  color: var(--muted);
+}

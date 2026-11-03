@@ -1,14 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  getVpnServerHealth,
-  getVpnServerXrayHealth,
   getTrafficSummary,
   getVpnServerReconciliation,
   listVpnServers,
   listReconciliationHistory,
 } from "@/lib/topology";
 import { ReconcileNowControl } from "@/components/reconcile-now-control";
+import {
+  ReconciliationSummary,
+  ServerChecked,
+  ServerHealthLive,
+  ServerLiveFacts,
+  ServerVerdict,
+} from "@/components/server-health-live";
 import { ServerNameControl } from "@/components/server-name-control";
 import { ServerStateControl } from "@/components/server-state-control";
 import { ServerForEveryone } from "@/components/everyone-access-button";
@@ -97,32 +102,21 @@ export default async function ServerHealthPage({
     target_id: params.target_id,
     outcome: params.outcome,
   };
-  const [servers, health, reconciliation, history, xrayHealth, traffic] =
-    await Promise.all([
-      listVpnServers(),
-      getVpnServerHealth(),
-      getVpnServerReconciliation(),
-      listReconciliationHistory({
-        ...(params.server_id ? { serverId: params.server_id } : {}),
-        ...(params.target_id ? { targetId: params.target_id } : {}),
-        ...(params.outcome ? { outcome: params.outcome } : {}),
-        offset,
-        limit: 25,
-      }),
-      getVpnServerXrayHealth(),
-      getTrafficSummary(),
-    ]);
-  const healthByServerId = new Map(
-    health.map((entry) => [entry.serverId, entry]),
-  );
-  const xrayByServerId = new Map(
-    xrayHealth.map((entry) => [entry.serverId, entry]),
-  );
-  // Servers whose agent did not answer: nothing on them could be checked,
-  // so "All in sync" would say more than is known.
-  const unchecked = servers.filter(
-    (server) => healthByServerId.get(server.id)?.state === "unreachable",
-  ).length;
+  // The agents' own answers are not awaited here: they come from the
+  // servers, and the slowest can take seconds. ServerHealthLive asks for
+  // them once the page is on screen.
+  const [servers, reconciliation, history, traffic] = await Promise.all([
+    listVpnServers(),
+    getVpnServerReconciliation(),
+    listReconciliationHistory({
+      ...(params.server_id ? { serverId: params.server_id } : {}),
+      ...(params.target_id ? { targetId: params.target_id } : {}),
+      ...(params.outcome ? { outcome: params.outcome } : {}),
+      offset,
+      limit: 25,
+    }),
+    getTrafficSummary(),
+  ]);
   const outstanding = reconciliation.reduce(
     (sum, entry) =>
       sum +
@@ -133,7 +127,7 @@ export default async function ServerHealthPage({
   );
 
   return (
-    <>
+    <ServerHealthLive>
       <section className="page-heading" aria-labelledby="server-health-title">
         <h1 id="server-health-title">Server health</h1>
         <p>Each server, whether it works, and what it has carried.</p>
@@ -154,21 +148,6 @@ export default async function ServerHealthPage({
       ) : (
         <div className="server-cards">
           {servers.map((server) => {
-            const wireguard = healthByServerId.get(server.id);
-            const xray = xrayByServerId.get(server.id);
-            const healthy =
-              wireguard?.state === "healthy" &&
-              (xray === undefined || xray.listenerUp === true);
-            const verdict =
-              wireguard === undefined
-                ? "Not checked yet"
-                : healthy
-                  ? "Healthy"
-                  : wireguard.state !== "healthy"
-                    ? `Agent ${wireguard.state}`
-                    : xray?.listenerUp === null
-                      ? "Xray not checked"
-                      : "Xray listener down";
             return (
               <article
                 key={server.id}
@@ -194,45 +173,13 @@ export default async function ServerHealthPage({
                   serverId={server.id}
                   name={server.displayName}
                 />
-                <p
-                  className={`server-card__verdict ${healthy ? "is-ok" : "is-bad"}`}
-                >
-                  {verdict}
-                  {wireguard?.latencyMs != null
-                    ? ` · ${wireguard.latencyMs} ms`
-                    : ""}
-                </p>
+                <ServerVerdict serverId={server.id} />
                 <dl className="server-card__facts">
-                  <dt>Xray</dt>
-                  <dd>
-                    {xray === undefined
-                      ? "not enabled"
-                      : xray.listenerUp === null
-                        ? `unknown${xray.errorCode ? ` (${xray.errorCode})` : ""}`
-                        : xray.listenerUp
-                          ? "up"
-                          : `down${xray.errorCode ? ` (${xray.errorCode})` : ""}`}
-                  </dd>
-                  <dt>WireGuard</dt>
-                  <dd>
-                    {wireguard?.interfaceUp == null
-                      ? "unknown"
-                      : wireguard.interfaceUp
-                        ? `up · ${wireguard.peerCount ?? 0} peers`
-                        : "down"}
-                  </dd>
-                  <dt>Agent</dt>
-                  <dd>{wireguard?.agentVersion ?? "unknown"}</dd>
+                  <ServerLiveFacts serverId={server.id} />
                   <dt>Devices</dt>
                   <dd>up to {server.maximumDevices}</dd>
                   <dt>Checked</dt>
-                  <dd>
-                    {wireguard ? (
-                      <Ago at={wireguard.observedAt} now={now} />
-                    ) : (
-                      "never"
-                    )}
-                  </dd>
+                  <ServerChecked serverId={server.id} />
                 </dl>
               </article>
             );
@@ -269,11 +216,7 @@ export default async function ServerHealthPage({
       <section aria-labelledby="reconciliation-title">
         <h2 id="reconciliation-title">Reconciliation</h2>
         <p className="section-note">
-          {outstanding > 0
-            ? `${outstanding} record${outstanding === 1 ? " is" : "s are"} waiting or need review.`
-            : unchecked > 0
-              ? `Not checked: ${unchecked === 1 ? "one server's agent is" : `${unchecked} servers' agents are`} unreachable.`
-              : "All in sync: every credential is where it should be."}
+          <ReconciliationSummary outstanding={outstanding} />
         </p>
         <p>
           <ReconcileNowControl />
@@ -378,6 +321,6 @@ export default async function ServerHealthPage({
           searchParams={filterValues}
         />
       </details>
-    </>
+    </ServerHealthLive>
   );
 }

@@ -300,3 +300,16 @@ def test_reconciliation_stays_readable_when_agents_cannot_be_asked(
     checks = _checks(Scripted(tmp_path, HEALTHY, topology=NoHealth()), monkeypatch)
 
     assert checks["reconciliation"].detail == "Clean"
+
+
+def test_slow_agents_do_not_hold_up_the_page(tmp_path: Path, monkeypatch: Any) -> None:
+    class SlowHealth(FakeTopology):
+        async def get_vpn_server_health(self) -> list[Any]:
+            await asyncio.sleep(1)
+            return []
+
+    monkeypatch.setattr(security_status, "AGENT_CHECK_SECONDS", 0.01)
+    checks = _checks(Scripted(tmp_path, HEALTHY, topology=SlowHealth()), monkeypatch)
+
+    assert checks["reconciliation"].status == "unknown"
+    assert "took too long" in checks["reconciliation"].detail
