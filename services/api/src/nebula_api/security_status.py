@@ -215,6 +215,23 @@ class SecurityStatusService:
             return Check("reconciliation", "Reconciliation", "unknown", "Could not read it")
         pending = sum(row.pending_provisions + row.pending_revocations for row in rows)
         failed = sum(row.failed_records for row in rows)
+        # The records say what was last checked; an agent that cannot be
+        # reached now means nothing on its server is being checked.
+        try:
+            unreachable = [
+                entry.code
+                for entry in await self._topology.get_vpn_server_health()
+                if entry.state == "unreachable"
+            ]
+        except Exception:
+            unreachable = []
+        if unreachable:
+            return Check(
+                "reconciliation",
+                "Reconciliation",
+                "warning",
+                f"Not checking {', '.join(unreachable)}: agent unreachable",
+            )
         if failed:
             return Check(
                 "reconciliation",

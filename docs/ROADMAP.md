@@ -56,6 +56,7 @@ Updated in the same pull request as the work (section 92).
 
 | Section | Item | State |
 | --- | --- | --- |
+| Panel sweep | Security's Reconciliation row asks the agents live and warns "Not checking <server>: agent unreachable" instead of "Clean" from records alone | Done |
 | Panel sweep | Permissions one row per user: the list API orders by user then protocol; the page groups a user's grants (protocols in use, count revoked or expired), 200 grants a page | Done |
 | Panel sweep | Server health reloads the reconciliation history after a run (`router.refresh()`), instead of asking for a page reload | Done |
 | Panel sweep | Access for everyone at once: `POST /v1/admin/vpn-servers/{id}/assign-everyone` and `POST /v1/admin/protocol-profiles/{id}/grant-everyone` (step-up; active and not-yet-activated accounts; the single-user code in one transaction; returns how many changed); buttons on server cards and Permissions | Done; in the local stack against PostgreSQL each gave the one account missing it |
