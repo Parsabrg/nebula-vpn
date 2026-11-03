@@ -602,7 +602,15 @@ def test_leaving_an_agent_client_keeps_the_shared_connection(
 
     shared = httpx.AsyncClient()
     monkeypatch.setattr(module, "_shared_client", lambda *_args: shared)
-    agent = module.AgentClient(agent_host="agent", agent_port=9443, settings=Settings(env="test"))
+    # Built with a test transport (no certificate files needed), then made
+    # to take the production path that uses the shared client.
+    agent = module.AgentClient(
+        agent_host="agent",
+        agent_port=9443,
+        settings=Settings(env="test"),
+        transport=httpx.MockTransport(lambda _request: httpx.Response(200)),
+    )
+    agent._transport = None
     agent._mtls = ("c", "k", "a")
 
     async def scenario() -> None:
