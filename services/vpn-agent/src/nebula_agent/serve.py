@@ -16,6 +16,8 @@ from nebula_agent.main import create_app
 from nebula_agent.metrics import serve_metrics
 from nebula_agent.settings import Settings, get_settings
 
+AGENT_KEEP_ALIVE_SECONDS = 120
+
 
 def build_uvicorn_config(settings: Settings) -> uvicorn.Config:
     """Builds the server configuration without binding a socket or reading
@@ -31,6 +33,11 @@ def build_uvicorn_config(settings: Settings) -> uvicorn.Config:
         ssl_keyfile=str(settings.agent_tls_key_file),
         ssl_ca_certs=str(settings.agent_trusted_client_ca_file),
         ssl_cert_reqs=ssl.CERT_REQUIRED,
+        # The control plane keeps its connection open for 60 s between
+        # calls; this end keeps it longer, so it is never the one closing a
+        # connection the other is about to reuse. A fresh mutual-TLS
+        # handshake costs about a second over a slow international link.
+        timeout_keep_alive=AGENT_KEEP_ALIVE_SECONDS,
     )
 
 
