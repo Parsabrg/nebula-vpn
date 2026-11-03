@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { assignServer, grantPermissions } from "@/lib/access-actions";
 import { endedSession } from "@/lib/end-session";
 import { StepUpModal } from "./step-up-modal";
@@ -26,6 +26,10 @@ export function AccessReadiness({
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  // Which button is working, through the page reload that follows, so
+  // a slow link still shows something is happening.
+  const [working, setWorking] = useState<"protocols" | "servers" | null>(null);
+  const [reloading, startReload] = useTransition();
   const [error, setError] = useState<string | null>(null);
   // The step waiting on a fresh authenticator code, retried once verified.
   const [awaitingCode, setAwaitingCode] = useState<
@@ -37,8 +41,10 @@ export function AccessReadiness({
   }
 
   async function run(
+    which: "protocols" | "servers",
     step: () => Promise<{ ok: boolean; code?: string; message?: string }>,
   ) {
+    setWorking(which);
     setPending(true);
     setError(null);
     const result = await step();
@@ -56,7 +62,7 @@ export function AccessReadiness({
       setError(result.message ?? "Something went wrong.");
       return;
     }
-    router.refresh();
+    startReload(() => router.refresh());
   }
 
   const missing = [
@@ -75,21 +81,25 @@ export function AccessReadiness({
           <button
             type="button"
             className="button button--primary"
-            disabled={pending}
+            disabled={pending || reloading}
             onClick={() =>
-              run(() => grantPermissions(userId, missingProfileIds))
+              run("protocols", () =>
+                grantPermissions(userId, missingProfileIds),
+              )
             }
           >
-            Grant all protocols
+            {(pending || reloading) && working === "protocols"
+              ? "Granting…"
+              : "Grant all protocols"}
           </button>
         ) : null}
         {!hasServer && missingServerIds.length > 0 ? (
           <button
             type="button"
             className="button button--primary"
-            disabled={pending}
+            disabled={pending || reloading}
             onClick={() =>
-              run(async () => {
+              run("servers", async () => {
                 for (const serverId of missingServerIds) {
                   const result = await assignServer(userId, serverId);
                   if (!result.ok) {
@@ -100,7 +110,9 @@ export function AccessReadiness({
               })
             }
           >
-            Assign all servers
+            {(pending || reloading) && working === "servers"
+              ? "Assigning…"
+              : "Assign all servers"}
           </button>
         ) : null}
       </div>
@@ -112,7 +124,7 @@ export function AccessReadiness({
           const step = awaitingCode;
           setAwaitingCode(null);
           if (step) {
-            void run(step);
+            void run(working ?? "protocols", step);
           }
         }}
       />
