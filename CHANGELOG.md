@@ -18,6 +18,8 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 - A refused token refresh (rate limit, server busy) no longer disconnects the VPN (#20).
 
 ### Servers
+- Admin panel: "All 20 protocols" instead of twenty chips, deleted accounts named as such in
+  the audit log, and the user page's Grant all / Assign all show that they are working.
 - Admin panel polish: one protocol picker on Permissions, protocols as chips, a user's
   actions in one row, and a tidier account summary.
 - Admins change their own password (every other session of theirs is signed out) and

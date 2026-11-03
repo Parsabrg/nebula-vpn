@@ -145,7 +145,10 @@ def test_list_events_names_the_people_and_servers_on_the_page() -> None:
     session = ScriptedSession(
         scalar_values=[3],
         scalars_values=[rows],
-        execute_values=[[(admin_id, "owner@example.com")], [(user_id, "ali@example.com")]],
+        execute_values=[
+            [(admin_id, "owner@example.com")],
+            [(user_id, "deleted-0bf1@deleted.invalid")],
+        ],
     )
     service = AuditLogService(cast(SessionFactory, ScriptedFactory(session)))
 
@@ -153,4 +156,5 @@ def test_list_events_names_the_people_and_servers_on_the_page() -> None:
 
     # admin, user and vpn_server: one lookup each; "system" and "setting" have none.
     assert session.executed == 3
-    assert page.names == {admin_id: "owner@example.com", user_id: "ali@example.com"}
+    # A deleted account reads as one, not as its random placeholder address.
+    assert page.names == {admin_id: "owner@example.com", user_id: "Deleted account"}

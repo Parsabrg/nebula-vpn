@@ -112,7 +112,12 @@ async def _names(session: AsyncSession, rows: Sequence[AuditLog]) -> dict[UUID, 
             continue
         id_column, name_column = _NAMED[kind]
         result = await session.execute(select(id_column, name_column).where(id_column.in_(ids)))
-        names.update({row_id: name for row_id, name in result.all()})
+        names.update(
+            {
+                row_id: "Deleted account" if name.endswith("@deleted.invalid") else name
+                for row_id, name in result.all()
+            }
+        )
     return names
 
 

@@ -28,6 +28,8 @@ export default async function PermissionsPage({
     listProtocolProfiles(),
   ]);
 
+  const offered = profiles.filter((profile) => profile.state !== "deprecated");
+
   return (
     <>
       <section className="page-heading" aria-labelledby="permissions-title">
@@ -70,7 +72,11 @@ export default async function PermissionsPage({
                 <Link key={group.userId} href={`/users/${group.userId}`}>
                   {group.userEmail}
                 </Link>,
-                group.enabled.length > 0 ? (
+                group.enabled.length >= offered.length ? (
+                  <ul key="protocols" className="chips">
+                    <li>All {offered.length} protocols</li>
+                  </ul>
+                ) : group.enabled.length > 0 ? (
                   <ul key="protocols" className="chips">
                     {group.enabled.map((name) => (
                       <li key={name}>{name}</li>
