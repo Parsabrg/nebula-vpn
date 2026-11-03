@@ -7,6 +7,12 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 
 ## Unreleased
 
+### Apps
+- WireGuard connects from the peer the phone already holds, as an Xray connect starts
+  from its saved credential: no request to the server first. A saved peer that does
+  not answer is dropped and a fresh one asked for, once. Disconnect no longer gives
+  the peer back; sign-out, an admin, or the account running out removes it.
+
 ## 0.1.34 — 2026-11-03
 
 ### Apps

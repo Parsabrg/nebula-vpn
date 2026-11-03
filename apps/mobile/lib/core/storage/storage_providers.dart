@@ -13,6 +13,7 @@ import 'split_tunnel_store.dart';
 import 'theme_preference_store.dart';
 import 'tunnel_restore_store.dart';
 import 'wireguard_key_store.dart';
+import 'wireguard_peer_store.dart';
 import 'xray_credential_store.dart';
 
 /// Must be overridden in `main()` with the real instance after awaiting
@@ -31,6 +32,10 @@ final secureTokenStoreProvider = Provider<SecureTokenStore>((Ref ref) {
 
 final xrayCredentialStoreProvider = Provider<XrayCredentialStore>((Ref ref) {
   return FlutterSecureXrayCredentialStore();
+});
+
+final wireGuardPeerStoreProvider = Provider<WireGuardPeerStore>((Ref ref) {
+  return FlutterSecureWireGuardPeerStore();
 });
 
 final deviceIdStoreProvider = Provider<DeviceIdStore>((Ref ref) {
