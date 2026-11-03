@@ -18,6 +18,8 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 - A refused token refresh (rate limit, server busy) no longer disconnects the VPN (#20).
 
 ### Servers
+- Security no longer says reconciliation is clean while a server's agent cannot be
+  reached; it names the server instead.
 - Admin panel: Permissions shows one row per user, with the protocols they can use.
 - Server health reloads its reconciliation history by itself after "Run reconciliation
   now" or "Check again".

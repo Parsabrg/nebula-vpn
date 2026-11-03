@@ -52,7 +52,10 @@ class FakeRedis:
 
 
 class FakeTopology:
-    def __init__(self, failed: int = 0, pending: int = 0) -> None:
+    def __init__(
+        self, failed: int = 0, pending: int = 0, unreachable: tuple[str, ...] = ()
+    ) -> None:
+        self.unreachable = unreachable
         self.rows = [
             SimpleNamespace(
                 pending_provisions=pending, pending_revocations=0, failed_records=failed
@@ -61,6 +64,9 @@ class FakeTopology:
 
     async def get_vpn_server_reconciliation(self) -> list[Any]:
         return self.rows
+
+    async def get_vpn_server_health(self) -> list[Any]:
+        return [SimpleNamespace(code=code, state="unreachable") for code in self.unreachable]
 
 
 class Scripted(SecurityStatusService):
@@ -272,3 +278,25 @@ def test_a_client_certificate_still_from_the_node_ca_is_flagged(
 
     assert checks["agent_certificate"].status == "warning"
     assert "node CA" in checks["agent_certificate"].detail
+
+
+def test_an_unreachable_agent_is_not_reported_as_clean(tmp_path: Path, monkeypatch: Any) -> None:
+    checks = _checks(
+        Scripted(tmp_path, HEALTHY, topology=FakeTopology(unreachable=("tehran-1",))),
+        monkeypatch,
+    )
+
+    assert checks["reconciliation"].status == "warning"
+    assert checks["reconciliation"].detail == "Not checking tehran-1: agent unreachable"
+
+
+def test_reconciliation_stays_readable_when_agents_cannot_be_asked(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    class NoHealth(FakeTopology):
+        async def get_vpn_server_health(self) -> list[Any]:
+            raise RuntimeError("agent_client_builder is not configured")
+
+    checks = _checks(Scripted(tmp_path, HEALTHY, topology=NoHealth()), monkeypatch)
+
+    assert checks["reconciliation"].detail == "Clean"
