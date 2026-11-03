@@ -128,6 +128,7 @@ class ConnectionRecord {
         'realityPublicKey': client.realityPublicKey,
         'realityShortId': client.realityShortId,
         'fingerprint': client.fingerprint,
+        if (client.httpDisguise) 'httpDisguise': true,
         'echConfigList': client.echConfigList,
       },
   };
@@ -219,6 +220,7 @@ class ConnectionRecord {
       realityPublicKey: map['realityPublicKey'] as String?,
       realityShortId: map['realityShortId'] as String?,
       fingerprint: map['fingerprint'] as String?,
+      httpDisguise: map['httpDisguise'] == true,
     );
   }
 }

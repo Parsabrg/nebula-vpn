@@ -51,6 +51,7 @@ ImportedProfile? parseLink(String text) {
     'trojan' => _parseTrojan(trimmed),
     'ss' => _parseShadowsocks(trimmed),
     'hysteria2' || 'hy2' => _parseHysteria2(trimmed),
+    'vmess' => _parseVmess(trimmed),
     _ => null,
   };
 }
@@ -115,8 +116,13 @@ ImportedProfile? parseVlessLink(String text) {
   final String? transport = _transports[(query['type'] ?? 'tcp').toLowerCase()];
   final String security = (query['security'] ?? '').toLowerCase();
   final String flow = query['flow'] ?? '';
+  final String encryption = query['encryption'] ?? 'none';
+  if (encryption != 'none') {
+    // VLESS Encryption (`mlkem768x25519plus...`): VLESS encrypting on its
+    // own, with no TLS around it, as Nebula's own vless-enc profile.
+    return _vlessEncryption(link, text, id, address, port, query, encryption);
+  }
   if (transport == null ||
-      (query['encryption'] ?? 'none') != 'none' ||
       _insecure(query) ||
       !<String>{'tls', 'reality'}.contains(security) ||
       // Vision runs on raw TCP only; any other flow is refused.
@@ -173,6 +179,40 @@ ImportedProfile? parseVlessLink(String text) {
       },
       serviceName: transport == 'grpc' ? (query['serviceName'] ?? '') : null,
       echConfigList: _ech(query),
+    ),
+  );
+}
+
+ImportedProfile? _vlessEncryption(
+  Uri link,
+  String text,
+  String id,
+  String address,
+  int port,
+  Map<String, String> query,
+  String encryption,
+) {
+  final String? transport = _transports[(query['type'] ?? 'tcp').toLowerCase()];
+  final String flow = query['flow'] ?? '';
+  if (transport != 'raw' ||
+      !<String>{'', 'none'}.contains((query['security'] ?? '').toLowerCase()) ||
+      !encryption.startsWith('mlkem768x25519plus.') ||
+      (flow.isNotEmpty && flow != 'xtls-rprx-vision')) {
+    return null;
+  }
+  return (
+    name: _nameOf(link, address),
+    client: XrayClientResult(
+      clientId: 'imported',
+      uuid: id.toLowerCase(),
+      serverAddress: address,
+      port: port,
+      sni: address,
+      transport: 'raw',
+      transportSecurity: 'none',
+      adBlock: false,
+      encryption: encryption,
+      flow: flow.isEmpty ? null : flow,
     ),
   );
 }
@@ -321,6 +361,88 @@ ImportedProfile? _parseHysteria2(String text) {
       transportSecurity: 'tls',
       adBlock: false,
       obfsPassword: obfs.isEmpty ? null : obfsPassword,
+    ),
+  );
+}
+
+/// `vmess://` + Base64 of v2rayN's JSON (`add`, `port`, `id`, `net`, `tls`,
+/// `host`, `path`, ...). WebSocket, XHTTP, gRPC or raw TCP, with TLS or
+/// without (VMess encrypts on its own).
+///
+/// Raw TCP may wear Xray's HTTP header disguise (`type: http`).
+///
+/// Refused: a non-zero `aid` (the old MD5 handshake Xray no longer speaks),
+/// a cipher other than auto, a header type other than none or http, skipping the
+/// certificate check, and a TLS name that differs from the `Host`.
+ImportedProfile? _parseVmess(String text) {
+  final String? json = _base64Text(text.substring('vmess://'.length).trim());
+  if (json == null) {
+    return null;
+  }
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(json);
+  } on FormatException {
+    return null;
+  }
+  if (decoded is! Map<String, dynamic>) {
+    return null;
+  }
+  final Map<String, dynamic> fields = decoded;
+  String field(String key) => '${fields[key] ?? ''}'.trim();
+  final String id = field('id');
+  final String address = field('add');
+  final int? port = int.tryParse(field('port'));
+  final String? transport =
+      _transports[(field('net').isEmpty ? 'tcp' : field('net')).toLowerCase()];
+  final String security = field('tls').toLowerCase();
+  final String cipher = field('scy').toLowerCase();
+  final String header = field('type').toLowerCase();
+  if (!_uuid.hasMatch(id) ||
+      address.isEmpty ||
+      port == null ||
+      port <= 0 ||
+      port > 65535 ||
+      transport == null ||
+      !<String>{'', '0'}.contains(field('aid')) ||
+      !<String>{'', 'auto'}.contains(cipher) ||
+      (transport == 'raw' && !<String>{'', 'none', 'http'}.contains(header)) ||
+      (transport != 'raw' && !<String>{'', 'none'}.contains(header)) ||
+      !<String>{'', 'none', 'tls'}.contains(security) ||
+      <String>{'1', 'true'}.contains(field('allowInsecure').toLowerCase())) {
+    return null;
+  }
+  final String host = field('host');
+  final bool tls = security == 'tls';
+  final String? sni = tls
+      ? _sniFor(<String, String>{'host': host, 'sni': field('sni')}, address)
+      : (host.isEmpty ? address : host);
+  if (sni == null) {
+    return null;
+  }
+  final String path = field('path');
+  final String name = field('ps');
+  return (
+    name: name.isEmpty ? sni : name,
+    client: XrayClientResult(
+      clientId: 'imported',
+      uuid: id.toLowerCase(),
+      protocol: 'vmess',
+      serverAddress: address,
+      port: port,
+      // Without TLS this is the WebSocket's Host, sent as given.
+      sni: sni,
+      transport: transport,
+      transportSecurity: tls ? 'tls' : 'none',
+      adBlock: false,
+      path: switch (transport) {
+        'raw' when header == 'http' => path.isEmpty ? '/' : path,
+        'grpc' || 'raw' => null,
+        _ => path.isEmpty ? '/' : path,
+      },
+      serviceName: transport == 'grpc' ? path : null,
+      fingerprint: field('fp').isEmpty ? null : field('fp'),
+      httpDisguise: transport == 'raw' && header == 'http',
     ),
   );
 }

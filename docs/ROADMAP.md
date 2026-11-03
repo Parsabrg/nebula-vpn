@@ -55,6 +55,7 @@ Updated in the same pull request as the work (section 92).
 
 | Section | Item | State |
 | --- | --- | --- |
+| 28, 53 | Imported links: `vmess://` (v2rayN's Base64 JSON: ws/xhttp/grpc/raw, TLS or none, raw with the HTTP header disguise; refused: aid > 0, ciphers other than auto, certificate checks off), VLESS Encryption (`mlkem768x25519plus`, raw, no TLS), a WebSocket's Host written when there is no TLS; the help text names vmess:// in all ten languages | Done; the owner's subscription went from 9 links skipped to 0 of the kinds Xray runs (140 connections) |
 | Snappiness | Panel clicks are felt: buttons, links and tiles press in (80 ms, none with reduced motion), and the clicked menu link shows a pending underline (Next.js `useLinkStatus`) until its page arrives | Done |
 | Snappiness | Server health shows at once and asks the agents afterwards (a server action, every 30 s), cards saying Checking… until the answer; Security waits at most 3 s for the agents. Seen live: Tehran's agent took 6 s to answer and clicks in the panel seemed dead meanwhile | Done |
 | Snappiness | Agent calls reuse a kept-alive mutual-TLS connection per agent (shared client keyed by the certificate files' times, so rotation still applies; API keeps idle connections 60 s, agent 120 s); nginx serves 8444 over HTTP/2. Measured on Germany: a new TLS handshake to Tehran's agent took 1.1 s, and the panel's ten page prefetches went from queueing on HTTP/1.1 (one took 19 s) to all done in about 100 ms | Done |
