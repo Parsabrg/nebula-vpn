@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import nebula_api.auth.admin_service as admin_service_module
-from nebula_api.auth.admin_service import AdminAuthService
+from nebula_api.auth.admin_service import AdminAuthService, AdminCredentialRejected
 from nebula_api.auth.key_material import AuthKeyMaterial
 from nebula_api.auth.mfa import encrypt_mfa_seed, totp_at_counter
 from nebula_api.auth.opaque_tokens import digest_opaque_token
@@ -59,6 +59,7 @@ class ScriptedSession:
         self.added: list[object] = []
         self.executed: list[object] = []
         self.commits = 0
+        self.flushes = 0
         self.fail_commit = fail_commit
 
     async def __aenter__(self) -> "ScriptedSession":
@@ -86,6 +87,9 @@ class ScriptedSession:
 
     def add_all(self, values: Iterable[object]) -> None:
         self.added.extend(values)
+
+    async def flush(self) -> None:
+        self.flushes += 1
 
     async def commit(self) -> None:
         self.commits += 1
@@ -1155,3 +1159,201 @@ def test_naive_authentication_clock_is_rejected() -> None:
 
     with pytest.raises(ValueError, match="timezone aware"):
         asyncio.run(auth.principal("v1.session"))
+
+
+# --- An admin changing their own password and authenticator ---------------
+
+
+def _stepped_up_redis() -> AdminRedis:
+    redis = AdminRedis()
+    redis.record = AdminSessionRecord(
+        ADMIN_ID, SESSION_ID, "totp", NOW, NOW, NOW + timedelta(hours=8), NOW
+    )
+    return redis
+
+
+def _audits(session: ScriptedSession) -> list[tuple[str, str, str | None]]:
+    return [
+        (item.event_code, item.outcome, item.reason_code)
+        for item in session.added
+        if isinstance(item, AuditLog)
+    ]
+
+
+def test_change_password_needs_step_up() -> None:
+    auth, _ = service(ScriptedFactory(ScriptedSession(scalar_values=(admin(),))))
+
+    with pytest.raises(AuthenticationRejected):
+        asyncio.run(
+            auth.change_password(
+                session_token="v1.session",  # noqa: S106 - test fixture
+                current_password=PASSWORD,
+                new_password="a-new-admin-password",  # noqa: S106 - test fixture
+                request_id=uuid4(),
+            )
+        )
+
+
+def test_change_password_ends_every_old_session_and_issues_a_new_one() -> None:
+    account = admin()
+    old_hash = account.password_hash
+    redis = _stepped_up_redis()
+    principal_db = ScriptedSession(scalar_values=(admin(),))
+    change_db = ScriptedSession(scalar_values=(account,))
+    auth, _ = service(ScriptedFactory(principal_db, change_db), redis)
+
+    issued = asyncio.run(
+        auth.change_password(
+            session_token="v1.session",  # noqa: S106 - test fixture
+            current_password=PASSWORD,
+            new_password="a-new-admin-password",  # noqa: S106 - test fixture
+            request_id=uuid4(),
+        )
+    )
+
+    assert account.password_hash != old_hash
+    assert account.sessions_valid_after == NOW
+    assert redis.revoked == ["v1.session"]
+    assert issued.session_token
+    assert _audits(change_db) == [("password_changed", "succeeded", None)]
+
+
+def test_change_password_refuses_a_wrong_current_password_and_audits_it() -> None:
+    account = admin()
+    old_hash = account.password_hash
+    principal_db = ScriptedSession(scalar_values=(admin(),))
+    change_db = ScriptedSession(scalar_values=(account,))
+    auth, _ = service(ScriptedFactory(principal_db, change_db), _stepped_up_redis())
+
+    with pytest.raises(AdminCredentialRejected, match="current password is not right"):
+        asyncio.run(
+            auth.change_password(
+                session_token="v1.session",  # noqa: S106 - test fixture
+                current_password="wrong",  # noqa: S106 - test fixture
+                new_password="a-new-admin-password",  # noqa: S106 - test fixture
+                request_id=uuid4(),
+            )
+        )
+    assert account.password_hash == old_hash
+    assert _audits(change_db) == [("password_changed", "denied", "invalid_password")]
+
+
+def test_change_password_says_what_is_wrong_with_a_short_one() -> None:
+    principal_db = ScriptedSession(scalar_values=(admin(),))
+    auth, _ = service(ScriptedFactory(principal_db), _stepped_up_redis())
+
+    with pytest.raises(AdminCredentialRejected, match=r"^Password must contain at least"):
+        asyncio.run(
+            auth.change_password(
+                session_token="v1.session",  # noqa: S106 - test fixture
+                current_password=PASSWORD,
+                new_password="short",  # noqa: S106 - test fixture
+                request_id=uuid4(),
+            )
+        )
+
+
+def test_change_password_is_rate_limited() -> None:
+    redis = _stepped_up_redis()
+    redis.allowed = False
+    auth, _ = service(ScriptedFactory(ScriptedSession(scalar_values=(admin(),))), redis)
+
+    with pytest.raises(AuthenticationRateLimited):
+        asyncio.run(
+            auth.change_password(
+                session_token="v1.session",  # noqa: S106 - test fixture
+                current_password=PASSWORD,
+                new_password="a-new-admin-password",  # noqa: S106 - test fixture
+                request_id=uuid4(),
+            )
+        )
+
+
+def test_a_session_from_before_the_change_is_refused() -> None:
+    account = admin()
+    account.sessions_valid_after = NOW + timedelta(seconds=1)
+    redis = AdminRedis()
+    auth, _ = service(ScriptedFactory(ScriptedSession(scalar_values=(account,))), redis)
+
+    with pytest.raises(AuthenticationRejected):
+        asyncio.run(auth.principal("v1.session"))
+    assert redis.revoked == ["v1.session"]
+
+
+def test_a_new_authenticator_is_pending_and_the_old_one_stays() -> None:
+    principal_db = ScriptedSession(scalar_values=(admin(),))
+    start_db = ScriptedSession(scalar_values=(admin(),))
+    auth, _ = service(ScriptedFactory(principal_db, start_db), _stepped_up_redis())
+
+    setup = asyncio.run(
+        auth.start_authenticator_replacement(
+            session_token="v1.session",  # noqa: S106 - test fixture
+            request_id=uuid4(),
+        )
+    )
+
+    assert setup.provisioning_uri.startswith("otpauth://totp/Nebula%3Aowner%40example.com?")
+    added = [item for item in start_db.added if isinstance(item, AdminTotpCredential)]
+    assert [item.state for item in added] == ["pending"]
+    # Only an earlier unfinished setup is cancelled; the active one is untouched.
+    assert len(start_db.executed) == 1
+    assert _audits(start_db) == [("admin_mfa_changed", "succeeded", "replacement_started")]
+
+
+def test_confirming_switches_authenticators_and_returns_new_recovery_codes() -> None:
+    old = credential()
+    pending = credential(state="pending")
+    # The pending credential's seed is encrypted for CREDENTIAL_ID.
+    pending.id = CREDENTIAL_ID
+    old.id = uuid4()
+    principal_db = ScriptedSession(scalar_values=(admin(),))
+    confirm_db = ScriptedSession(scalar_values=(pending, old))
+    auth, _ = service(ScriptedFactory(principal_db, confirm_db), _stepped_up_redis())
+
+    codes = asyncio.run(
+        auth.confirm_authenticator_replacement(
+            session_token="v1.session",  # noqa: S106 - test fixture
+            code=current_code(),
+            request_id=uuid4(),
+        )
+    )
+
+    assert len(codes) == 10
+    assert (old.state, old.secret_ciphertext) == ("revoked", None)
+    assert pending.state == "active"
+    assert confirm_db.flushes == 1
+    assert _audits(confirm_db) == [("admin_mfa_changed", "succeeded", "replacement_confirmed")]
+
+
+def test_a_wrong_code_keeps_the_old_authenticator() -> None:
+    old = credential()
+    pending = credential(state="pending")
+    principal_db = ScriptedSession(scalar_values=(admin(),))
+    confirm_db = ScriptedSession(scalar_values=(pending,))
+    auth, _ = service(ScriptedFactory(principal_db, confirm_db), _stepped_up_redis())
+
+    with pytest.raises(AdminCredentialRejected, match="not from the new authenticator"):
+        asyncio.run(
+            auth.confirm_authenticator_replacement(
+                session_token="v1.session",  # noqa: S106 - test fixture
+                code="000000",
+                request_id=uuid4(),
+            )
+        )
+    assert old.state == "active"
+    assert confirm_db.commits == 0
+
+
+def test_confirming_without_a_setup_in_progress_is_refused() -> None:
+    principal_db = ScriptedSession(scalar_values=(admin(),))
+    confirm_db = ScriptedSession(scalar_values=(None,))
+    auth, _ = service(ScriptedFactory(principal_db, confirm_db), _stepped_up_redis())
+
+    with pytest.raises(AdminCredentialRejected, match="Start the new authenticator setup"):
+        asyncio.run(
+            auth.confirm_authenticator_replacement(
+                session_token="v1.session",  # noqa: S106 - test fixture
+                code=current_code(),
+                request_id=uuid4(),
+            )
+        )

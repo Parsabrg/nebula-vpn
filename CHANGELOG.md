@@ -18,6 +18,9 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 - A refused token refresh (rate limit, server busy) no longer disconnects the VPN (#20).
 
 ### Servers
+- Admins change their own password (every other session of theirs is signed out) and
+  move to a new authenticator (the old one works until the new one is confirmed) from
+  Security. Needs migration 0020, applied by the deploy.
 - Security no longer says reconciliation is clean while a server's agent cannot be
   reached; it names the server instead.
 - Admin panel: Permissions shows one row per user, with the protocols they can use.

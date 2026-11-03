@@ -2,11 +2,14 @@ from datetime import UTC, datetime, timedelta
 from typing import cast
 from uuid import UUID
 
+import pytest
 from fastapi.testclient import TestClient
 
 from nebula_api.auth.admin_service import (
     AdminAuthentication,
+    AdminAuthenticatorSetup,
     AdminAuthService,
+    AdminCredentialRejected,
     AdminEnrollment,
     AdminPasswordChallenge,
     AdminPrincipal,
@@ -156,6 +159,21 @@ class FakeAdminAuthService:
         if self.action_error is not None:
             raise self.action_error
         return ("v1.new-one", "v1.new-two")
+
+    async def change_password(self, **_kwargs: object) -> IssuedAdminSession:
+        if self.action_error is not None:
+            raise self.action_error
+        return IssuedAdminSession(
+            "v1.new-session", "v1.new-csrf", self.authentication(stepped_up=True).session.record
+        )
+
+    async def start_authenticator_replacement(self, **_kwargs: object) -> AdminAuthenticatorSetup:
+        return AdminAuthenticatorSetup("NEWSECRET", "otpauth://totp/Nebula%3Aowner?secret=NEW")
+
+    async def confirm_authenticator_replacement(self, **_kwargs: object) -> tuple[str, ...]:
+        if self.action_error is not None:
+            raise self.action_error
+        return ("v1.replaced-one",)
 
 
 class RecordingPasswordResetDelivery:
@@ -725,3 +743,81 @@ def test_a_sign_in_to_an_expired_account_says_so() -> None:
 
     assert response.status_code == 403
     assert response.json()["detail"] == "account_expired"
+
+
+def _signed_in(client: TestClient) -> str:
+    authenticated = client.post(
+        "/v1/admin/auth/mfa/verify",
+        headers={"Origin": ORIGIN},
+        json={"challenge": "v1.challenge", "code": "123456", "method": "totp"},
+    )
+    return authenticated.headers["x-csrf-token"]
+
+
+OWN_CREDENTIAL_ROUTES = [
+    ("/v1/admin/auth/password", {"current_password": "old", "new_password": "a-new-one"}),
+    ("/v1/admin/auth/mfa/replace", {}),
+    ("/v1/admin/auth/mfa/replace/confirm", {"code": "123456"}),
+]
+
+
+@pytest.mark.parametrize(("path", "body"), OWN_CREDENTIAL_ROUTES)
+def test_own_credential_changes_ask_for_a_code_first(path: str, body: dict[str, str]) -> None:
+    with make_client(admin_service=FakeAdminAuthService()) as client:
+        csrf = _signed_in(client)
+        response = client.post(path, headers={"Origin": ORIGIN, "X-CSRF-Token": csrf}, json=body)
+
+    # 403 step_up_required, so the panel asks for a code rather than signing out.
+    assert response.status_code == 403
+    assert response.json()["detail"] == "step_up_required"
+
+
+def test_changing_the_password_replaces_the_session_cookies() -> None:
+    service = FakeAdminAuthService()
+    service.step_up_state = True
+    with make_client(admin_service=service) as client:
+        csrf = _signed_in(client)
+        response = client.post(
+            "/v1/admin/auth/password",
+            headers={"Origin": ORIGIN, "X-CSRF-Token": csrf},
+            json={"current_password": "old", "new_password": "a-new-one"},
+        )
+
+    assert response.status_code == 200
+    cookies = " ".join(response.headers.get_list("set-cookie"))
+    assert "v1.new-session" in cookies and "v1.new-csrf" in cookies
+    assert response.headers["x-csrf-token"] == "v1.new-csrf"
+
+
+@pytest.mark.parametrize(("path", "body"), [OWN_CREDENTIAL_ROUTES[0], OWN_CREDENTIAL_ROUTES[2]])
+def test_own_credential_refusals_say_why(path: str, body: dict[str, str]) -> None:
+    service = FakeAdminAuthService()
+    service.step_up_state = True
+    service.action_error = AdminCredentialRejected("The current password is not right.")
+    with make_client(admin_service=service) as client:
+        csrf = _signed_in(client)
+        response = client.post(path, headers={"Origin": ORIGIN, "X-CSRF-Token": csrf}, json=body)
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "The current password is not right."
+
+
+def test_replacing_the_authenticator_shows_a_qr_code_then_new_recovery_codes() -> None:
+    service = FakeAdminAuthService()
+    service.step_up_state = True
+    with make_client(admin_service=service) as client:
+        csrf = _signed_in(client)
+        started = client.post(
+            "/v1/admin/auth/mfa/replace",
+            headers={"Origin": ORIGIN, "X-CSRF-Token": csrf},
+            json={},
+        )
+        confirmed = client.post(
+            "/v1/admin/auth/mfa/replace/confirm",
+            headers={"Origin": ORIGIN, "X-CSRF-Token": started.headers["x-csrf-token"]},
+            json={"code": "123456"},
+        )
+
+    assert started.json()["secret"] == "NEWSECRET"  # noqa: S105 - test fixture
+    assert started.json()["qr_svg"].startswith("<svg")
+    assert confirmed.json()["recovery_codes"] == ["v1.replaced-one"]
