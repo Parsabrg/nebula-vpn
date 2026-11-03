@@ -68,7 +68,7 @@ it("shows unsettled records even when the agent is unreachable", async () => {
       .map((cell) => cell.textContent),
   ).toEqual(["node-1", "2", "3", "1"]);
   const card = screen.getByRole("article", { name: "Server Node 1" });
-  expect(within(card).getByText("Agent unreachable")).toBeVisible();
+  expect(await within(card).findByText("Agent unreachable")).toBeVisible();
   expect(
     screen.getByText("6 records are waiting or need review."),
   ).toBeVisible();
@@ -131,7 +131,7 @@ it.each([false, null])(
     render(await ServerHealthPage(defaultProps));
     const card = screen.getByRole("article", { name: "Server Node 1" });
     // WireGuard's own evidence stands, whatever Xray's probe said.
-    expect(within(card).getByText("up · 0 peers")).toBeVisible();
+    expect(await within(card).findByText("up · 0 peers")).toBeVisible();
     expect(within(card).getByTitle("2026-10-02T00:00:00.000Z")).toBeVisible();
     expect(
       within(card).getByText(
@@ -151,15 +151,32 @@ it.each([false, null])(
   },
 );
 
-it("propagates Xray inventory failure instead of inventing an empty probe set", async () => {
+it("says the servers could not be checked instead of inventing an empty probe set", async () => {
   vi.mocked(apiFetch).mockImplementation(async (path) => {
     if (path === "/v1/admin/vpn-servers/xray-health")
       throw new Error("health unavailable");
+    if (path === "/v1/admin/vpn-servers")
+      return {
+        items: [
+          {
+            id: "s1",
+            code: "node-1",
+            display_name: "Node 1",
+            state: "active",
+            public_host: "vpn.example.test",
+            maximum_devices: 100,
+          },
+        ],
+      };
     return emptyHistory;
   });
-  await expect(ServerHealthPage(defaultProps)).rejects.toThrow(
-    "health unavailable",
-  );
+  // The page itself no longer waits for the agents: it shows, and the card
+  // says the live check failed.
+  render(await ServerHealthPage(defaultProps));
+  const card = screen.getByRole("article", { name: "Server Node 1" });
+  expect(
+    await within(card).findByText("Could not check right now"),
+  ).toBeVisible();
 });
 
 it("shows an empty inventory without claiming provisioning has not been implemented", async () => {
