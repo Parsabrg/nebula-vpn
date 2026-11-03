@@ -18,6 +18,10 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 - A refused token refresh (rate limit, server busy) no longer disconnects the VPN (#20).
 
 ### Servers
+- Faster control plane: calls to a server's agent reuse one kept-alive connection instead
+  of a new TLS handshake each (about a second each to Tehran), and the panel and API
+  are served over HTTP/2. Update the agents before the API (the agent keeps idle
+  connections 120 s, the API 60 s).
 - Admin panel: "All 20 protocols" instead of twenty chips, deleted accounts named as such in
   the audit log, and the user page's Grant all / Assign all show that they are working.
 - Admin panel polish: one protocol picker on Permissions, protocols as chips, a user's

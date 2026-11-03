@@ -1,5 +1,7 @@
 import asyncio
 import json
+import os
+import ssl
 from pathlib import Path
 from uuid import uuid4
 
@@ -559,5 +561,54 @@ def test_collect_usage_sends_the_correct_path_and_parses_the_samples() -> None:
         assert response.samples[0].rx_bytes == 1024
         assert response.sources_read == ["wireguard"]
         assert response.sources_failed == ["hysteria2"]
+
+    asyncio.run(scenario())
+
+
+def test_calls_to_one_agent_share_a_kept_alive_client(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from nebula_api.agent_client import client as module
+
+    monkeypatch.setattr(module, "_build_mtls_context", lambda *_files: ssl.create_default_context())
+    monkeypatch.setattr(module, "_shared_clients", {})
+    files = []
+    for name in ("cert.pem", "key.pem", "ca.pem"):
+        path = tmp_path / name
+        path.write_text("x")
+        files.append(str(path))
+    mtls = (files[0], files[1], files[2])
+
+    async def scenario() -> None:
+        first = module._shared_client("https://agent:9443", mtls, 5.0)
+        assert module._shared_client("https://agent:9443", mtls, 5.0) is first
+        assert first._transport._pool._keepalive_expiry == module.KEEPALIVE_EXPIRY_SECONDS  # type: ignore[attr-defined]
+        # A rotated certificate is picked up by the next call.
+        stat = os.stat(files[0])
+        os.utime(files[0], ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000_000))
+        second = module._shared_client("https://agent:9443", mtls, 5.0)
+        assert second is not first
+        await asyncio.sleep(0)
+        assert first.is_closed
+        await second.aclose()
+
+    asyncio.run(scenario())
+
+
+def test_leaving_an_agent_client_keeps_the_shared_connection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from nebula_api.agent_client import client as module
+
+    shared = httpx.AsyncClient()
+    monkeypatch.setattr(module, "_shared_client", lambda *_args: shared)
+    agent = module.AgentClient(agent_host="agent", agent_port=9443, settings=Settings(env="test"))
+    agent._mtls = ("c", "k", "a")
+
+    async def scenario() -> None:
+        async with agent:
+            pass
+        assert not shared.is_closed
+        await shared.aclose()
 
     asyncio.run(scenario())

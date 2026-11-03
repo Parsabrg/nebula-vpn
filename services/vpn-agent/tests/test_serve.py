@@ -33,3 +33,9 @@ def test_config_uses_the_configured_certificate_paths() -> None:
 def test_config_disables_access_logging() -> None:
     config = build_uvicorn_config(Settings(env="test"))
     assert config.access_log is False
+
+
+def test_keeps_idle_connections_longer_than_the_control_plane() -> None:
+    # The control plane drops its idle connection after 60 s; this end must
+    # not close first, or a reused connection fails mid-request.
+    assert build_uvicorn_config(Settings(env="test")).timeout_keep_alive == 120

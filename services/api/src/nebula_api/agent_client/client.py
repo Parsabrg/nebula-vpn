@@ -9,6 +9,8 @@ manager builds the SSL context from the configured cert/key/CA files
 TLS handshake to the agent stay lazy until the first request.
 """
 
+import asyncio
+import os
 import ssl
 from collections.abc import Callable
 from types import TracebackType
@@ -126,6 +128,50 @@ def _extract_detail(response: httpx.Response) -> str:
     return _GENERIC_DETAIL
 
 
+# Below the agent's own keep-alive (120 s, nebula_agent.serve), so this
+# end always drops an idle connection first and never sends on one the agent
+# has just closed.
+KEEPALIVE_EXPIRY_SECONDS = 60.0
+
+_shared_clients: dict[tuple[object, ...], httpx.AsyncClient] = {}
+_closing: set[asyncio.Task[None]] = set()
+
+
+def _shared_client(base_url: str, mtls: tuple[str, str, str], timeout: float) -> httpx.AsyncClient:
+    """One kept-alive client per agent, so calls reuse a TLS connection.
+
+    Keyed by the certificate files' modification times, so a rotated
+    certificate is picked up by the next call, and by the running event loop,
+    because a client cannot outlive the loop it was made in (the CLI runs a
+    loop per command).
+    """
+
+    loop = asyncio.get_running_loop()
+    stamps = tuple(os.stat(path).st_mtime_ns for path in mtls)
+    key = (id(loop), base_url, mtls, stamps, timeout)
+    client = _shared_clients.get(key)
+    if client is None or client.is_closed:
+        for old in [k for k in _shared_clients if k[1] == base_url and k != key]:
+            stale = _shared_clients.pop(old)
+            if old[0] == id(loop):
+                closing = loop.create_task(stale.aclose())
+                _closing.add(closing)
+                closing.add_done_callback(_closing.discard)
+        cert_file, key_file, ca_file = mtls
+        client = httpx.AsyncClient(
+            base_url=base_url,
+            verify=_build_mtls_context(cert_file, key_file, ca_file),
+            timeout=timeout,
+            limits=httpx.Limits(
+                max_connections=20,
+                max_keepalive_connections=4,
+                keepalive_expiry=KEEPALIVE_EXPIRY_SECONDS,
+            ),
+        )
+        _shared_clients[key] = client
+    return client
+
+
 class AgentClient:
     """One VPN agent's typed operation API, over mutual TLS."""
 
@@ -167,6 +213,7 @@ class AgentClient:
         self._timeout_seconds = settings.agent_request_timeout_seconds
         self._transport = transport
         self._client: httpx.AsyncClient | None = None
+        self._owns_client = False
 
     async def __aenter__(self) -> Self:
         base_url = _agent_base_url(self._agent_host, self._agent_port)
@@ -174,13 +221,10 @@ class AgentClient:
             self._client = httpx.AsyncClient(
                 base_url=base_url, transport=self._transport, timeout=self._timeout_seconds
             )
+            self._owns_client = True
         elif self._mtls is not None:
-            cert_file, key_file, ca_file = self._mtls
-            self._client = httpx.AsyncClient(
-                base_url=base_url,
-                verify=_build_mtls_context(cert_file, key_file, ca_file),
-                timeout=self._timeout_seconds,
-            )
+            self._client = _shared_client(base_url, self._mtls, self._timeout_seconds)
+            self._owns_client = False
         else:
             raise AgentClientError("agent mTLS client certificate/key/CA are not configured")
         return self
@@ -191,9 +235,9 @@ class AgentClient:
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        if self._client is not None:
+        if self._client is not None and self._owns_client:
             await self._client.aclose()
-            self._client = None
+        self._client = None
 
     async def _post(self, path: str, request: BaseModel) -> httpx.Response:
         if self._client is None:
