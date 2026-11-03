@@ -8,6 +8,9 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 ## Unreleased
 
 ### Apps
+- Disconnect is instant: Off as soon as the tunnel is down, the server told after. The
+  checks after a connect run together ("Protected" in about half the time), and the
+  main button presses in, ticks and ignores an accidental second tap.
 - Your links and subscriptions read `vmess://` links (WebSocket, XHTTP, gRPC or raw TCP,
   with or without TLS, and raw TCP dressed as HTTP), and VLESS Encryption links. A
   subscription that skipped 9 of its links now skips none of the kinds Xray can run.

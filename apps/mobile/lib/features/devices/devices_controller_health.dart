@@ -456,6 +456,7 @@ mixin _HealthChecks on _DevicesCore {
         return false;
       }
       if (await _tunnel.hasHandshake() != false) {
+        _mark('handshake seen');
         return true;
       }
       await Future<void>.delayed(step);
@@ -481,7 +482,17 @@ mixin _HealthChecks on _DevicesCore {
         return false;
       }
       final Stopwatch took = Stopwatch()..start();
-      final bool answered = await probe();
+      // Both requests at once, on two connections: a throttled route carries
+      // one and stalls the other, and asked one after the other they cost
+      // two round trips before "Protected" (3.2 s where the tunnel was up in
+      // 47 ms, 2026-11-03).
+      final Future<bool> first = probe();
+      final Future<bool> second = probe();
+      final bool answered = await first;
+      _mark(
+        'traffic probe ${tried + 1}: ${answered ? 'answered' : 'no answer'} '
+        'in ${took.elapsedMilliseconds} ms',
+      );
       if (!answered && took.elapsed >= _probeGaveUp) {
         // It waited out its whole deadline: nothing is there. Trying twice
         // more only adds the same wait again (a dead server sat at
@@ -497,7 +508,12 @@ mixin _HealthChecks on _DevicesCore {
         // 5 MB download got nothing, where working tunnels took 0.6-2.2 s
         // (on the phone, 2026-10-17) -- "Protected" over a tunnel that slow
         // is the screen saying connected while nothing loads.
-        return await probe().timeout(_confirmWithin, onTimeout: () => false);
+        final bool confirmed = await second.timeout(
+          _confirmWithin,
+          onTimeout: () => false,
+        );
+        _mark('traffic confirm: ${confirmed ? 'answered' : 'no answer'}');
+        return confirmed;
       }
     }
     return false;

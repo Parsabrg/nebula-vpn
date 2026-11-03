@@ -21,6 +21,10 @@ mixin _Connecting on _DevicesCore {
       return;
     }
 
+    _connectClock
+      ..reset()
+      ..start();
+    _mark('tap');
     final int attempt = ++_attemptCounter;
     _liveAttempt = attempt;
     final Future<void>? previous = _attemptRun;
@@ -335,7 +339,13 @@ mixin _Connecting on _DevicesCore {
     }
     state = state.copyWith(isSubmitting: true, actionErrorMessage: () => null);
     try {
+      final Future<void>? release = _peerRelease;
+      if (release != null) {
+        await release;
+        _peerRelease = null;
+      }
       final WireGuardKeyPair keyPair = await _currentOrNewKeyPair();
+      _mark('wireguard: key ready');
       final WireGuardPeerResult result = await runGuarded(
         ref,
         () => _repository.requestPeer(
@@ -345,6 +355,7 @@ mixin _Connecting on _DevicesCore {
           publicKey: keyPair.publicKeyBase64,
         ),
       );
+      _mark('wireguard: peer from server');
       if (!ref.mounted) {
         return;
       }
@@ -391,6 +402,7 @@ mixin _Connecting on _DevicesCore {
                 .blockWhenVpnDrops,
           );
           tunnelUp = true;
+          _mark('tunnel up');
         }
       } catch (error) {
         tunnelError = userFacingErrorMessage(error, ref.read(appTextProvider));
@@ -451,6 +463,7 @@ mixin _Connecting on _DevicesCore {
         actionErrorMessage: () => tunnelError,
       );
       if (tunnelUp) {
+        _mark('protected');
         _watchTunnel();
         await _recordConnection();
       }
@@ -638,6 +651,7 @@ mixin _Connecting on _DevicesCore {
             proxyOnly: proxyMode,
           );
           tunnelUp = true;
+          _mark('tunnel up');
           runningProxy = proxyMode ? localProxy : null;
         }
       } catch (error) {
@@ -775,6 +789,7 @@ mixin _Connecting on _DevicesCore {
         actionErrorMessage: () => tunnelError,
       );
       if (tunnelUp) {
+        _mark('protected');
         _watchTunnel();
         await _recordConnection();
         // What the Cloudflare address scan tests. Learned here, on every
@@ -903,10 +918,11 @@ mixin _Connecting on _DevicesCore {
     final String? protocolCode = state.activeProtocolCode;
     final bool isXray = protocolCode != wireguardProtocolCode;
 
+    _connectClock
+      ..reset()
+      ..start();
+    _mark('disconnect: tap');
     state = state.copyWith(isSubmitting: true, actionErrorMessage: () => null);
-    // Best-effort: tear down the local tunnel first so traffic stops
-    // flowing before a WireGuard peer is revoked, but a failure here must
-    // not block revoking it.
     if (state.tunnelEstablished) {
       try {
         if (isXray) {
@@ -914,71 +930,58 @@ mixin _Connecting on _DevicesCore {
         } else {
           await _tunnel.disconnect();
         }
-        // Removing the VPN interface makes Android briefly report no
-        // active network while it switches the default route back to
-        // WiFi/cellular -- confirmed live: the very next call (the revoke
-        // request below) would otherwise race that switch and fail with a
-        // spurious "you're offline", even though the underlying network
-        // was fine seconds later. This settling delay gives the OS the
-        // brief window it needs before the revoke call below runs.
-        await Future<void>.delayed(const Duration(milliseconds: 600));
         await _forgetConnection();
       } catch (_) {
-        // Fall through to the server-side revoke regardless.
+        // The server is still told below.
       }
     }
-    final String? profileCode = state.activeProfileCode;
-    if (isXray && profileCode == null) {
-      // An Xray connection should always have set activeProfileCode
-      // alongside activeProtocolCode -- treat this as already disconnected
-      // rather than sending a malformed revoke.
-      state = state.copyWith(
-        isSubmitting: false,
-        peer: () => null,
-        xrayClient: () => null,
-        connectedServerCode: () => null,
-        activeProtocolCode: () => null,
-        activeProfileCode: () => null,
-        tunnelEstablished: false,
-        tunnelEstablishedAt: () => null,
-        sanctionsOnly: false,
-        localProxy: () => null,
-      );
-      return;
+    // Off on screen as soon as traffic has stopped. Waiting for the server
+    // made a disconnect take as long as the link to the control plane, which
+    // on a slow day was seconds (2026-11-03): v2rayNG's is instant.
+    state = state.copyWith(
+      isSubmitting: false,
+      peer: () => null,
+      xrayClient: () => null,
+      connectedServerCode: () => null,
+      activeProtocolCode: () => null,
+      activeProfileCode: () => null,
+      tunnelEstablished: false,
+      tunnelEstablishedAt: () => null,
+      sanctionsOnly: false,
+      localProxy: () => null,
+    );
+    _mark('disconnect: off');
+    // An Xray credential is kept: the server hands the same one back on the
+    // next connect, and the saved copy is what an offline connect uses. It
+    // is revoked on sign-out, by an admin, or when the account's access or
+    // data runs out -- all on the server, for every credential the device
+    // holds. A WireGuard peer is given back, in the background; the next
+    // connect waits for that first (see [_peerRelease]), so a late release
+    // can never remove the peer it is given.
+    if (!isXray) {
+      _peerRelease = _releasePeer(deviceId: deviceId, serverCode: serverCode);
     }
+  }
+
+  /// Tells the server this device's WireGuard peer on [serverCode] is no
+  /// longer used. Best effort: a peer that stays behind is replaced by the
+  /// next connect's request, and the server's own sweeps remove it.
+  Future<void> _releasePeer({
+    required String deviceId,
+    required String serverCode,
+  }) async {
+    // Removing the VPN interface makes Android briefly report no network
+    // while it moves the default route back to Wi-Fi or mobile data; a
+    // request in that window fails with a spurious "offline".
+    await Future<void>.delayed(ref.read(peerReleaseDelayProvider));
     try {
-      // An Xray credential is kept: the server hands the same one back on the
-      // next connect, and the saved copy is what an offline connect uses. It
-      // is revoked on sign-out, by an admin, or when the account's access or
-      // data runs out -- all on the server, for every credential the device
-      // holds.
-      if (!isXray) {
-        await runGuarded(
-          ref,
-          () => _repository.revokePeer(
-            deviceId: deviceId,
-            serverCode: serverCode,
-          ),
-        );
-      }
-      state = state.copyWith(
-        isSubmitting: false,
-        peer: () => null,
-        xrayClient: () => null,
-        connectedServerCode: () => null,
-        activeProtocolCode: () => null,
-        activeProfileCode: () => null,
-        tunnelEstablished: false,
-        tunnelEstablishedAt: () => null,
-        sanctionsOnly: false,
-        localProxy: () => null,
+      await runGuarded(
+        ref,
+        () =>
+            _repository.revokePeer(deviceId: deviceId, serverCode: serverCode),
       );
-    } catch (error) {
-      state = state.copyWith(
-        isSubmitting: false,
-        actionErrorMessage: () =>
-            userFacingErrorMessage(error, ref.read(appTextProvider)),
-      );
+    } on Object {
+      // Nothing for the person to do about it.
     }
   }
 

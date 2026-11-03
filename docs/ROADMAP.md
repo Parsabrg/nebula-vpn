@@ -55,6 +55,7 @@ Updated in the same pull request as the work (section 92).
 
 | Section | Item | State |
 | --- | --- | --- |
+| Snappiness | App: disconnect Off in 2-3 ms (the WireGuard peer given back in the background, the next connect waiting for it); the two post-connect traffic checks in parallel (Protected 1.5-1.9 s from 3.2 s on a saved link); the main button presses in, ticks (haptic) and ignores a second tap within 400 ms; a connect timeline in the system log (`adb logcat -s flutter`) | Done; measured on the owner's phone (0.1.34 test build) |
 | 28, 53 | Imported links: `vmess://` (v2rayN's Base64 JSON: ws/xhttp/grpc/raw, TLS or none, raw with the HTTP header disguise; refused: aid > 0, ciphers other than auto, certificate checks off), VLESS Encryption (`mlkem768x25519plus`, raw, no TLS), a WebSocket's Host written when there is no TLS; the help text names vmess:// in all ten languages | Done; the owner's subscription went from 9 links skipped to 0 of the kinds Xray runs (140 connections) |
 | Snappiness | Panel clicks are felt: buttons, links and tiles press in (80 ms, none with reduced motion), and the clicked menu link shows a pending underline (Next.js `useLinkStatus`) until its page arrives | Done |
 | Snappiness | Server health shows at once and asks the agents afterwards (a server action, every 30 s), cards saying Checking… until the answer; Security waits at most 3 s for the agents. Seen live: Tehran's agent took 6 s to answer and clicks in the panel seemed dead meanwhile | Done |

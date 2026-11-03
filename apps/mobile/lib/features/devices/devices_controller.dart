@@ -98,6 +98,23 @@ ProtocolDelay _delayFrom(int? milliseconds) =>
 /// Fields and the shared plumbing; the four concerns are mixins in the
 /// part files, so each reads on its own.
 abstract class _DevicesCore extends Notifier<DevicesState> {
+  /// A WireGuard peer being given back after a disconnect, if one is.
+  Future<void>? _peerRelease;
+
+  /// For tests: done once a disconnect's background release has run.
+  @visibleForTesting
+  Future<void> get peerReleased => _peerRelease ?? Future<void>.value();
+
+  /// Time since Connect was pressed, for [_mark].
+  final Stopwatch _connectClock = Stopwatch();
+
+  /// One step of a connect in the system log, with the time since the
+  /// tap: `adb logcat -s flutter` shows where a slow connect spends it.
+  /// Names and timings only, never an address or a credential.
+  void _mark(String step) {
+    debugPrint('nebula-connect +${_connectClock.elapsedMilliseconds} ms $step');
+  }
+
   late ServerRepository _repository;
 
   late WireGuardKeyStore _keyStore;
@@ -772,6 +789,12 @@ final trafficCheckMeaningfulProvider = Provider<bool Function()>(
 /// DevicesController._checkAccess.
 final accessCheckIntervalProvider = Provider<Duration>(
   (Ref ref) => const Duration(seconds: 30),
+);
+
+/// How long after a WireGuard disconnect the server is told the peer is
+/// free: Android briefly has no network while it moves the default route back.
+final peerReleaseDelayProvider = Provider<Duration>(
+  (Ref ref) => const Duration(milliseconds: 600),
 );
 
 /// The step used while waiting for a stopped tunnel to be gone.
