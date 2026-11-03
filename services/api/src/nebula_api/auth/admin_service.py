@@ -41,6 +41,7 @@ from nebula_api.models.types import AdminRole, AdminState
 from nebula_api.passwords import (
     hash_password_async,
     password_hash_needs_rehash,
+    validate_password,
     verify_password_or_dummy_async,
 )
 from nebula_api.settings import Settings
@@ -91,6 +92,17 @@ class AdminPrincipal:
 @dataclass(frozen=True, slots=True)
 class MfaVerification:
     recovery_code_id: UUID | None = None
+
+
+class AdminCredentialRejected(Exception):
+    """A change to an admin's own password or authenticator refused, and why
+    (safe to show to that admin)."""
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class AdminAuthenticatorSetup:
+    base32_secret: str
+    provisioning_uri: str
 
 
 class AdminAuthService:
@@ -293,21 +305,11 @@ class AdminAuthService:
             ttl_seconds=self._settings.admin_preauth_ttl_minutes * 60,
         )
         encoded_seed = base64.b32encode(seed).decode("ascii").rstrip("=")
-        label = quote(f"Nebula:{email}", safe="")
-        query = urlencode(
-            {
-                "secret": encoded_seed,
-                "issuer": "Nebula",
-                "algorithm": "SHA1",
-                "digits": "6",
-                "period": "30",
-            }
-        )
         return AdminEnrollment(
             challenge=confirmation.token,
             expires_in_seconds=confirmation.expires_in_seconds,
             base32_secret=encoded_seed,
-            provisioning_uri=f"otpauth://totp/{label}?{query}",
+            provisioning_uri=_provisioning_uri(encoded_seed, email),
         )
 
     async def confirm_enrollment(
@@ -470,7 +472,10 @@ class AdminAuthService:
             raise AuthenticationRejected("Authentication was not accepted")
         async with self._session_factory() as session:
             admin = await self._active_admin(session, record.admin_id, for_update=False)
-        if admin is None:
+        if admin is None or (
+            admin.sessions_valid_after is not None
+            and record.created_at < admin.sessions_valid_after
+        ):
             await self._redis.revoke_admin_session(session_token)
             raise AuthenticationRejected("Authentication was not accepted")
         return AdminPrincipal(
@@ -643,6 +648,222 @@ class AdminAuthService:
             )
             await session.commit()
         return batch.take_plaintext_codes()
+
+    async def change_password(
+        self,
+        *,
+        session_token: str,
+        current_password: str,
+        new_password: str,
+        request_id: UUID,
+    ) -> IssuedAdminSession:
+        """Change the signed-in admin's password; every session of theirs ends.
+
+        Needs a fresh step-up and the current password. The caller gets a new
+        session in place of the one it used, so it stays signed in here.
+        """
+
+        principal = await self._stepped_up(session_token)
+        try:
+            validate_password(new_password)
+        except ValueError as error:
+            message = str(error)
+            raise AdminCredentialRejected(message[:1].upper() + message[1:] + ".") from None
+        await self._limit_own_change("admin-password-change", principal.admin_id)
+        now = self._now()
+        async with self._session_factory() as session:
+            admin = await self._active_admin(session, principal.admin_id, for_update=True)
+            if admin is None:
+                raise AuthenticationRejected("Authentication was not accepted")
+            if not await verify_password_or_dummy_async(admin.password_hash, current_password):
+                add_audit_event(
+                    session,
+                    actor_kind="admin",
+                    actor_id=admin.id,
+                    target_kind="admin",
+                    target_id=admin.id,
+                    event_code="password_changed",
+                    outcome="denied",
+                    request_id=request_id,
+                    reason_code="invalid_password",
+                )
+                await session.commit()
+                raise AdminCredentialRejected("The current password is not right.")
+            admin.password_hash = await hash_password_async(new_password)
+            admin.sessions_valid_after = now
+            add_audit_event(
+                session,
+                actor_kind="admin",
+                actor_id=admin.id,
+                target_kind="admin",
+                target_id=admin.id,
+                event_code="password_changed",
+                outcome="succeeded",
+                request_id=request_id,
+            )
+            await session.commit()
+        await self._redis.revoke_admin_session(session_token)
+        return await self._redis.issue_admin_session(
+            admin_id=principal.admin_id,
+            mfa_method=principal.mfa_method,
+            idle_ttl=timedelta(minutes=self._settings.admin_session_ttl_minutes),
+            absolute_ttl=timedelta(hours=self._settings.admin_session_absolute_ttl_hours),
+            stepped_up=True,
+        )
+
+    async def start_authenticator_replacement(
+        self, *, session_token: str, request_id: UUID
+    ) -> AdminAuthenticatorSetup:
+        """A new authenticator to set up. The current one keeps working until
+        the new one is confirmed, so a failed setup cannot lock anyone out."""
+
+        principal = await self._stepped_up(session_token)
+        now = self._now()
+        credential_id = uuid4()
+        seed = generate_mfa_seed()
+        envelope = encrypt_mfa_seed(
+            seed,
+            admin_id=principal.admin_id,
+            credential_id=credential_id,
+            key_version=self._settings.mfa_key_version,
+            key_ring=self._keys.mfa_encryption_keys,
+        )
+        async with self._session_factory() as session:
+            admin = await self._active_admin(session, principal.admin_id, for_update=True)
+            if admin is None:
+                raise AuthenticationRejected("Authentication was not accepted")
+            await session.execute(
+                update(AdminTotpCredential)
+                .where(
+                    AdminTotpCredential.admin_user_id == admin.id,
+                    AdminTotpCredential.state == "pending",
+                )
+                .values(
+                    state="revoked",
+                    secret_ciphertext=None,
+                    secret_nonce=None,
+                    key_version=None,
+                    revoked_at=now,
+                )
+            )
+            session.add(
+                AdminTotpCredential(
+                    id=credential_id,
+                    admin_user_id=admin.id,
+                    state="pending",
+                    secret_ciphertext=envelope.ciphertext,
+                    secret_nonce=envelope.nonce,
+                    key_version=envelope.key_version,
+                )
+            )
+            add_audit_event(
+                session,
+                actor_kind="admin",
+                actor_id=admin.id,
+                target_kind="admin_totp_credential",
+                target_id=credential_id,
+                event_code="admin_mfa_changed",
+                outcome="succeeded",
+                request_id=request_id,
+                reason_code="replacement_started",
+            )
+            await session.commit()
+            email = admin.email
+        encoded_seed = base64.b32encode(seed).decode("ascii").rstrip("=")
+        return AdminAuthenticatorSetup(
+            base32_secret=encoded_seed,
+            provisioning_uri=_provisioning_uri(encoded_seed, email),
+        )
+
+    async def confirm_authenticator_replacement(
+        self, *, session_token: str, code: str, request_id: UUID
+    ) -> tuple[str, ...]:
+        """Switch to the new authenticator once it gives a right code.
+
+        The old one and its recovery codes stop working; new recovery codes
+        are returned, once.
+        """
+
+        principal = await self._stepped_up(session_token)
+        await self._limit_own_change("admin-mfa-replace", principal.admin_id)
+        now = self._now()
+        async with self._session_factory() as session:
+            pending = await session.scalar(
+                select(AdminTotpCredential)
+                .where(
+                    AdminTotpCredential.admin_user_id == principal.admin_id,
+                    AdminTotpCredential.state == "pending",
+                )
+                .with_for_update()
+            )
+            if pending is None:
+                raise AdminCredentialRejected("Start the new authenticator setup again.")
+            accepted_step = self._verify_totp_credential(pending, principal.admin_id, code)
+            if accepted_step is None:
+                raise AdminCredentialRejected(
+                    "That code is not from the new authenticator, or it has expired."
+                )
+            old = await self._active_credential(session, principal.admin_id, for_update=True)
+            if old is not None:
+                await session.execute(
+                    update(AdminMfaRecoveryCode)
+                    .where(
+                        AdminMfaRecoveryCode.admin_totp_credential_id == old.id,
+                        AdminMfaRecoveryCode.state == "active",
+                    )
+                    .values(state="revoked", revoked_at=now)
+                )
+                old.state = "revoked"
+                old.secret_ciphertext = None
+                old.secret_nonce = None
+                old.key_version = None
+                old.revoked_at = now
+                # One active credential per admin is a unique index.
+                await session.flush()
+            pending.state = "active"
+            pending.confirmed_at = now
+            pending.last_accepted_timestep = accepted_step
+            batch = generate_recovery_codes(
+                self._keys.token_peppers,
+                key_version=self._settings.token_key_version,
+            )
+            session.add_all(
+                AdminMfaRecoveryCode(
+                    id=uuid4(),
+                    admin_totp_credential_id=pending.id,
+                    code_digest=item.value,
+                    key_version=item.key_version,
+                    state="active",
+                )
+                for item in batch.digests
+            )
+            add_audit_event(
+                session,
+                actor_kind="admin",
+                actor_id=principal.admin_id,
+                target_kind="admin_totp_credential",
+                target_id=pending.id,
+                event_code="admin_mfa_changed",
+                outcome="succeeded",
+                request_id=request_id,
+                reason_code="replacement_confirmed",
+            )
+            await session.commit()
+        return batch.take_plaintext_codes()
+
+    async def _stepped_up(self, session_token: str) -> AdminPrincipal:
+        principal = await self.principal(session_token)
+        if not principal.step_up:
+            raise AuthenticationRejected("Authentication was not accepted")
+        return principal
+
+    async def _limit_own_change(self, bucket: str, admin_id: UUID) -> None:
+        if not await self._redis.rate_limit(
+            (RateBucket(bucket, str(admin_id)),),
+            limit=self._settings.admin_mfa_rate_limit,
+            window_seconds=self._settings.auth_rate_window_seconds,
+        ):
+            raise AuthenticationRateLimited(self._settings.auth_rate_window_seconds)
 
     async def _consume_mfa_challenge(
         self,
@@ -839,3 +1060,17 @@ def _is_step_up_fresh(record: AdminSessionRecord, now: datetime, lifetime: timed
 
 # Avoid a runtime import cycle while retaining the precise return type above.
 from nebula_api.auth.redis_state import ConsumedPreAuth  # noqa: E402
+
+
+def _provisioning_uri(encoded_seed: str, email: str) -> str:
+    label = quote(f"Nebula:{email}", safe="")
+    query = urlencode(
+        {
+            "secret": encoded_seed,
+            "issuer": "Nebula",
+            "algorithm": "SHA1",
+            "digits": "6",
+            "period": "30",
+        }
+    )
+    return f"otpauth://totp/{label}?{query}"

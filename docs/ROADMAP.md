@@ -56,6 +56,7 @@ Updated in the same pull request as the work (section 92).
 
 | Section | Item | State |
 | --- | --- | --- |
+| Panel sweep | Admin's own sign-in: `POST /v1/admin/auth/password` (step-up and current password; `admin_users.sessions_valid_after`, migration 0020, ends every older session; the caller gets a new one) and `POST /v1/admin/auth/mfa/replace` + `/confirm` (step-up; new authenticator pending until a right code, then the old one and its recovery codes are revoked and new codes returned); both on Security | Done; in the local stack: password changed after a code, old password refused, new authenticator confirmed (old code refused first), signed in with both |
 | Panel sweep | Security's Reconciliation row asks the agents live and warns "Not checking <server>: agent unreachable" instead of "Clean" from records alone | Done |
 | Panel sweep | Permissions one row per user: the list API orders by user then protocol; the page groups a user's grants (protocols in use, count revoked or expired), 200 grants a page | Done |
 | Panel sweep | Server health reloads the reconciliation history after a run (`router.refresh()`), instead of asking for a page reload | Done |

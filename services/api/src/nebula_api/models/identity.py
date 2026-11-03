@@ -149,6 +149,8 @@ class AdminUser(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         server_default=AdminState.ACTIVE.value,
     )
     disabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Sessions created before this are refused (a password change sets it).
+    sessions_valid_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     def __repr__(self) -> str:
         return f"<AdminUser id={self.id!s} role={self.role.value} state={self.state.value}>"

@@ -138,3 +138,18 @@ class AdminEnrollmentCompleteResponse(AdminSessionResponse):
 class AdminStepUpRequest(AuthModel):
     code: SecretStr = Field(min_length=6, max_length=128)
     method: Literal["totp", "recovery"] = "totp"
+
+
+class AdminPasswordChangeRequest(AuthModel):
+    current_password: SecretStr = Field(min_length=1, max_length=1024)
+    new_password: SecretStr = Field(min_length=1, max_length=1024)
+
+
+class AdminAuthenticatorSetupResponse(AuthModel):
+    secret: str
+    provisioning_uri: str
+    qr_svg: str
+
+
+class AdminAuthenticatorConfirmRequest(AuthModel):
+    code: SecretStr = Field(min_length=6, max_length=6)

@@ -6,7 +6,11 @@ from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 
-from nebula_api.auth.admin_service import AdminAuthentication, AdminAuthService
+from nebula_api.auth.admin_service import (
+    AdminAuthentication,
+    AdminAuthService,
+    AdminCredentialRejected,
+)
 from nebula_api.auth.http import (
     apply_auth_response_headers,
     client_network_prefix,
@@ -17,12 +21,15 @@ from nebula_api.auth.http import (
 )
 from nebula_api.auth.redis_state import AuthStateUnavailable
 from nebula_api.auth.schemas import (
+    AdminAuthenticatorConfirmRequest,
+    AdminAuthenticatorSetupResponse,
     AdminChallengeResponse,
     AdminEnrollmentCompleteResponse,
     AdminEnrollmentConfirmRequest,
     AdminEnrollmentRequest,
     AdminEnrollmentResponse,
     AdminMfaRequest,
+    AdminPasswordChangeRequest,
     AdminPasswordRequest,
     AdminRecoveryCodesResponse,
     AdminSessionResponse,
@@ -320,4 +327,104 @@ async def rotate_recovery_codes(
         path="/",
     )
     response.headers["X-CSRF-Token"] = replacement_csrf
+    return AdminRecoveryCodesResponse(recovery_codes=list(codes))
+
+
+async def _protect_stepped_up_mutation(request: Request) -> tuple[str, str]:
+    """As _protect_mutation, and 403 step_up_required without a fresh code,
+    which the panel answers by asking for one (not by signing out)."""
+
+    session_token, replacement = await _protect_mutation(request)
+    if not (await _service(request).principal(session_token)).step_up:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="step_up_required")
+    return session_token, replacement
+
+
+def _set_csrf_cookie(response: Response, request: Request, csrf: str) -> None:
+    settings = _settings(request)
+    response.set_cookie(
+        settings.admin_csrf_cookie_name,
+        csrf,
+        max_age=settings.admin_session_absolute_ttl_hours * 3_600,
+        secure=settings.admin_cookie_secure,
+        httponly=False,
+        samesite="strict",
+        path="/",
+    )
+    response.headers["X-CSRF-Token"] = csrf
+
+
+@router.post("/password", response_model=AdminSessionResponse)
+async def change_own_password(
+    payload: AdminPasswordChangeRequest,
+    request: Request,
+    response: Response,
+) -> AdminSessionResponse:
+    """Change your own password; your other sessions end, this one is replaced."""
+
+    try:
+        session_token, _replacement = await _protect_stepped_up_mutation(request)
+        issued = await _service(request).change_password(
+            session_token=session_token,
+            current_password=payload.current_password.get_secret_value(),
+            new_password=payload.new_password.get_secret_value(),
+            request_id=uuid4(),
+        )
+        principal = await _service(request).principal(issued.session_token)
+    except AdminCredentialRejected as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from None
+    except (AuthenticationRejected, AuthStateUnavailable) as error:
+        _raise_auth_error(error)
+    discard_admin_csrf_replacement(request)
+    _set_auth_cookies(response, AdminAuthentication(session=issued), _settings(request))
+    return AdminSessionResponse(
+        admin_id=principal.admin_id,
+        role=principal.role,
+        csrf_token=issued.csrf_token,
+        step_up=True,
+    )
+
+
+@router.post("/mfa/replace", response_model=AdminAuthenticatorSetupResponse)
+async def start_authenticator_replacement(
+    request: Request,
+    response: Response,
+) -> AdminAuthenticatorSetupResponse:
+    """A new authenticator to scan; the current one works until it is confirmed."""
+
+    try:
+        session_token, replacement = await _protect_stepped_up_mutation(request)
+        setup = await _service(request).start_authenticator_replacement(
+            session_token=session_token, request_id=uuid4()
+        )
+    except (AuthenticationRejected, AuthStateUnavailable) as error:
+        _raise_auth_error(error)
+    _set_csrf_cookie(response, request, replacement)
+    return AdminAuthenticatorSetupResponse(
+        secret=setup.base32_secret,
+        provisioning_uri=setup.provisioning_uri,
+        qr_svg=qr_svg(setup.provisioning_uri),
+    )
+
+
+@router.post("/mfa/replace/confirm", response_model=AdminRecoveryCodesResponse)
+async def confirm_authenticator_replacement(
+    payload: AdminAuthenticatorConfirmRequest,
+    request: Request,
+    response: Response,
+) -> AdminRecoveryCodesResponse:
+    """Switch to the new authenticator; returns its new recovery codes, once."""
+
+    try:
+        session_token, replacement = await _protect_stepped_up_mutation(request)
+        codes = await _service(request).confirm_authenticator_replacement(
+            session_token=session_token,
+            code=payload.code.get_secret_value(),
+            request_id=uuid4(),
+        )
+    except AdminCredentialRejected as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from None
+    except (AuthenticationRejected, AuthStateUnavailable) as error:
+        _raise_auth_error(error)
+    _set_csrf_cookie(response, request, replacement)
     return AdminRecoveryCodesResponse(recovery_codes=list(codes))

@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { DataTable } from "@/components/data-table";
 import { RecoveryCodesRotate } from "@/components/recovery-codes-rotate";
+import {
+  ChangeOwnPassword,
+  ReplaceOwnAuthenticator,
+} from "@/components/own-sign-in";
 import { getSecurityStatus, type CheckStatus } from "@/lib/security";
 
 export const metadata: Metadata = {
@@ -61,6 +65,16 @@ export default async function SecurityPage() {
       <section className="status-card" aria-labelledby="recovery-title">
         <h2 id="recovery-title">Your recovery codes</h2>
         <RecoveryCodesRotate />
+      </section>
+
+      <section className="status-card" aria-labelledby="own-password-title">
+        <h2 id="own-password-title">Your password</h2>
+        <ChangeOwnPassword />
+      </section>
+
+      <section className="status-card" aria-labelledby="own-mfa-title">
+        <h2 id="own-mfa-title">Your authenticator</h2>
+        <ReplaceOwnAuthenticator />
       </section>
     </>
   );
