@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 
 const navigation = [
@@ -36,9 +36,17 @@ export function NavLinks() {
             aria-current={isCurrent(pathname, item.href) ? "page" : undefined}
           >
             {item.label}
+            <Pending />
           </Link>
         </li>
       ))}
     </ul>
   );
+}
+
+/** Shown on the link just clicked while its page loads: a slow page then
+ * reads as "on its way", never as a click that did nothing. */
+function Pending() {
+  const { pending } = useLinkStatus();
+  return pending ? <span className="nav-pending" aria-hidden="true" /> : null;
 }
