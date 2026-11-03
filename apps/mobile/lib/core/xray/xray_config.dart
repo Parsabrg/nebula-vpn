@@ -681,8 +681,27 @@ Map<String, dynamic> _vlessStreamSettings(XrayClientResult result) {
         'serviceName': result.serviceName,
       };
     case 'websocket':
-      streamSettings['wsSettings'] = <String, dynamic>{'path': result.path};
-    // 'raw' needs no per-transport settings block at all.
+      streamSettings['wsSettings'] = <String, dynamic>{
+        'path': result.path,
+        // Without TLS the Host header is the only name the server sees:
+        // an imported link reaching a fronted server by its address.
+        if (result.transportSecurity == 'none' &&
+            result.sni != result.serverAddress)
+          'host': result.sni,
+      };
+    case 'raw' when result.httpDisguise:
+      streamSettings['tcpSettings'] = <String, dynamic>{
+        'header': <String, dynamic>{
+          'type': 'http',
+          'request': <String, dynamic>{
+            'path': <String>[result.path ?? '/'],
+            'headers': <String, dynamic>{
+              'Host': <String>[result.sni],
+            },
+          },
+        },
+      };
+    // Plain 'raw' needs no per-transport settings block at all.
   }
   if (result.transportSecurity == 'reality') {
     // REALITY presents another site's certificate and proves the server by

@@ -62,6 +62,7 @@ Map<String, dynamic> _encode(XrayClientResult c) => <String, dynamic>{
   'reality_public_key': c.realityPublicKey,
   'reality_short_id': c.realityShortId,
   'fingerprint': c.fingerprint,
+  if (c.httpDisguise) 'httpDisguise': true,
 };
 
 XrayClientResult _decode(Map<String, dynamic> json) => XrayClientResult(
@@ -87,6 +88,7 @@ XrayClientResult _decode(Map<String, dynamic> json) => XrayClientResult(
   realityPublicKey: json['reality_public_key'] as String?,
   realityShortId: json['reality_short_id'] as String?,
   fingerprint: json['fingerprint'] as String?,
+  httpDisguise: json['httpDisguise'] == true,
 );
 
 class FlutterSecureXrayCredentialStore implements XrayCredentialStore {

@@ -132,6 +132,7 @@ class XrayClientResult {
     this.realityPublicKey,
     this.realityShortId,
     this.fingerprint,
+    this.httpDisguise = false,
   });
 
   /// `vless` (most Nebula profiles), `shadowsocks` or `vmess` (the direct
@@ -158,6 +159,11 @@ class XrayClientResult {
 
   /// The TLS fingerprint a link asks for; Chrome's when null.
   final String? fingerprint;
+
+  /// Raw TCP dressed as plain HTTP requests (Xray's `tcpSettings`
+  /// header `http`), to [sni] as the Host and [path]: a VMess link's
+  /// `type: http`.
+  final bool httpDisguise;
 
   final String clientId;
   final String uuid;

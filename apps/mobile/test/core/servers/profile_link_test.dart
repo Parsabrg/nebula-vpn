@@ -267,4 +267,96 @@ void main() {
       isNull,
     );
   });
+
+  group('vmess', () {
+    String vmess(Map<String, Object> fields) =>
+        'vmess://${base64.encode(utf8.encode(jsonEncode(fields)))}';
+    const Map<String, Object> wsPlain = <String, Object>{
+      'v': '2',
+      'ps': 'Tehran-VMess-WS-CF-DE',
+      'add': '94.183.192.216',
+      'port': '8880',
+      'id': '0f1e2d3c-4b5a-4968-8776-655443322110',
+      'aid': '0',
+      'scy': 'auto',
+      'net': 'ws',
+      'type': 'none',
+      'host': '',
+      'path': '/8ce76fa2',
+      'tls': '',
+    };
+
+    test('a WebSocket link without TLS reads, under its own name', () {
+      final ImportedProfile? profile = parseLink(vmess(wsPlain));
+      expect(profile?.name, 'Tehran-VMess-WS-CF-DE');
+      expect(profile?.client.protocol, 'vmess');
+      expect(profile?.client.transport, 'websocket');
+      expect(profile?.client.transportSecurity, 'none');
+      expect(profile?.client.port, 8880);
+      expect(profile?.client.path, '/8ce76fa2');
+    });
+
+    test('a link with TLS keeps its name check', () {
+      final ImportedProfile? profile = parseLink(
+        vmess(<String, Object>{
+          ...wsPlain,
+          'tls': 'tls',
+          'host': 'cdn.example.com',
+          'sni': 'cdn.example.com',
+        }),
+      );
+      expect(profile?.client.transportSecurity, 'tls');
+      expect(profile?.client.sni, 'cdn.example.com');
+    });
+
+    test('raw TCP dressed as HTTP reads, and is written so', () {
+      final ImportedProfile? profile = parseLink(
+        vmess(<String, Object>{
+          ...wsPlain,
+          'net': 'tcp',
+          'type': 'http',
+          'host': 'www.bing.com',
+          'path': '/',
+        }),
+      );
+      expect(profile?.client.httpDisguise, isTrue);
+      expect(profile?.client.sni, 'www.bing.com');
+      final String config = renderXrayClientConfigJson(
+        profile!.client,
+        localProxy: const LocalProxy(port: 1, username: 'u', password: 'p'),
+      );
+      expect(config, contains('"type":"http"'));
+      expect(config, contains('"Host":["www.bing.com"]'));
+    });
+
+    test('what the app cannot do is refused', () {
+      for (final Map<String, Object> bad in <Map<String, Object>>[
+        <String, Object>{...wsPlain, 'aid': '64'},
+        <String, Object>{...wsPlain, 'scy': 'none'},
+        <String, Object>{...wsPlain, 'net': 'tcp', 'type': 'srtp'},
+        <String, Object>{...wsPlain, 'tls': 'tls', 'allowInsecure': '1'},
+        <String, Object>{...wsPlain, 'id': 'not-a-uuid'},
+      ]) {
+        expect(parseLink(vmess(bad)), isNull, reason: '$bad');
+      }
+      expect(parseLink('vmess://not base64 at all'), isNull);
+    });
+  });
+
+  test('a VLESS Encryption link reads, with no TLS around it', () {
+    final ImportedProfile? profile = parseLink(
+      'vless://0f1e2d3c-4b5a-4968-8776-655443322110@203.0.113.7:8461'
+      '?type=tcp&security=none&encryption=mlkem768x25519plus.native.0rtt.abc'
+      '#Enc',
+    );
+    expect(profile?.client.transportSecurity, 'none');
+    expect(profile?.client.encryption, startsWith('mlkem768x25519plus.'));
+    expect(
+      parseLink(
+        'vless://0f1e2d3c-4b5a-4968-8776-655443322110@203.0.113.7:8461'
+        '?type=ws&security=none&encryption=mlkem768x25519plus.x#Enc',
+      ),
+      isNull,
+    );
+  });
 }

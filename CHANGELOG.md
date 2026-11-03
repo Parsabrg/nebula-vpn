@@ -8,6 +8,9 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 ## Unreleased
 
 ### Apps
+- Your links and subscriptions read `vmess://` links (WebSocket, XHTTP, gRPC or raw TCP,
+  with or without TLS, and raw TCP dressed as HTTP), and VLESS Encryption links. A
+  subscription that skipped 9 of its links now skips none of the kinds Xray can run.
 - Account: change your password, or delete your account. Deletion removes everything
   that names you, and your VPN access on every server; see docs/privacy.md.
 - Releases are built on GitHub from the release tag, with build attestations
