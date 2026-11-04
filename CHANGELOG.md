@@ -23,6 +23,9 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   ask for the code. Needs a current browser.
 
 ### Servers
+- Backup routes per account: with `NEBULA_API_ROUTES_PER_ACCOUNT=k` each account is told
+  only k of the API's routes (a stable share that keeps the route it asked through), so
+  one leaked account does not give away every route. Unset, everyone gets all, as before.
 - Hysteria2 port hopping: new installs also answer Hysteria2 on UDP 20000-50000,
   and the apps move between those ports every 30 s, so one blocked port does not end
   the connection. Existing servers are unchanged until their owner turns it on
