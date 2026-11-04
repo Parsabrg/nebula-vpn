@@ -102,7 +102,7 @@ jobs:
               --resolve $host.$NEBULA_DOMAIN:443:127.0.0.1 https://$host.$NEBULA_DOMAIN/v1/routes/)
             echo "$host on 443 answered $code"; [ "$code" != 000 ]
           done
-          grep -q '^NEBULA_XRAY_HYSTERIA_PORT=443$' /etc/nebula/agent.env
+          sudo grep -q '^NEBULA_XRAY_HYSTERIA_PORT=443$' /etc/nebula/agent.env
           # Metrics on the host's loopback only.
           curl -fsS http://127.0.0.1:8000/metrics | grep -q nebula_api_requests_total
           curl -fsS http://127.0.0.1:9464/metrics | grep -q nebula_agent_requests_total
