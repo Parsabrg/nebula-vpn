@@ -423,7 +423,11 @@ setenv NEBULA_EMAIL_FROM "$NEBULA_EMAIL_FROM"
 # The tunnels' DNS address, which each server's agent redirects to its own
 # resolver; the API hands it out only where that resolver answers. A value
 # already here (even empty) is kept.
-grep -q '^NEBULA_XRAY_CLIENT_DNS=' $ETC/compose.env || setenv NEBULA_XRAY_CLIENT_DNS 198.18.0.53
+if grep -q '^NEBULA_XRAY_CLIENT_DNS=' $ETC/compose.env; then
+  setenv NEBULA_XRAY_CLIENT_DNS "$(sed -n 's/^NEBULA_XRAY_CLIENT_DNS=//p' $ETC/compose.env | tail -1)"
+else
+  setenv NEBULA_XRAY_CLIENT_DNS 198.18.0.53
+fi
 # What the apps call this server; every install was "Nebula" before.
 setenv NEBULA_DEPLOYMENT_NAME "$NEBULA_DOMAIN"
 case $NEBULA_EMAIL_MODE in
