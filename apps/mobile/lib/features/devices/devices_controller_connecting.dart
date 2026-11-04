@@ -723,6 +723,28 @@ mixin _Connecting on _DevicesCore {
       if (!ref.mounted) {
         return;
       }
+      // A saved credential the server has revoked can fail the start itself:
+      // Hysteria2 logs in as it starts, so the tunnel never comes up and the
+      // check below never runs. Asked here too, or the phone retried the dead
+      // credential on every connect (2026-11-04).
+      if (!tunnelUp &&
+          usedSaved &&
+          !_cancelled(attempt) &&
+          await _serverChangedCredential(
+            deviceId: deviceId,
+            serverCode: serverCode,
+            profileCode: protocolProfileCode,
+            saved: result,
+          ) &&
+          !_cancelled(attempt)) {
+        await _connectXray(
+          attempt: attempt,
+          deviceId: deviceId,
+          serverCode: serverCode,
+          protocolProfileCode: protocolProfileCode,
+        );
+        return;
+      }
       // A local proxy carries only what is sent to it, so there is nothing
       // to check from here; a tunnel carries this app's requests too.
       if (!_cancelled(attempt) &&
