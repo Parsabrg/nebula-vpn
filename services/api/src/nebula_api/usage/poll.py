@@ -38,6 +38,8 @@ class UsagePollSummary:
     sources_failed: list[str]
     # Servers whose agent reached its relay's exit (the "relay" source).
     relay_checked: set[str] = field(default_factory=set)
+    # Servers whose resolver answered (the "dns" source).
+    resolver_checked: set[str] = field(default_factory=set)
 
     @property
     def had_problems(self) -> bool:
@@ -63,6 +65,7 @@ async def run_usage_poll(
     collected: list[UsageSample] = []
     sources_failed: list[str] = []
     relay_checked: set[str] = set()
+    resolver_checked: set[str] = set()
 
     for server in servers:
         client_factory = agent_client_builder
@@ -84,6 +87,8 @@ async def run_usage_poll(
         collected.extend(reading.samples)
         if "relay" in reading.sources_read:
             relay_checked.add(server.code)
+        if "dns" in reading.sources_read:
+            resolver_checked.add(server.code)
 
     active = await usage.record(collected)
     return UsagePollSummary(
@@ -93,4 +98,5 @@ async def run_usage_poll(
         credentials_active=active,
         sources_failed=sources_failed,
         relay_checked=relay_checked,
+        resolver_checked=resolver_checked,
     )

@@ -23,6 +23,10 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   ask for the code. Needs a current browser.
 
 ### Servers
+- Every server gets its own resolver for the tunnels' DNS: `install.sh --join` sets up
+  `dnsproxy` (DNS over HTTPS by address, no query log), and the API hands out the
+  resolver address only for servers whose agent reports it answering. Joined servers
+  had every lookup through them blackholed.
 - A relay lists its protocols in the order `NEBULA_RELAYS` gives them, so the fastest
   through it comes first.
 - DNS inside tunnels works again on servers with Xray 26.10: its default policy blocked

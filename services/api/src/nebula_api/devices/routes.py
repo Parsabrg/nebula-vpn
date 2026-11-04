@@ -25,7 +25,7 @@ from nebula_api.devices.schemas import (
 from nebula_api.devices.schemas import (
     RevokeXrayClientRequest as RevokeXrayClientHttpRequest,
 )
-from nebula_api.dns_profiles import resolvers_for
+from nebula_api.dns_profiles import deployment_dns_for, resolvers_for
 from nebula_api.provisioning.service import (
     OperationInProgress,
     ProvisioningAmbiguous,
@@ -243,16 +243,18 @@ async def request_xray_client(
     profile = await _service(request).dns_profile_for(
         user_id=principal.user_id, device_id=device_id
     )
+    # The exit's resolver: a relay forwards to it.
+    own_dns = await deployment_dns_for(request, relay.exit if relay else payload.server_code)
     if relay is not None and relay_port is not None:
         # Through the relay: its address and port; TLS still names the exit,
         # and hopping is the exit's own port range, not forwarded.
-        return _to_xray_response(
-            result, None, resolvers_for(profile, settings.xray_client_dns)
-        ).model_copy(update={"server_address": relay.host, "port": relay_port, "port_hop": None})
+        return _to_xray_response(result, None, resolvers_for(profile, own_dns)).model_copy(
+            update={"server_address": relay.host, "port": relay_port, "port_hop": None}
+        )
     return _to_xray_response(
         result,
         cdn_route_for(request) if settings.behind_cdn(payload.server_code) else None,
-        resolvers_for(profile, settings.xray_client_dns),
+        resolvers_for(profile, own_dns),
     )
 
 

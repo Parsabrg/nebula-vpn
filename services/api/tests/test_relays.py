@@ -25,6 +25,7 @@ from test_servers_routes import FakeServerDiscoveryService
 from nebula_api.auth.http import install_auth_http_safeguards
 from nebula_api.auth.user_service import UserAuthService
 from nebula_api.devices.routes import router as devices_router
+from nebula_api.dns_profiles import RESOLVER_UP_SECONDS, ResolverHealth
 from nebula_api.provisioning.service import ProvisioningService, RequestXrayClientResult
 from nebula_api.relays import RELAY_UP_SECONDS, RelayHealth, parse_relays, with_relay_codes
 from nebula_api.servers.routes import router as servers_router
@@ -288,3 +289,12 @@ def test_a_device_on_the_exit_also_holds_its_relays() -> None:
     relays = parse_relays(RELAYS)
     assert with_relay_codes(["de-1", "thr"], relays) == ["de-1", "de-via-thr", "thr"]
     assert with_relay_codes(["thr"], relays) == ["thr"]
+
+
+def test_resolver_health_marks_only_servers_that_answered() -> None:
+    redis = FakeRedis()
+    health = ResolverHealth(redis)
+    asyncio.run(health.record({"de-1"}))
+    assert asyncio.run(health.is_up("de-1")) is True
+    assert asyncio.run(health.is_up("thr")) is False
+    assert redis.values["nebula:resolver-up:de-1"][1] == RESOLVER_UP_SECONDS

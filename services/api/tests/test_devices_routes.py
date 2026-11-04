@@ -432,6 +432,7 @@ def _cdn_client(
     front_hosts: str = "",
     xray_client_dns: str = "",
     cdn_servers: str = "",
+    resolver_up: bool = True,
 ) -> TestClient:
     settings = Settings(
         env="test",
@@ -444,9 +445,31 @@ def _cdn_client(
     app.state.settings = settings
     app.state.user_auth_service = cast(UserAuthService, FakeUserAuthService())
     app.state.provisioning_service = cast(ProvisioningService, provisioning_service)
+    app.state.resolver_health = FakeResolverHealth({"vps-1"} if resolver_up else set())
     install_auth_http_safeguards(app, settings)
     app.include_router(router)
     return TestClient(app)
+
+
+class FakeResolverHealth:
+    def __init__(self, up: set[str]) -> None:
+        self.up = up
+
+    async def is_up(self, server_code: str) -> bool:
+        return server_code in self.up
+
+
+def test_a_server_whose_resolver_does_not_answer_hands_out_none() -> None:
+    # A joined server without its own resolver blackholed every lookup sent
+    # to the redirected address (Tehran, 2026-11-04): the app keeps its own.
+    with _cdn_client(
+        FakeProvisioningService(), xray_client_dns="198.18.0.53", resolver_up=False
+    ) as client:
+        response = client.post(
+            f"/v1/devices/{DEVICE_ID}/xray-client", json=VALID_XRAY_BODY, headers=AUTH_HEADERS
+        )
+
+    assert response.json()["client_dns"] == []
 
 
 def test_request_xray_client_through_the_cdn_points_the_tunnel_through_it() -> None:

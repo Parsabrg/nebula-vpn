@@ -7,6 +7,29 @@ app), keeps no query log and no statistics, and asks its upstreams over
 DNS-over-HTTPS, so the hosting network sees neither the names nor the
 answers.
 
+## Every server has one
+
+`install.sh` sets it up on every server, since 2026-11-04:
+
+- **Control plane:** AdGuard Home in the compose stack (`dns`), from
+  `AdGuardHome.yaml` when the server has no config of its own yet.
+- **Joined server (`--join`):** `dnsproxy` as `nebula-dns.service`, same
+  address (127.0.0.1:5354), upstreams in `/etc/nebula/dns.env` (kept when
+  present). No query log.
+- Both: the agent's `NEBULA_XRAY_DNS_REDIRECT` (kept when set) and the
+  firewall exception below.
+
+Upstreams are DNS over HTTPS **named by address** (`https://1.1.1.1/dns-query`
+and others): finding an upstream by name takes a plain lookup first, and
+inside Iran plain DNS is forged (from Tehran, `www.youtube.com` came back as
+10.10.34.35). From Tehran only 1.1.1.1 answered over HTTPS on 2026-11-04;
+`dnsproxy` asks all of them at once and takes the first answer.
+
+The API hands out the address only for servers whose agent last reported its
+resolver answering (the usage source `dns`); elsewhere `client_dns` is empty
+and the app keeps its own resolvers. Before this, a joined server without a
+resolver blackholed every lookup through it.
+
 ## How a lookup gets here
 
 1. The API hands every Xray client `client_dns: ["198.18.0.53"]`
