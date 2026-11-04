@@ -89,13 +89,19 @@ def with_relays(
         maintenance = exit_entry.maintenance or relay.code not in up
         if maintenance and not include_maintenance:
             continue
-        profiles = [
-            # transport=None: never moved onto the CDN route's port.
-            replace(profile, required_port=port, transport=None)
-            for profile in exit_entry.profiles
-            if profile.protocol_code != "wireguard"
-            and (port := relay.port_for(profile.code)) is not None
-        ]
+        # In the order NEBULA_RELAYS lists them, so the best through this
+        # relay comes first; a profile left out of it is not offered.
+        order = list(relay.ports)
+        profiles = sorted(
+            (
+                # transport=None: never moved onto the CDN route's port.
+                replace(profile, required_port=port, transport=None)
+                for profile in exit_entry.profiles
+                if profile.protocol_code != "wireguard"
+                and (port := relay.port_for(profile.code)) is not None
+            ),
+            key=lambda profile: (order.index(base_profile(profile.code)), profile.code),
+        )
         if profiles:
             listed.append(
                 AvailableServerEntry(
