@@ -156,6 +156,23 @@ relay_forwarding() {
   fi
   cat "$file.nebula" > "$file" && rm -f "$file.nebula"
 }
+# A joined server's WireGuard clients use its resolver: DNS to the tunnel's
+# gateway ($3) is redirected to the resolver's port there, and only wg0 may
+# reach it. Once (marked).
+wireguard_dns() {
+  local wan=$1 file=$2 gw=$3 nat="" fwd="" proto
+  grep -q 'nebula-wg-dns' "$file" && return 0
+  nat="# nebula-wg-dns: WireGuard clients' DNS to this server's resolver\n*nat\n:PREROUTING ACCEPT [0:0]\n"
+  for proto in udp tcp; do
+    nat+="-A PREROUTING -i wg0 -d $gw -p $proto --dport 53 -j REDIRECT --to-ports 5354\n"
+    fwd+="-A ufw-before-input -i wg0 -d $gw -p $proto --dport 5354 -j ACCEPT\n"
+  done
+  nat+="COMMIT\n"
+  awk -v nat="$nat" -v fwd="$fwd" '
+    NR == 1 { printf "%s", nat }
+    /^-A ufw-before-input -i wg0 -j REJECT/ && !done { printf "%s", fwd; done = 1 }
+    { print }' "$file" > "$file.nebula" && cat "$file.nebula" > "$file" && rm -f "$file.nebula"
+}
 api() { compose exec -T api nebula-api "$@"; }
 
 # Downloads that fail from some networks (PyPI's file host and GitHub are slow
@@ -672,6 +689,10 @@ if [ -n "$JOIN_URL" ]; then
   [ -f $ETC/dns.env ] || printf '%s\n' \
     'NEBULA_DNS_UPSTREAMS=-u https://1.1.1.1/dns-query -u https://8.8.8.8/dns-query -u https://9.9.9.9/dns-query' \
     > $ETC/dns.env
+  # WireGuard clients ask it too, at the tunnel's gateway (port 53 there is
+  # redirected to it; see wireguard_dns). Their own DNS left this server in
+  # plain text, which inside Iran is forged.
+  grep -q '^NEBULA_DNS_WG=' $ETC/dns.env || echo "NEBULA_DNS_WG=--listen=${WG_ADDR%/*}" >> $ETC/dns.env
   install -m 0644 "$REPO/infrastructure/systemd/nebula-dns.service" /etc/systemd/system/
   systemctl daemon-reload; systemctl enable nebula-dns >/dev/null 2>&1; systemctl restart nebula-dns
 fi
@@ -735,6 +756,7 @@ fi
 # ponytail: IPv4 only, and the redirect keeps the port it was made with; a
 # Hysteria2 port moved later with --configure needs the rule edited.
 [ -z "$HOP" ] || hysteria_hop "$WAN" /etc/ufw/before.rules "$HOP" "${HYPORT:-8450}"
+[ -z "$JOIN_URL" ] || wireguard_dns "$WAN" /etc/ufw/before.rules "${WG_ADDR%/*}"
 # Relay: only when the owner has written relay.env (docs/runbooks/relay.md).
 relayget() { [ -f $ETC/relay.env ] && sed -n "s/^$1=//p" $ETC/relay.env | tail -1; return 0; }
 RELAY_TARGET=$(relayget NEBULA_RELAY_TARGET) RELAY_PORTS=$(relayget NEBULA_RELAY_PORTS) RELAY_CHECK=""
@@ -828,6 +850,10 @@ agentset() { sed -i "/^$1=/d" $ETC/agent.env; printf '%s=%s\n' "$1" "$2" >> $ETC
 DNS_NEW=""
 [ -n "$(agentget NEBULA_XRAY_DNS_REDIRECT)" ] \
   || { agentset NEBULA_XRAY_DNS_REDIRECT 198.18.0.53=127.0.0.1:5354; DNS_NEW=1; }
+# A joined server's WireGuard clients are told its gateway (wireguard_dns);
+# a value already set is kept.
+[ -z "$JOIN_URL" ] || [ -n "$(agentget NEBULA_WG_CLIENT_DNS)" ] \
+  || agentset NEBULA_WG_CLIENT_DNS "${WG_ADDR%/*}"
 # A relay's agent checks the forwarded TCP ports answer from here.
 if [ -n "$RELAY_CHECK" ]; then agentset NEBULA_RELAY_CHECK_TARGETS "$RELAY_CHECK"
 else sed -i '/^NEBULA_RELAY_CHECK_TARGETS=/d' $ETC/agent.env; fi

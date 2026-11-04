@@ -16,6 +16,10 @@ answers.
 - **Joined server (`--join`):** `dnsproxy` as `nebula-dns.service`, same
   address (127.0.0.1:5354), upstreams in `/etc/nebula/dns.env` (kept when
   present). No query log.
+- Joined server, WireGuard: clients are told the tunnel's gateway
+  (`NEBULA_WG_CLIENT_DNS`, kept when set); port 53 there is redirected to the
+  resolver, which also listens on the gateway (`NEBULA_DNS_WG` in `dns.env`),
+  and only `wg0` may reach it (marked `nebula-wg-dns` in `before.rules`).
 - Both: the agent's `NEBULA_XRAY_DNS_REDIRECT` (kept when set) and the
   firewall exception below.
 

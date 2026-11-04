@@ -1,7 +1,7 @@
 [Unit]
 Description=Nebula VPN resolver for tunnelled clients (dnsproxy, DNS over HTTPS)
 Documentation=https://github.com/Parsabrg/vpn/blob/main/infrastructure/adguard/README.md
-After=network-online.target
+After=network-online.target wg-quick@wg0.service
 Wants=network-online.target
 
 [Service]
@@ -9,7 +9,9 @@ Wants=network-online.target
 # /etc/nebula/dns.env, by address: DNS over HTTPS, no plain lookup first.
 # Without --verbose it logs no queries; --cache keeps answers in memory only.
 EnvironmentFile=/etc/nebula/dns.env
-ExecStart=/usr/local/bin/dnsproxy --listen=127.0.0.1 --port=5354 --upstream-mode=parallel --cache $NEBULA_DNS_UPSTREAMS
+# $NEBULA_DNS_WG adds the WireGuard gateway (--listen=10.77.0.1) on a joined
+# server; port 53 there is redirected to 5354 for wg0 only.
+ExecStart=/usr/local/bin/dnsproxy --listen=127.0.0.1 $NEBULA_DNS_WG --port=5354 --upstream-mode=parallel --cache $NEBULA_DNS_UPSTREAMS
 DynamicUser=yes
 Restart=always
 RestartSec=2
