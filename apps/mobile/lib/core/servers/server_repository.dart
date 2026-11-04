@@ -121,6 +121,7 @@ class XrayClientResult {
     this.path,
     this.serviceName,
     this.obfsPassword,
+    this.portHop,
     this.clientDns = const <String>[],
     this.caCertificate,
     this.echConfigList,
@@ -189,6 +190,10 @@ class XrayClientResult {
   /// block, without which plain QUIC/Hysteria2 handshakes get fingerprinted
   /// and silently dropped by some ISPs (confirmed live).
   final String? obfsPassword;
+
+  /// Hysteria2 only: the UDP range ("20000-50000") the server also
+  /// answers on; the client moves between its ports.
+  final String? portHop;
 
   /// True when the connected profile was an ad-blocking sibling --
   /// [renderXrayClientConfigJson] uses this to decide whether to add a
@@ -413,6 +418,7 @@ class DioServerRepository implements ServerRepository {
         path: data['path'] as String?,
         serviceName: data['service_name'] as String?,
         obfsPassword: data['obfs_password'] as String?,
+        portHop: data['port_hop'] as String?,
         // Shadowsocks-2022 (roadmap: direct route Iran lets through); an
         // older server sends none of these and means VLESS.
         protocol: data['protocol'] as String? ?? 'vless',

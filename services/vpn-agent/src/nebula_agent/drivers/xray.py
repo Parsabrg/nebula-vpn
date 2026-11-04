@@ -665,6 +665,7 @@ class NativeXrayDriver:
                 "path": None,
                 "service_name": None,
                 "obfs_password": hysteria.obfs_password,
+                "port_hop": self._settings.xray_hysteria_hop_ports,
             }
         profile = self._profile_for(protocol_profile_code)
         # These describe what the CLIENT dials, which is not always what the

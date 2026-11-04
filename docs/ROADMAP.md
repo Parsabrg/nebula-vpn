@@ -17,7 +17,6 @@ written plan in [plans/2026-11-plans.md](plans/2026-11-plans.md), agreed
 2026-11-04; the number is the plan's.
 
 **Censorship**
-- Hysteria2 port hopping on the server, allowed in the app.
 - *plan 5* Each user gets only some of the backup routes, so one leaked account does not reveal all.
 - *plan 1* VLESS + REALITY (Vision, XHTTP) on the server, no domain or certificate needed (section 4).
 - *plan 2* Everything on port 443, TCP and UDP, split by name with nginx `ssl_preread`.
@@ -54,6 +53,7 @@ Updated in the same pull request as the work (section 92).
 | Section | Item | State |
 | --- | --- | --- |
 | 20 (list) | Admins in the panel: `/v1/admin/admins/` (owners only; list, invite with a one-time password, role, disable/reactivate, sessions listed from Redis and ended one by one or all at once; a role change or disable ends that admin's sessions; the acting owner cannot change themselves) and the Admins page | Done in code (tests); panel test on the live server pending |
+| 15 (list) | Hysteria2 port hopping: agent `xray_hysteria_hop_ports` (validated range) sent with the credential as `port_hop` (not on a CDN route); the app's Hysteria2 client dials `port,range` with `hopInterval: 30s` and keeps the range with the saved credential; `install.sh` sets 20000-50000 and a ufw nat redirect on new installs only | Done in code (tests); existing servers wait for the owner; phone test pending |
 | 92 | Roadmap "Next" trimmed to what is left; plans for the *plan* items written and agreed (`docs/plans/2026-11-plans.md`), DNS tunnelling back as plan 10 | Done 2026-11-04 |
 | Snappiness | App: WireGuard connects from the saved peer (kept per server and profile in secure storage, with the key it was issued for), skipping the API and agent round trip; a saved peer that fails the handshake or traffic check is forgotten and asked for again once; disconnect keeps the peer; the protocol test reuses and saves it too | Done in code (tests); phone timing pending |
 | Snappiness | App: disconnect Off in 2-3 ms (the WireGuard peer is now kept, see the saved-peer row); the two post-connect traffic checks in parallel (Protected 1.5-1.9 s from 3.2 s on a saved link); the main button presses in, ticks (haptic) and ignores a second tap within 400 ms; a connect timeline in the system log (`adb logcat -s flutter`) | Done; measured on the owner's phone (0.1.34 test build) |

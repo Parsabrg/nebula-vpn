@@ -79,3 +79,22 @@ def test_response_rejects_a_malformed_error_code() -> None:
             persistent_keepalive_seconds=25,
             error_code="Not Valid!",
         )
+
+
+def test_a_hop_range_is_a_range_of_ports() -> None:
+    from pydantic import ValidationError
+
+    from nebula_api.agent_client.models import ProvisionXrayClientResponse
+
+    fields = {
+        "state": "active",
+        "applied_generation": 1,
+        "server_address": "vps1.example.com",
+        "port": 8450,
+        "sni": "vps1.example.com",
+        "transport": "hysteria",
+        "transport_security": "tls",
+    }
+    assert ProvisionXrayClientResponse(**fields, port_hop="20000-50000").port_hop == "20000-50000"
+    with pytest.raises(ValidationError):
+        ProvisionXrayClientResponse(**fields, port_hop="20000-50000; rm")

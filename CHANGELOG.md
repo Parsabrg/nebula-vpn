@@ -19,6 +19,12 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   Each change needs a fresh code and is audited. You cannot change or disable
   yourself there, so a deployment always keeps an owner.
 
+### Servers
+- Hysteria2 port hopping: new installs also answer Hysteria2 on UDP 20000-50000,
+  and the apps move between those ports every 30 s, so one blocked port does not end
+  the connection. Existing servers are unchanged until their owner turns it on
+  (`docs/runbooks/hysteria-port-hopping.md`).
+
 ## 0.1.34 — 2026-11-03
 
 ### Apps

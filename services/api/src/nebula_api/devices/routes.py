@@ -134,6 +134,8 @@ def _to_xray_response(
         path=result.path,
         service_name=result.service_name,
         obfs_password=result.obfs_password,
+        # A CDN route is one TCP port; hopping is for the direct UDP one.
+        port_hop=None if host else result.port_hop,
         protocol=result.protocol,
         method=result.method,
         password=result.password,

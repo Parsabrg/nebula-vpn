@@ -256,3 +256,14 @@ async def test_the_placeholder_is_not_an_orphan_to_prune(
     assert response.state == "pruned"
     assert response.removed == 0
     assert calls == [], "a prune with nothing to remove must not restart anything"
+
+
+def test_the_hop_range_reaches_the_client(tmp_path: Path) -> None:
+    driver = _driver(tmp_path)
+    assert driver._response_common(HYSTERIA_PROFILE)["port_hop"] is None
+    hopping = NativeXrayDriver(
+        _settings(tmp_path).model_copy(update={"xray_hysteria_hop_ports": "20000-50000"}),
+        driver._config_store,
+        profiles=(),
+    )
+    assert hopping._response_common(HYSTERIA_PROFILE)["port_hop"] == "20000-50000"

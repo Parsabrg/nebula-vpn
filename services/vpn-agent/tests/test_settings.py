@@ -204,3 +204,13 @@ def test_xray_tls_paths_must_be_absolute() -> None:
             xray_tls_cert_file=PurePosixPath("cert"),
             xray_tls_key_file=PurePosixPath("/run/nebula-secrets/xray_tls_key"),
         )
+
+
+@pytest.mark.parametrize("value", ["50000-20000", "80-9000", "20000-70000", "20000", "a-b"])
+def test_hysteria_hop_ports_must_be_a_rising_high_range(value: str) -> None:
+    with pytest.raises(ValidationError):
+        Settings(xray_hysteria_hop_ports=value)
+
+
+def test_hysteria_hop_ports_accepts_a_range() -> None:
+    assert Settings(xray_hysteria_hop_ports="20000-50000").xray_hysteria_hop_ports == "20000-50000"
