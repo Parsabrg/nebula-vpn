@@ -23,6 +23,10 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   ask for the code. Needs a current browser.
 
 ### Servers
+- New installs also answer on port 443: the panel, API and XHTTP on TCP 443 (nginx picks
+  the site by name, so rate limits and the admin allowlist still see real addresses),
+  Hysteria2 on UDP 443. The old ports stay open and listed after the 443 ones. Existing
+  servers keep their ports until the owner turns it on (`docs/runbooks/port-443.md`).
 - VLESS + REALITY (Vision on raw TCP, and XHTTP): no domain or certificate needed; a
   probe without the key sees another site's TLS. Off until the owner turns it on with
   `install.sh --configure` (`docs/runbooks/vless-reality.md`). The apps read it from the

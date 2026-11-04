@@ -232,6 +232,15 @@ PANEL=panel.$NEBULA_DOMAIN; APIHOST=api.$NEBULA_DOMAIN
 if [ -n "$JOIN_URL" ]; then CERTNAME=$NEBULA_DOMAIN; NAMES=("$NEBULA_DOMAIN"); else
   CERTNAME=$PANEL; NAMES=("$NEBULA_DOMAIN" "$PANEL" "$APIHOST"); fi
 CERT=/etc/letsencrypt/live/$CERTNAME
+# New installs also serve the panel, API and XHTTP on TCP 443 (nginx picks the
+# site by name) and Hysteria2 on UDP 443. An existing server keeps the ports
+# its apps know (docs/runbooks/port-443.md).
+if [ -f $ETC/agent.env ]; then
+  XPORT=$(sed -n 's/^NEBULA_XRAY_PUBLIC_PORT=//p' $ETC/agent.env | tail -1); XPORT=${XPORT:-8445}
+else
+  XPORT=443
+fi
+if [ "$XPORT" = 443 ]; then WEB=""; else WEB=":8444"; fi
 
 step "Administrator"
 ask NEBULA_ADMIN_EMAIL "Admin email$([ -n "$JOIN_URL" ] && echo " (for certificate expiry notices)")"
@@ -366,10 +375,13 @@ EOF
 fi
 # Settings that follow the answers above are rewritten on every run.
 setenv() { sed -i "/^$1=/d" $ETC/compose.env; printf '%s=%s\n' "$1" "$2" >> $ETC/compose.env; }
-setenv NEBULA_API_PUBLIC_URL "https://$APIHOST:8444"
-setenv NEBULA_ADMIN_PUBLIC_URL "https://$PANEL:8444"
-setenv NEBULA_ALLOWED_ORIGINS "https://$PANEL:8444"
-setenv NEBULA_API_ROUTES "https://$APIHOST:8444,https://$NEBULA_DOMAIN:8445"
+setenv NEBULA_API_PUBLIC_URL "https://$APIHOST$WEB"
+setenv NEBULA_ADMIN_PUBLIC_URL "https://$PANEL$WEB"
+setenv NEBULA_ALLOWED_ORIGINS "https://$PANEL$WEB"
+# 443 first; the old ports stay open and listed for apps that know them.
+routes="https://$APIHOST:8444,https://$NEBULA_DOMAIN:8445"
+[ -n "$WEB" ] || routes="https://$APIHOST,https://$NEBULA_DOMAIN,$routes"
+setenv NEBULA_API_ROUTES "$routes"
 setenv NEBULA_EMAIL_FROM "$NEBULA_EMAIL_FROM"
 # What the apps call this server; every install was "Nebula" before.
 setenv NEBULA_DEPLOYMENT_NAME "$NEBULA_DOMAIN"
@@ -405,7 +417,7 @@ build $PROJECT-api "$REPO/services/api"
 for alias in migrate usage prune; do docker tag $PROJECT-api $PROJECT-$alias; done
 build $PROJECT-worker "$REPO/services/worker"
 build $PROJECT-admin "$REPO/apps/admin" --build-arg NEBULA_API_INTERNAL_URL=http://api:8000 \
-  --build-arg NEBULA_ADMIN_ORIGIN="https://$PANEL:8444"
+  --build-arg NEBULA_ADMIN_ORIGIN="https://$PANEL$WEB"
 ok "images built"
 
 keygen() { docker run --rm --user 0 --entrypoint nebula-api -v $SECRETS:/out $PROJECT-api "$@" >/dev/null; }
@@ -536,6 +548,9 @@ cp "$REPO/infrastructure/nginx/cloudflare-real-ip.conf" /etc/nginx/snippets/
 sed -e "s/vpn.example.com/$NEBULA_DOMAIN/g" -e "s#live/$NEBULA_DOMAIN/#live/$CERTNAME/#g" -e "s/ cdn.example.com//" \
   -e "s#location /xhttp {#location $XHTTP_PATH {#" -e "s#location /ws {#location $WS_PATH {#" -e "s#location /grpc/ {#location /$GRPC_NAME/ {#" \
   "$REPO/infrastructure/nginx/xray-8445.conf" > /etc/nginx/conf.d/xray-8445.conf
+# Each TLS site also on 443; nginx chooses between them by the name asked for.
+[ "$XPORT" != 443 ] || sed -i -E 's/^( *)listen (\[::\]:)?(8444|8445) ssl http2;/&\n\1listen \2443 ssl http2;/' \
+  /etc/nginx/sites-available/nebula /etc/nginx/conf.d/xray-8445.conf
 nginx -t >/dev/null 2>&1 || { nginx -t; die "nginx rejected the configuration"; }
 systemctl enable -q nginx; systemctl reload-or-restart nginx
 ok "certificate for ${NAMES[*]}"
@@ -600,6 +615,7 @@ SSH_PORT=$(sshd -T 2>/dev/null | awk '/^port /{p=$2} END{print p}' || true)
 SSH_PORT=${SSH_PORT:-22}
 ufw allow "$SSH_PORT/tcp" comment ssh >/dev/null
 for p in 80/tcp 8445/tcp 8447/tcp 8448/tcp 8449/tcp 8450/udp 51820/udp; do ufw allow $p comment nebula >/dev/null; done
+[ "$XPORT" != 443 ] || { ufw allow 443/tcp comment nebula >/dev/null; ufw allow 443/udp comment nebula >/dev/null; }
 if [ -n "$JOIN_URL" ]; then
   # The control plane reaches this agent over the internet; only it may.
   host=${JOIN_URL#https://}; host=${host%%[:/]*}
@@ -634,7 +650,7 @@ if [ -f $ETC/agent.env ]; then
   HOP=$(sed -n 's/^NEBULA_XRAY_HYSTERIA_HOP_PORTS=//p' $ETC/agent.env | tail -1)
   HYPORT=$(sed -n 's/^NEBULA_XRAY_HYSTERIA_PORT=//p' $ETC/agent.env | tail -1)
 else
-  HOP=20000-50000 HYPORT=""
+  HOP=20000-50000 HYPORT=443
 fi
 # ponytail: IPv4 only, and the redirect keeps the port it was made with; a
 # Hysteria2 port moved later with --configure needs the rule edited.
@@ -645,7 +661,8 @@ sed -i 's|^#\?net/ipv4/ip_forward=.*|net/ipv4/ip_forward=1|' /etc/ufw/sysctl.con
 ufw route allow in on wg0 out on "$WAN" comment nebula-wireguard >/dev/null
 ufw --force enable >/dev/null; ufw reload >/dev/null
 if [ -n "$JOIN_URL" ]; then opened="9443 from $CONTROL_IP"; else opened="8444"; fi
-ok "open: ssh ($SSH_PORT), 80, $opened, 8445, 8447-8449, 8450/udp${HOP:+ (and $HOP/udp to it)}, 51820/udp"
+[ "$XPORT" != 443 ] || opened="443, 443/udp, $opened"
+ok "open: ssh ($SSH_PORT), 80, $opened, 8445, 8447-8449, 8450/udp${HOP:+ (and $HOP/udp to ${HYPORT:-8450})}, 51820/udp"
 
 step "VPN agent"
 if [ ! -x /opt/nebula-vpn-agent/.venv/bin/nebula-agent-serve ]; then
@@ -676,7 +693,8 @@ NEBULA_WG_PUBLIC_ENDPOINT=$PUBLIC_IP:51820
 NEBULA_XRAY_ENABLED=true
 NEBULA_XRAY_DRIVER=native
 NEBULA_XRAY_PUBLIC_HOST=$NEBULA_DOMAIN
-NEBULA_XRAY_PUBLIC_PORT=8445
+NEBULA_XRAY_PUBLIC_PORT=$XPORT
+NEBULA_XRAY_HYSTERIA_PORT=${HYPORT:-8450}
 NEBULA_XRAY_SNI=$NEBULA_DOMAIN
 NEBULA_XRAY_GRPC_ENABLED=true
 NEBULA_XRAY_WS_ENABLED=true
@@ -772,7 +790,9 @@ if [ -n "$CONFIGURE" ]; then
   if [ "$xhttp" != "$oldxhttp" ]; then
     agentset NEBULA_XRAY_PUBLIC_PORT "$xhttp"
     sed -i "s/listen \(\[::\]:\)\?$oldxhttp ssl/listen \1$xhttp ssl/" /etc/nginx/conf.d/xray-8445.conf
-    CLOSE_PORTS+=("$oldxhttp/tcp"); OPEN_PORTS+=("$xhttp/tcp")
+    # 443 also carries the panel and API, so it stays open.
+    [ "$oldxhttp" = 443 ] || CLOSE_PORTS+=("$oldxhttp/tcp")
+    OPEN_PORTS+=("$xhttp/tcp")
   fi
   oldwg=$(agentget NEBULA_WG_LISTEN_PORT); oldwg=${oldwg:-51820}
   echo "WireGuard"; ask_port wgport "$oldwg"
@@ -948,8 +968,8 @@ cat <<EOF
 
 ${green}${bold}Nebula is installed.${reset}
 
-  Admin panel   https://$PANEL:8444   (sign in as $NEBULA_ADMIN_EMAIL)
-  App server    https://$APIHOST:8444  (the app's "Connect to your server" screen;
+  Admin panel   https://$PANEL$WEB   (sign in as $NEBULA_ADMIN_EMAIL)
+  App server    https://$APIHOST$WEB  (the app's "Connect to your server" screen;
                 the panel also shows it as a pairing link and QR code)
 
 EOF

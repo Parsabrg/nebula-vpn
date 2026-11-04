@@ -166,15 +166,17 @@ def test_hysteria_requires_obfs_password() -> None:
         )
 
 
-def test_hysteria_port_must_be_distinct() -> None:
-    with pytest.raises(ValidationError, match="must all be distinct"):
-        Settings(
-            xray_hysteria_enabled=True,
-            xray_hysteria_port=8446,  # collides with xray_local_listen_port's default
-            xray_hysteria_obfs_password="s3cret-salamander",  # noqa: S106 - test fixture
-            xray_tls_cert_file=PurePosixPath("/run/nebula-secrets/xray_tls_cert"),
-            xray_tls_key_file=PurePosixPath("/run/nebula-secrets/xray_tls_key"),
-        )
+def test_hysteria_udp_may_share_a_tcp_port_number() -> None:
+    # UDP 443 for Hysteria2 beside nginx's TCP 443 (XHTTP's public port).
+    settings = Settings(
+        xray_public_port=443,
+        xray_hysteria_enabled=True,
+        xray_hysteria_port=443,
+        xray_hysteria_obfs_password="s3cret-salamander",  # noqa: S106 - test fixture
+        xray_tls_cert_file=PurePosixPath("/run/nebula-secrets/xray_tls_cert"),
+        xray_tls_key_file=PurePosixPath("/run/nebula-secrets/xray_tls_key"),
+    )
+    assert settings.xray_hysteria_port == settings.xray_public_port == 443
 
 
 def test_direct_terminating_transport_ports_must_be_distinct() -> None:
