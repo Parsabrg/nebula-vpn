@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     # them, comma-separated. Served by /v1/routes so an address added later
     # reaches installed apps without a new build. See api_routes.py.
     api_routes: str = ""
+    # How many of those each account is told (0: all). A leaked account then
+    # gives away only its share. Each account's share is stable, and the
+    # route it asked through is always in it. See api_routes.py.
+    api_routes_per_account: int = Field(default=0, ge=0, le=100)
     # The newest published client version (`0.1.24`), served by
     # /v1/client/release to apps that cannot read the private repository's
     # releases. Empty: nothing to offer. See client_release.py.

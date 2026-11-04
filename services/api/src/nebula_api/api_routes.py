@@ -16,7 +16,10 @@ that cannot reach the API at all learns nothing new -- it is already holding
 the list from the last time it could.
 """
 
+import hashlib
 from typing import Annotated, cast
+from urllib.parse import urlsplit
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, Response
 
@@ -49,13 +52,41 @@ def configured_routes(settings: Settings) -> list[str]:
     return seen
 
 
+def routes_for_account(
+    routes: list[str], *, account: UUID, share: int, asked_through: str | None
+) -> list[str]:
+    """[share] of [routes] for [account] (all when share is 0), in order.
+
+    Stable per account, and spread across accounts: each route is ranked by a
+    hash of the account and the route, and the lowest [share] are kept. The
+    route the request came in on stays in, so a share never drops the one
+    route an account is known to reach.
+    """
+
+    if share == 0 or share >= len(routes):
+        return routes
+
+    def rank(route: str) -> bytes:
+        return hashlib.sha256(f"{account}|{route}".encode()).digest()
+
+    kept = set(sorted(routes, key=rank)[:share])
+    kept |= {r for r in routes if asked_through and urlsplit(r).netloc == asked_through}
+    return [r for r in routes if r in kept]
+
+
 @router.get("/", response_model=ApiRouteListResponse)
 async def list_api_routes(
     request: Request,
     response: Response,
     principal: Annotated[AuthenticatedUser, Depends(require_user_session)],
 ) -> ApiRouteListResponse:
-    del principal  # Required for the session gate; the list is the same for everyone.
     settings = cast(Settings, request.app.state.settings)
     apply_auth_response_headers(response)
-    return ApiRouteListResponse(routes=configured_routes(settings))
+    return ApiRouteListResponse(
+        routes=routes_for_account(
+            configured_routes(settings),
+            account=principal.user_id,
+            share=settings.api_routes_per_account,
+            asked_through=request.headers.get("host"),
+        )
+    )

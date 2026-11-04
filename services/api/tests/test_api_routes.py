@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from nebula_api.api_routes import configured_routes, router
+from nebula_api.api_routes import configured_routes, router, routes_for_account
 from nebula_api.auth.http import install_auth_http_safeguards
 from nebula_api.auth.user_service import AuthenticatedUser, UserAuthService
 from nebula_api.settings import Settings
@@ -22,8 +22,8 @@ class FakeUserAuthService:
         return AuthenticatedUser(user_id=USER_ID, session_id=SESSION_ID, device_id=DEVICE_ID)
 
 
-def make_client(api_routes: str) -> TestClient:
-    settings = Settings(env="test", api_routes=api_routes)
+def make_client(api_routes: str, per_account: int = 0) -> TestClient:
+    settings = Settings(env="test", api_routes=api_routes, api_routes_per_account=per_account)
     app = FastAPI()
     app.state.settings = settings
     app.state.user_auth_service = cast(UserAuthService, FakeUserAuthService())
@@ -75,3 +75,40 @@ def test_duplicates_are_dropped() -> None:
     assert configured_routes(
         Settings(env="test", api_routes="https://a.example.test,https://a.example.test/")
     ) == ["https://a.example.test"]
+
+
+ROUTES = [f"https://r{n}.example.test" for n in range(10)]
+
+
+def test_each_account_gets_a_stable_share_spread_across_routes() -> None:
+    accounts = [UUID(int=n) for n in range(200)]
+    shares = [routes_for_account(ROUTES, account=a, share=3, asked_through=None) for a in accounts]
+    assert all(len(s) == 3 for s in shares)
+    assert shares[0] == routes_for_account(ROUTES, account=accounts[0], share=3, asked_through=None)
+    # Spread: every route is someone's, and no route is everyone's.
+    counts = {r: sum(r in s for s in shares) for r in ROUTES}
+    assert all(0 < c < len(accounts) for c in counts.values())
+    # Kept in the configured order.
+    assert all(s == [r for r in ROUTES if r in s] for s in shares)
+
+
+def test_the_route_asked_through_is_always_kept() -> None:
+    for n in range(50):
+        share = routes_for_account(
+            ROUTES, account=UUID(int=n), share=2, asked_through="r9.example.test"
+        )
+        assert share.count("https://r9.example.test") == 1
+
+
+def test_zero_or_a_large_share_is_everything() -> None:
+    assert routes_for_account(ROUTES, account=USER_ID, share=0, asked_through=None) == ROUTES
+    assert routes_for_account(ROUTES, account=USER_ID, share=20, asked_through=None) == ROUTES
+
+
+def test_the_endpoint_hands_out_the_share() -> None:
+    with make_client(",".join(ROUTES), per_account=2) as client:
+        routes = client.get("/v1/routes/", headers=AUTH_HEADERS).json()["routes"]
+    assert len(routes) == 2
+    assert routes == routes_for_account(
+        ROUTES, account=USER_ID, share=2, asked_through="testserver"
+    )
