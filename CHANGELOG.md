@@ -8,6 +8,9 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 ## Unreleased
 
 ### Apps
+- A saved credential the server has revoked no longer keeps a protocol from connecting:
+  when it fails the start itself (Hysteria2 logs in as it starts), the app asks the server
+  for a fresh one and tries again once.
 - WireGuard connects from the peer the phone already holds, as an Xray connect starts
   from its saved credential: no request to the server first. A saved peer that does
   not answer is dropped and a fresh one asked for, once. Disconnect no longer gives

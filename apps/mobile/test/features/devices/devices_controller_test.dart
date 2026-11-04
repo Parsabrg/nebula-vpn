@@ -1416,6 +1416,60 @@ void main() {
         },
       );
 
+      test(
+        'a revoked saved credential that fails the start is replaced too',
+        () async {
+          // Hysteria2 logs in as it starts: a revoked credential failed the
+          // start itself, and the phone retried it on every connect.
+          final harness = _harness();
+          addTearDown(harness.container.dispose);
+          final DevicesController notifier = await saved(harness);
+          const XrayClientResult rotated = XrayClientResult(
+            clientId: 'client-1',
+            uuid: 'eeeeeeee-0000-0000-0000-000000000000',
+            serverAddress: 'ams-1.example.test',
+            port: 443,
+            sni: 'ams-1.example.test',
+            transport: 'xhttp',
+            transportSecurity: 'tls',
+            adBlock: false,
+            path: '/xhttp-path',
+          );
+          harness.repository.requestXrayClientResult = rotated;
+          harness.xrayTunnel.connectError = Exception('auth error');
+          harness.xrayTunnel.onConnect = () {
+            if (harness.xrayTunnel.connectCalls == 2) {
+              harness.xrayTunnel.connectError = null;
+            }
+          };
+
+          await notifier.connect(_deviceId);
+
+          final DevicesState state = harness.container.read(
+            devicesControllerProvider,
+          );
+          expect(harness.xrayTunnel.connectCalls, 2);
+          expect(state.tunnelEstablished, isTrue);
+          expect(state.xrayClient?.uuid, rotated.uuid);
+        },
+      );
+
+      test('a start that fails with the server\'s own credential is not '
+          'retried', () async {
+        final harness = _harness();
+        addTearDown(harness.container.dispose);
+        final DevicesController notifier = await saved(harness);
+        harness.xrayTunnel.connectError = Exception('blocked');
+
+        await notifier.connect(_deviceId);
+
+        expect(harness.xrayTunnel.connectCalls, 1);
+        expect(
+          harness.container.read(devicesControllerProvider).tunnelEstablished,
+          isFalse,
+        );
+      });
+
       test('through Cloudflare, a tunnel that carries nothing is redialled '
           'without ECH before giving up', () async {
         // Iran stopped answering ECH's public name on 2026-10-21; the same
