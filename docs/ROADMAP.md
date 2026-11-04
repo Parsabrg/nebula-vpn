@@ -12,41 +12,40 @@ status table refers to that file.
 
 ## Next
 
-From the improvement list reviewed 2026-10-30. Items marked *plan* get a
-written plan (or an ADR in `docs/adr/`) and the owner's OK before building.
+From the improvement list reviewed 2026-10-30. Items marked *plan* have a
+written plan in [plans/2026-11-plans.md](plans/2026-11-plans.md), agreed
+2026-11-04; the number is the plan's.
 
 **Censorship**
-- *plan* VLESS + REALITY (Vision, XHTTP) on the server, no domain or certificate needed (section 4).
-- *plan* Everything on port 443, TCP and UDP, split by name with nginx `ssl_preread`.
-- *plan* AmneziaWG as an engine, server and apps (section 4).
-- *plan* Relay role: a server inside Iran forwarding to one abroad (section 23).
 - Hysteria2 port hopping on the server, allowed in the app.
-- *plan* Each user gets only some of the backup routes, so one leaked account does not reveal all.
-- *plan* DNS tunnelling as a last-resort route (ADR 0004).
+- *plan 5* Each user gets only some of the backup routes, so one leaked account does not reveal all.
+- *plan 1* VLESS + REALITY (Vision, XHTTP) on the server, no domain or certificate needed (section 4).
+- *plan 2* Everything on port 443, TCP and UDP, split by name with nginx `ssl_preread`.
+- *plan 4* Relay role: a server inside Iran forwarding to one abroad (section 23).
+- *plan 3* AmneziaWG as an engine, server and apps (section 4); a spike first.
+- *plan 10* DNS tunnelling as a last-resort route (ADR 0004).
 - A second CDN route on CloudFront: the server side is done; the distribution needs the owner's AWS account (section 11).
 
 **Security and admin**
-- Passkeys for admin sign-in, alongside TOTP.
 - Manage admins in the panel: invite, roles, disable, sessions.
-- Admin panel open only to an IP allowlist or over the VPN.
-- Tamper-evident audit log export (section 90).
+- Passkeys for admin sign-in, alongside TOTP.
 
 **Running servers**
-- *plan* Signed server images and an offline bundle with each release.
-- `install.sh` tested in CI on a fresh Ubuntu machine (new install, rerun, `--join`).
-- Metrics: a Prometheus endpoint on localhost for the API and agent, and charts.
-- *plan* Upgrade servers from the panel, with health checks and rollback (section 2).
-- Versioned server releases: `install.sh` updates to a tag, with a changelog.
+- *plan 6* Signed server images and an offline bundle with each release.
+- *plan 7* Upgrade servers from the panel, with health checks and rollback (section 2).
 
 **Apps**
-- *plan* In-app updater that checks the release signature before installing.
+- *plan 8* In-app updater that checks the release signature before installing.
 - Signed Windows builds (SignPath, needs the owner's sign-up).
-- *plan* iOS and macOS apps.
-- `devices_controller.dart` split by concern, no change in behaviour.
+- *plan 9* iOS and macOS apps (needs an Apple developer account and a Mac).
 
 **Project**
-- Python dependencies locked with hashes and installed with `--require-hashes`.
 - A second maintainer, and how someone else cuts releases and runs the servers.
+
+Done from the list, with their rows below: metrics, versioned server
+releases, locked Python dependencies, `install.sh` in CI, the admin
+allowlist, the audit export, and the `devices_controller.dart` split. The
+Persian admin panel is dropped (owner, 2026-11-03).
 
 
 ## Status
@@ -55,6 +54,7 @@ Updated in the same pull request as the work (section 92).
 
 | Section | Item | State |
 | --- | --- | --- |
+| 92 | Roadmap "Next" trimmed to what is left; plans for the *plan* items written and agreed (`docs/plans/2026-11-plans.md`), DNS tunnelling back as plan 10 | Done 2026-11-04 |
 | Snappiness | App: WireGuard connects from the saved peer (kept per server and profile in secure storage, with the key it was issued for), skipping the API and agent round trip; a saved peer that fails the handshake or traffic check is forgotten and asked for again once; disconnect keeps the peer; the protocol test reuses and saves it too | Done in code (tests); phone timing pending |
 | Snappiness | App: disconnect Off in 2-3 ms (the WireGuard peer is now kept, see the saved-peer row); the two post-connect traffic checks in parallel (Protected 1.5-1.9 s from 3.2 s on a saved link); the main button presses in, ticks (haptic) and ignores a second tap within 400 ms; a connect timeline in the system log (`adb logcat -s flutter`) | Done; measured on the owner's phone (0.1.34 test build) |
 | 28, 53 | Imported links: `vmess://` (v2rayN's Base64 JSON: ws/xhttp/grpc/raw, TLS or none, raw with the HTTP header disguise; refused: aid > 0, ciphers other than auto, certificate checks off), VLESS Encryption (`mlkem768x25519plus`, raw, no TLS), a WebSocket's Host written when there is no TLS; the help text names vmess:// in all ten languages | Done; the owner's subscription went from 9 links skipped to 0 of the kinds Xray runs (140 connections) |
