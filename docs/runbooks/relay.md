@@ -64,11 +64,14 @@ Add the relay to `/etc/nebula/compose.env` (one line of JSON), then restart
 `api` and `usage`:
 
 ```sh
-NEBULA_RELAYS=[{"code":"study-lab-1-via-tehran","display_name":"Germany via Tehran","exit":"study-lab-1","via":"tehran","host":"<relay's address>","ports":{"vless-enc":443,"hysteria2":443,"shadowsocks-2022":8443,"vless-tcp-tls":2053,"vless-ws-tls":2083,"vless-grpc-tls":2087,"vless-xhttp-tls":2096}}]
+NEBULA_RELAYS=[{"code":"study-lab-1-via-tehran","display_name":"Germany via Tehran","exit":"study-lab-1","via":"tehran","host":"<relay's address>","ports":{"hysteria2":443,"vless-tcp-tls":2053,"vless-enc":443,"vless-grpc-tls":2087,"vless-xhttp-tls":2096}}]
 ```
 
 `exit` and `via` are server codes; `ports` gives the relay's port for each of
-the exit's profiles, matching `NEBULA_RELAY_PORTS` above. The relay is offered
+the exit's profiles, matching `NEBULA_RELAY_PORTS` above. The app lists them in
+this order, so put the fastest through the relay first; leave out any that
+are too slow there (on the first relay, WebSocket and Shadowsocks-2022 ran
+at 2-5 KB/s) and they are not offered, even if still forwarded. The relay is offered
 to every account that may use the exit.
 
 ## First use and the API

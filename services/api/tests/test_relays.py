@@ -152,6 +152,34 @@ def test_relay_is_listed_with_the_exits_forwarded_profiles_at_its_ports() -> Non
     ]
 
 
+def test_relay_profiles_come_in_the_order_the_setting_gives() -> None:
+    relay = {**RELAY, "ports": {"vless-ws-tls": 2083, "vless-tcp-tls": 2053}}
+    discovery = FakeServerDiscoveryService()
+    discovery.entries = [
+        AvailableServerEntry(
+            code="de-1",
+            display_name="Germany",
+            public_host="de.example.test",
+            profiles=[
+                _profile("vless-tcp-tls", "vless", 8447),
+                _profile("vless-ws-tls", "vless", 8448),
+                _profile("vless-ws-tls-adblock", "vless", 8448),
+            ],
+        )
+    ]
+    app = _app(_health(up=True))
+    app.state.settings = Settings(env="test", relays=json.dumps([relay]))
+    app.state.server_discovery_service = cast(ServerDiscoveryService, discovery)
+    app.include_router(servers_router)
+    with TestClient(app) as client:
+        items = client.get("/v1/servers/", headers=AUTH_HEADERS).json()["items"]
+    assert [p["code"] for p in items[1]["profiles"]] == [
+        "vless-ws-tls",
+        "vless-ws-tls-adblock",
+        "vless-tcp-tls",
+    ]
+
+
 @pytest.mark.parametrize("health", [None, _health(up=False)])
 def test_a_relay_not_known_to_reach_its_exit_is_shown_as_maintenance(
     health: RelayHealth | None,

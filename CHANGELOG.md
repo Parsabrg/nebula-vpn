@@ -23,6 +23,8 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   ask for the code. Needs a current browser.
 
 ### Servers
+- A relay lists its protocols in the order `NEBULA_RELAYS` gives them, so the fastest
+  through it comes first.
 - DNS inside tunnels works again on servers with Xray 26.10: its default policy blocked
   the redirect to the server's own resolver, so pages did not load and the app kept
   reconnecting. The agent now allows exactly that target.
