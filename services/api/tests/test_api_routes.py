@@ -97,7 +97,7 @@ def test_the_route_asked_through_is_always_kept() -> None:
         share = routes_for_account(
             ROUTES, account=UUID(int=n), share=2, asked_through="r9.example.test"
         )
-        assert "https://r9.example.test" in share
+        assert share.count("https://r9.example.test") == 1
 
 
 def test_zero_or_a_large_share_is_everything() -> None:
