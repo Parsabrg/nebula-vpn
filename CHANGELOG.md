@@ -23,6 +23,11 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   ask for the code. Needs a current browser.
 
 ### Servers
+- Relays: a joined server can forward chosen ports to another server, and the app
+  lists it as a server of its own ("Germany via Tehran") with the device's existing
+  credential on the exit. Forwarded by the kernel, never logged; listed as under
+  maintenance while the relay cannot reach the exit. Off until the owner sets it up
+  (`docs/runbooks/relay.md`).
 - New installs also answer on port 443: the panel, API and XHTTP on TCP 443 (nginx picks
   the site by name, so rate limits and the admin allowlist still see real addresses),
   Hysteria2 on UDP 443. The old ports stay open and listed after the 443 ones. Existing

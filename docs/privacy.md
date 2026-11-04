@@ -50,6 +50,11 @@ A weekly job deletes what is older than this.
 - **Through the VPN:** everything else your device sends while connected,
   except what you chose to let skip it (split tunnelling, Iranian sites,
   websites you listed). The app never sees its contents.
+- **Through a relay** (a server listed as "<exit> via <relay>"): the relay
+  sees your IP address and how much you send, as any network on the way
+  does, but not your traffic, which stays encrypted from your device to the
+  exit server. It does not log forwarded connections, and the exit server
+  sees the relay's address instead of yours.
 - **To GitHub:** if "Check for updates" is on, the app asks GitHub's public
   releases page for the newest version. GitHub sees your IP address, as for
   any download.

@@ -10,6 +10,7 @@ forgotten but the server is still serving is exactly the discrepancy worth
 being able to notice, and filtering here would hide it.
 """
 
+import asyncio
 import logging
 from collections.abc import Awaitable
 from typing import Annotated
@@ -49,6 +50,33 @@ class UsageResponse(BaseModel):
     # mean very different things when a user's usage suddenly stops growing.
     sources_read: list[str]
     sources_failed: list[str]
+
+
+RELAY_CHECK_SECONDS = 3.0
+
+
+async def _answers(target: str) -> bool:
+    host, _, port = target.rpartition(":")
+    try:
+        _, writer = await asyncio.wait_for(
+            asyncio.open_connection(host, int(port)), RELAY_CHECK_SECONDS
+        )
+    except (OSError, TimeoutError):
+        return False
+    writer.close()
+    return True
+
+
+async def check_relay(targets: str) -> list[UsageSample]:
+    """Raise unless one of the relayed server's ports answers from here."""
+    names = targets.split(",")
+    answered = await asyncio.gather(*(_answers(t) for t in names))
+    for name, ok in zip(names, answered, strict=True):
+        if not ok:
+            _LOGGER.warning("relay target %s did not answer", name)
+    if not any(answered):
+        raise ConnectionError("no relay target answered")
+    return []
 
 
 def get_settings(request: Request) -> Settings:
@@ -103,6 +131,9 @@ async def collect_usage(
                 secret=traffic_stats_secret(hysteria_profile),
             ),
         )
+
+    if settings.relay_check_targets:
+        await gather("relay", check_relay(settings.relay_check_targets))
 
     return UsageResponse(
         samples=[

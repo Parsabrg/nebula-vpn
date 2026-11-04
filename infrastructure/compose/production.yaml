@@ -168,6 +168,9 @@ services:
       # How many of them each account is told; 0 (the default) is all. Each
       # account's share is stable and keeps the route it asked through.
       NEBULA_API_ROUTES_PER_ACCOUNT: ${NEBULA_API_ROUTES_PER_ACCOUNT:-0}
+      # Relays listed as servers of their own (JSON); empty is none. See
+      # docs/runbooks/relay.md.
+      NEBULA_RELAYS: ${NEBULA_RELAYS:-}
       # The newest promoted client version, offered to signed-in apps while
       # the repository's GitHub releases are private. See
       # services/api/src/nebula_api/client_release.py.

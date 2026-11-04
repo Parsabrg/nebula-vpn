@@ -3,7 +3,7 @@
 import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from typing import Literal, cast
+from typing import Any, Literal, cast
 from uuid import UUID
 
 from fastapi import FastAPI, Request, Response, status
@@ -49,6 +49,7 @@ from nebula_api.pairing import PairingService
 from nebula_api.pairing import router as pairing_router
 from nebula_api.provisioning.reconciliation import ReconciliationSummary, reconcile_now
 from nebula_api.provisioning.service import ProvisioningService
+from nebula_api.relays import RelayHealth
 from nebula_api.request_limits import RequestBodyLimitMiddleware
 from nebula_api.security_status import SecurityStatusService
 from nebula_api.servers.routes import router as server_discovery_router
@@ -306,6 +307,9 @@ def create_app(
     application.state.user_management_service = effective_user_management_service
     application.state.provisioning_service = effective_provisioning_service
     application.state.server_discovery_service = effective_server_discovery_service
+    application.state.relay_health = (
+        RelayHealth(cast(Any, redis_client)) if redis_client is not None else None
+    )
     application.state.account_service = effective_account_service
     application.state.usage_service = effective_usage_service
     application.state.enrollment_service = effective_enrollment_service

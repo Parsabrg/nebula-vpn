@@ -4,13 +4,16 @@ import re
 from functools import lru_cache
 from ipaddress import ip_address
 from pathlib import Path
-from typing import Literal, Self
+from typing import TYPE_CHECKING, Literal, Self
 from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
+
+if TYPE_CHECKING:
+    from nebula_api.relays import Relay
 
 Environment = Literal["development", "test", "staging", "production"]
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -67,6 +70,23 @@ class Settings(BaseSettings):
     # gives away only its share. Each account's share is stable, and the
     # route it asked through is always in it. See api_routes.py.
     api_routes_per_account: int = Field(default=0, ge=0, le=100)
+    # Relays listed as servers of their own (JSON list); see relays.py and
+    # docs/runbooks/relay.md. Empty: none.
+    relays: str = ""
+
+    def relay_list(self) -> "tuple[Relay, ...]":
+        from nebula_api.relays import parse_relays
+
+        return parse_relays(self.relays)
+
+    @field_validator("relays")
+    @classmethod
+    def validate_relays(cls, value: str) -> str:
+        from nebula_api.relays import parse_relays
+
+        parse_relays(value)
+        return value
+
     # The newest published client version (`0.1.24`), served by
     # /v1/client/release to apps that cannot read the private repository's
     # releases. Empty: nothing to offer. See client_release.py.

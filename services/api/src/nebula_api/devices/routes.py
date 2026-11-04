@@ -39,6 +39,7 @@ from nebula_api.provisioning.service import (
     TrafficQuotaExhausted,
     XrayOperationInProgress,
 )
+from nebula_api.relays import find_relay, relays_up
 
 router = APIRouter(prefix="/v1/devices", tags=["devices"])
 _LOGGER = logging.getLogger(__name__)
@@ -214,11 +215,24 @@ async def request_xray_client(
     principal: Annotated[AuthenticatedUser, Depends(require_user_session)],
 ) -> XrayClientResponse:
     require_json_request(request)
+    settings = request.app.state.settings
+    relays = settings.relay_list()
+    relay = find_relay(relays, payload.server_code)
+    relay_port = relay.port_for(payload.protocol_profile_code) if relay else None
     try:
+        if relay is not None:
+            if relay_port is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="This protocol is not offered through this server",
+                )
+            if relay.code not in await relays_up(request, relays):
+                raise ServerUnderMaintenance("This server is under maintenance. Try again later.")
         result = await _service(request).request_xray_client(
             user_id=principal.user_id,
             device_id=device_id,
-            server_code=payload.server_code,
+            # A relay hands out the device's credential on its exit.
+            server_code=relay.exit if relay else payload.server_code,
             protocol_profile_code=payload.protocol_profile_code,
             request_id=uuid4(),
             network_prefix=client_network_prefix(request),
@@ -229,7 +243,12 @@ async def request_xray_client(
     profile = await _service(request).dns_profile_for(
         user_id=principal.user_id, device_id=device_id
     )
-    settings = request.app.state.settings
+    if relay is not None and relay_port is not None:
+        # Through the relay: its address and port; TLS still names the exit,
+        # and hopping is the exit's own port range, not forwarded.
+        return _to_xray_response(
+            result, None, resolvers_for(profile, settings.xray_client_dns)
+        ).model_copy(update={"server_address": relay.host, "port": relay_port, "port_hop": None})
     return _to_xray_response(
         result,
         cdn_route_for(request) if settings.behind_cdn(payload.server_code) else None,
@@ -246,10 +265,11 @@ async def revoke_xray_client(
 ) -> Response:
     require_json_request(request)
     try:
+        relay = find_relay(request.app.state.settings.relay_list(), payload.server_code)
         await _service(request).revoke_xray_client(
             user_id=principal.user_id,
             device_id=device_id,
-            server_code=payload.server_code,
+            server_code=relay.exit if relay else payload.server_code,
             protocol_profile_code=payload.protocol_profile_code,
             network_prefix=client_network_prefix(request),
             request_id=uuid4(),

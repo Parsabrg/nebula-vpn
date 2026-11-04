@@ -13,7 +13,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
-from typing import NoReturn, cast
+from typing import Any, NoReturn, cast
 from uuid import UUID
 
 from cryptography.hazmat.primitives import serialization
@@ -59,6 +59,7 @@ from nebula_api.provisioning.reconciliation import (
     run_xray_reconciliation,
 )
 from nebula_api.provisioning.revocation import credentials_awaiting_removal
+from nebula_api.relays import RelayHealth
 from nebula_api.retention import PruneSummary, RetentionPolicy, prune_history
 from nebula_api.seed_admin import SeedAdminStatus, seed_initial_admin
 from nebula_api.settings import Settings
@@ -1155,6 +1156,13 @@ async def _collect_usage_once(
         ),
         usage,
     )
+    relays = settings.relay_list()
+    if relays:
+        redis_client = Redis.from_url(settings.redis_url.get_secret_value())
+        try:
+            await RelayHealth(cast(Any, redis_client)).record(relays, summary.relay_checked)
+        finally:
+            await redis_client.aclose()
     # Straight after the poll, on the same totals it just wrote. An
     # allowance is only as enforceable as the figures are fresh, and
     # anything between here and the next poll is overshoot nobody can
