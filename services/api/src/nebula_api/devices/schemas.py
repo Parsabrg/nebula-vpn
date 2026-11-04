@@ -61,6 +61,9 @@ class XrayClientResponse(AuthModel):
     service_name: str | None = None
     obfs_password: str | None = None
     port_hop: str | None = None
+    reality_public_key: str | None = None
+    reality_short_id: str | None = None
+    flow: str | None = None
     # Shadowsocks-2022 only; "vless" for every other Xray profile.
     protocol: str = "vless"
     method: str | None = None

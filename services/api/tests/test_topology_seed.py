@@ -838,7 +838,7 @@ def test_seed_ss2022_adblock_redirects_to_the_real_agent_profile(
     assert profile.agent_profile_code == "shadowsocks-2022"
 
 
-def test_seed_direct_protocols_adds_six_profiles_without_tls(
+def test_seed_direct_protocols_adds_ten_profiles_reality_only_with_security(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     session = MagicMock(spec=AsyncSession)
@@ -856,13 +856,23 @@ def test_seed_direct_protocols_adds_six_profiles_without_tls(
         "vmess-raw-adblock",
         "vmess-ws",
         "vmess-ws-adblock",
+        "vless-reality-vision",
+        "vless-reality-vision-adblock",
+        "vless-reality-xhttp",
+        "vless-reality-xhttp-adblock",
     ]
     profiles = [
         call.args[0]
         for call in session.add.call_args_list
         if isinstance(call.args[0], ProtocolProfile)
     ]
-    assert {p.transport_security for p in profiles} == {None}
+    assert {p.code for p in profiles if p.transport_security == "reality"} == {
+        "vless-reality-vision",
+        "vless-reality-vision-adblock",
+        "vless-reality-xhttp",
+        "vless-reality-xhttp-adblock",
+    }
+    assert {p.transport_security for p in profiles} == {None, "reality"}
     by_code = {p.code: p for p in profiles}
     assert by_code["vmess-ws"].transport == "websocket"
     assert by_code["vmess-ws"].required_port == 8455

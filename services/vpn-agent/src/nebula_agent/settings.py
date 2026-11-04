@@ -33,6 +33,8 @@ _SS2022_PROFILE_CODE = "shadowsocks-2022"
 _VLESSENC_PROFILE_CODE = "vless-enc"
 _VMESS_RAW_PROFILE_CODE = "vmess-raw"
 _VMESS_WS_PROFILE_CODE = "vmess-ws"
+_REALITY_VISION_PROFILE_CODE = "vless-reality-vision"
+_REALITY_XHTTP_PROFILE_CODE = "vless-reality-xhttp"
 
 Environment = Literal["development", "test", "staging", "production"]
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -128,6 +130,18 @@ class Settings(BaseSettings):
     xray_vmess_port: int = Field(default=8454, ge=1, le=65535)
     xray_vmess_ws_port: int = Field(default=8455, ge=1, le=65535)
     xray_vmess_ws_path: str = "/vw"
+    # VLESS + REALITY: no domain or certificate of its own. It answers with
+    # the TLS handshake of `dest` ("www.example.com:443") to anyone without
+    # the key, so a probe sees that site. Vision on raw TCP, and XHTTP on
+    # the next port. The pair is from `xray x25519`; the short id is hex.
+    xray_reality_enabled: bool = False
+    xray_reality_port: int = Field(default=8456, ge=1, le=65535)
+    xray_reality_xhttp_port: int = Field(default=8457, ge=1, le=65535)
+    xray_reality_private_key: str | None = None
+    xray_reality_public_key: str | None = None
+    xray_reality_dest: str = "www.microsoft.com:443"
+    xray_reality_server_name: str = "www.microsoft.com"
+    xray_reality_short_id: str = Field(default="", pattern=r"^[0-9a-f]{0,16}$")
     # Nebula's own resolver for Xray clients (roadmap 26,
     # infrastructure/adguard): "198.18.0.53=127.0.0.1:5354" sends what a
     # client asks of 198.18.0.53 on port 53 to the resolver on this host.
@@ -403,6 +417,17 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
+    def require_reality_keys(self) -> Self:
+        if self.xray_reality_enabled and not (
+            self.xray_reality_private_key and self.xray_reality_public_key
+        ):
+            raise ValueError(
+                "xray_reality_private_key and xray_reality_public_key (an `xray x25519` "
+                "pair) are required when xray_reality_enabled is set"
+            )
+        return self
+
+    @model_validator(mode="after")
     def require_vlessenc_pair(self) -> Self:
         if self.xray_vlessenc_enabled and not (
             (self.xray_vlessenc_decryption or "").startswith("mlkem768x25519plus.")
@@ -431,6 +456,8 @@ class Settings(BaseSettings):
             ports.append(self.xray_vlessenc_port)
         if self.xray_vmess_enabled:
             ports.extend((self.xray_vmess_port, self.xray_vmess_ws_port))
+        if self.xray_reality_enabled:
+            ports.extend((self.xray_reality_port, self.xray_reality_xhttp_port))
         if len(ports) != len(set(ports)):
             raise ValueError("xray/agent listener ports must all be distinct")
         return self
@@ -506,6 +533,34 @@ class Settings(BaseSettings):
                     security="none",
                     vless_decryption=self.xray_vlessenc_decryption,
                     vless_encryption=self.xray_vlessenc_encryption,
+                )
+            )
+        if self.xray_reality_enabled:
+            reality = {
+                "listen": "0.0.0.0",  # noqa: S104 - deliberately public, REALITY
+                "security": "reality",
+                "reality_private_key": self.xray_reality_private_key,
+                "reality_public_key": self.xray_reality_public_key,
+                "reality_dest": self.xray_reality_dest,
+                "reality_server_name": self.xray_reality_server_name,
+                "reality_short_id": self.xray_reality_short_id,
+            }
+            profiles.append(
+                XrayInboundProfile(
+                    protocol_profile_code=_REALITY_VISION_PROFILE_CODE,
+                    transport="raw",
+                    port=self.xray_reality_port,
+                    vision=True,
+                    **reality,  # type: ignore[arg-type]
+                )
+            )
+            profiles.append(
+                XrayInboundProfile(
+                    protocol_profile_code=_REALITY_XHTTP_PROFILE_CODE,
+                    transport="xhttp",
+                    port=self.xray_reality_xhttp_port,
+                    xhttp_path=self.xray_xhttp_path,
+                    **reality,  # type: ignore[arg-type]
                 )
             )
         if self.xray_vmess_enabled:

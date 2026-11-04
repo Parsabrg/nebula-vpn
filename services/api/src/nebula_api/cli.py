@@ -181,7 +181,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     commands.add_parser(
         "seed-direct-protocols",
-        help="add VLESS Encryption, VMess raw and VMess WebSocket with ad-block siblings "
+        help="add VLESS Encryption, VMess raw, VMess WebSocket and VLESS REALITY with "
+        "ad-block siblings "
         "(idempotent)",
     )
     commands.add_parser(

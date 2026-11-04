@@ -79,6 +79,10 @@ SS2022_REQUIRED_PORT = 8451
 # VMess raw / WebSocket (39-47 Mbit/s), 2026-10-22. Not on mobile data.
 VLESSENC_PROFILE_CODE = "vless-enc"
 VLESSENC_REQUIRED_PORT = 8453
+REALITY_VISION_PROFILE_CODE = "vless-reality-vision"
+REALITY_VISION_REQUIRED_PORT = 8456
+REALITY_XHTTP_PROFILE_CODE = "vless-reality-xhttp"
+REALITY_XHTTP_REQUIRED_PORT = 8457
 VMESS_PROTOCOL_CODE = "vmess"
 VMESS_RAW_PROFILE_CODE = "vmess-raw"
 VMESS_RAW_REQUIRED_PORT = 8454
@@ -515,8 +519,9 @@ async def seed_ss2022_adblock_protocol(session_factory: SessionFactory) -> SeedP
 async def seed_direct_protocols(
     session_factory: SessionFactory,
 ) -> list[tuple[str, SeedProtocolResult]]:
-    """Idempotent: VLESS Encryption, VMess raw and VMess WebSocket, each with
-    its ad-blocking sibling. No TLS (`transport_security` NULL)."""
+    """Idempotent: VLESS Encryption, VMess raw, VMess WebSocket and VLESS +
+    REALITY (Vision, XHTTP), each with its ad-blocking sibling. No TLS of
+    their own (`transport_security` NULL), except REALITY's borrowed one."""
 
     specs = (
         (
@@ -526,6 +531,7 @@ async def seed_direct_protocols(
             "VLESS Encryption",
             "raw",
             VLESSENC_REQUIRED_PORT,
+            None,
         ),
         (
             VMESS_PROTOCOL_CODE,
@@ -534,6 +540,7 @@ async def seed_direct_protocols(
             "VMess (raw TCP)",
             "raw",
             VMESS_RAW_REQUIRED_PORT,
+            None,
         ),
         (
             VMESS_PROTOCOL_CODE,
@@ -542,10 +549,29 @@ async def seed_direct_protocols(
             "VMess (WebSocket)",
             "websocket",
             VMESS_WS_REQUIRED_PORT,
+            None,
+        ),
+        (
+            VLESS_PROTOCOL_CODE,
+            "VLESS",
+            REALITY_VISION_PROFILE_CODE,
+            "VLESS REALITY (Vision)",
+            "raw",
+            REALITY_VISION_REQUIRED_PORT,
+            "reality",
+        ),
+        (
+            VLESS_PROTOCOL_CODE,
+            "VLESS",
+            REALITY_XHTTP_PROFILE_CODE,
+            "VLESS REALITY (XHTTP)",
+            "xhttp",
+            REALITY_XHTTP_REQUIRED_PORT,
+            "reality",
         ),
     )
     results = []
-    for protocol_code, protocol_name, code, name, transport, port in specs:
+    for protocol_code, protocol_name, code, name, transport, port, security in specs:
         for ad_block in (False, True):
             profile_code = code + _AD_BLOCK_SUFFIX if ad_block else code
             result = await _seed_xray_protocol_profile(
@@ -561,7 +587,7 @@ async def seed_direct_protocols(
                 requires_udp=False,
                 ad_block=ad_block,
                 agent_profile_code=code if ad_block else None,
-                transport_security=None,
+                transport_security=security,
             )
             results.append((profile_code, result))
     return results

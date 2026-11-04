@@ -234,7 +234,7 @@ class ProvisionXrayClientResponse(_ResponseModel):
     port: int = Field(ge=1, le=65535)
     sni: str
     transport: Literal["xhttp", "grpc", "websocket", "raw", "hysteria"]
-    transport_security: Literal["none", "tls"]
+    transport_security: Literal["none", "tls", "reality"]
     # At most one of these is set, matching `transport` -- xhttp/websocket
     # carry a path, grpc carries a service name, raw/hysteria carry neither.
     path: str | None = None
@@ -253,6 +253,11 @@ class ProvisionXrayClientResponse(_ResponseModel):
     password: str | None = None
     # VLESS Encryption only: the client's `encryption` string.
     encryption: str | None = None
+    # REALITY only: the server's public key and the short id to show.
+    reality_public_key: str | None = Field(default=None, max_length=128)
+    reality_short_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{0,16}$")
+    # VLESS flow: `xtls-rprx-vision` on raw REALITY.
+    flow: Literal["xtls-rprx-vision"] | None = None
 
 
 class ExpectedXrayClient(_OperationModel):

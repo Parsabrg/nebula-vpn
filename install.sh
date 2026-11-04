@@ -708,6 +708,7 @@ PROTOCOLS=(
   "Shadowsocks-2022 (no TLS)|NEBULA_XRAY_SS2022_ENABLED|NEBULA_XRAY_SS2022_PORT|8451|both|shadowsocks-2022"
   "VLESS Encryption (no TLS)|NEBULA_XRAY_VLESSENC_ENABLED|NEBULA_XRAY_VLESSENC_PORT|8453|tcp|vless-enc"
   "VMess raw + WebSocket (no TLS)|NEBULA_XRAY_VMESS_ENABLED|NEBULA_XRAY_VMESS_PORT|8454|tcp|vmess-raw vmess-ws"
+  "VLESS REALITY, Vision + XHTTP (no domain needed)|NEBULA_XRAY_REALITY_ENABLED|NEBULA_XRAY_REALITY_PORT|8456|tcp|vless-reality-vision vless-reality-xhttp"
 )
 ENABLE_CODES=() DISABLE_CODES=() OPEN_PORTS=() CLOSE_PORTS=()
 newport="" xhttp="" wgport=""
@@ -736,11 +737,30 @@ if [ -n "$CONFIGURE" ]; then
             agentset NEBULA_XRAY_VLESSENC_DECRYPTION "$(sed -n 1p <<<"$pair")"
             agentset NEBULA_XRAY_VLESSENC_ENCRYPTION "$(sed -n 2p <<<"$pair")"
           fi ;;
+        NEBULA_XRAY_REALITY_ENABLED)
+          if [ -z "$(agentget NEBULA_XRAY_REALITY_PRIVATE_KEY)" ]; then
+            # `xray x25519` prints the private key, then the public one (named
+            # "Public key" or, in newer releases, "Password").
+            pair=$(/usr/local/bin/xray x25519 2>/dev/null)
+            agentset NEBULA_XRAY_REALITY_PRIVATE_KEY "$(awk -F': *' '/^Private/ {print $NF}' <<<"$pair")"
+            agentset NEBULA_XRAY_REALITY_PUBLIC_KEY "$(awk -F': *' '/^(Public|Password)/ {print $NF; exit}' <<<"$pair")"
+            agentset NEBULA_XRAY_REALITY_SHORT_ID "$(openssl rand -hex 8)"
+          fi
+          [ -n "$(agentget NEBULA_XRAY_REALITY_PUBLIC_KEY)" ] || die "xray x25519 gave no key pair"
+          # The site whose TLS handshake a probe sees: big, reachable from
+          # Iran, TLS 1.3 and HTTP/2. Pick one that loads there.
+          site=$(agentget NEBULA_XRAY_REALITY_SERVER_NAME); site=${site:-www.microsoft.com}
+          read -rp "  site to borrow [$site]: " a; site=${a:-$site}
+          [[ $site =~ ^[A-Za-z0-9.-]+$ ]] || die "'$site' is not a host name"
+          agentset NEBULA_XRAY_REALITY_SERVER_NAME "$site"
+          agentset NEBULA_XRAY_REALITY_DEST "$site:443" ;;
       esac
       [ "$was" = true ] && [ "$oldport" != "$newport" ] && CLOSE_PORTS+=("$oldport/$proto")
       OPEN_PORTS+=("$newport/$proto")
       [ "$key" = NEBULA_XRAY_VMESS_ENABLED ] && OPEN_PORTS+=("$(( newport + 1 ))/tcp") \
         && agentset NEBULA_XRAY_VMESS_WS_PORT "$(( newport + 1 ))"
+      [ "$key" = NEBULA_XRAY_REALITY_ENABLED ] && OPEN_PORTS+=("$(( newport + 1 ))/tcp") \
+        && agentset NEBULA_XRAY_REALITY_XHTTP_PORT "$(( newport + 1 ))"
       if [ "$was" != true ]; then read -ra list <<<"$codes"; ENABLE_CODES+=("${list[@]}"); fi
     else
       agentset "$key" false
@@ -822,7 +842,7 @@ if [ -n "$CONFIGURE" ] && [ -z "$JOIN_URL" ]; then
   if printf '%s
 ' "${ENABLE_CODES[@]}" | grep -q shadowsocks; then api seed-ss2022-protocol >/dev/null; fi
   if printf '%s
-' "${ENABLE_CODES[@]}" | grep -qE 'vless-enc|vmess'; then api seed-direct-protocols >/dev/null; fi
+' "${ENABLE_CODES[@]}" | grep -qE 'vless-enc|vmess|reality'; then api seed-direct-protocols >/dev/null; fi
   for code in "${ENABLE_CODES[@]}"; do
     api enable-server-capability --server-code "$server" --protocol-profile-code "$code" >/dev/null
     api enable-server-capability --server-code "$server" --protocol-profile-code "$code-adblock" >/dev/null 2>&1 || true
