@@ -181,6 +181,13 @@ class Settings(BaseSettings):
     # required (validated below) if any of the three enabled flags is set.
     # Reuses whatever Let's Encrypt cert the deploying host already has for
     # xray_public_host/xray_sni; one cert across several listeners.
+    # A relay (docs/runbooks/relay.md) forwards some of its ports to another
+    # server. These are that server's forwarded TCP ports as "host:port,...";
+    # each usage poll reports the source "relay" failed when none answers,
+    # and the control plane then marks the relay unavailable.
+    relay_check_targets: str | None = Field(
+        default=None, pattern=r"^[A-Za-z0-9.:-]+:[0-9]{1,5}(,[A-Za-z0-9.:-]+:[0-9]{1,5})*$"
+    )
     xray_tls_cert_file: PurePosixPath | None = None
     xray_tls_key_file: PurePosixPath | None = None
     # Where Xray's API listens. Loopback always -- the API has no

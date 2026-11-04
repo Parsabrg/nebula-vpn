@@ -190,6 +190,21 @@ class TestRunUsagePoll:
         assert summary.credentials_active == 2
         assert {sample.identity for sample in usage.recorded} == {"a" * 64, "b" * 64}
 
+    def test_servers_whose_relay_check_answered_are_named(self) -> None:
+        clients = {
+            "thr": FakeAgentClient(_response(read=["wireguard", "relay"])),
+            "ist": FakeAgentClient(_response(read=["wireguard"], failed=["relay"])),
+            "de": FakeAgentClient(AgentClientError(503, "down")),
+        }
+
+        summary = _run(
+            [FakeServer("thr"), FakeServer("ist"), FakeServer("de")],
+            clients,
+            RecordingUsageService(),
+        )
+
+        assert summary.relay_checked == {"thr"}
+
     def test_an_unreachable_server_does_not_cost_the_others_their_samples(self) -> None:
         # The reason the loop catches per server instead of wrapping the whole
         # fan-out: one agent being down must not throw away counters that were

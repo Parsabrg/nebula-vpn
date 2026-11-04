@@ -14,7 +14,7 @@ an agent upgrade -- and the traffic of people who stay connected.
 """
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from sqlalchemy import select
@@ -36,6 +36,8 @@ class UsagePollSummary:
     samples: int
     credentials_active: int
     sources_failed: list[str]
+    # Servers whose agent reached its relay's exit (the "relay" source).
+    relay_checked: set[str] = field(default_factory=set)
 
     @property
     def had_problems(self) -> bool:
@@ -60,6 +62,7 @@ async def run_usage_poll(
     failed = 0
     collected: list[UsageSample] = []
     sources_failed: list[str] = []
+    relay_checked: set[str] = set()
 
     for server in servers:
         client_factory = agent_client_builder
@@ -79,6 +82,8 @@ async def run_usage_poll(
         polled += 1
         sources_failed.extend(f"{server.code}:{name}" for name in reading.sources_failed)
         collected.extend(reading.samples)
+        if "relay" in reading.sources_read:
+            relay_checked.add(server.code)
 
     active = await usage.record(collected)
     return UsagePollSummary(
@@ -87,4 +92,5 @@ async def run_usage_poll(
         samples=len(collected),
         credentials_active=active,
         sources_failed=sources_failed,
+        relay_checked=relay_checked,
     )

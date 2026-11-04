@@ -125,6 +125,29 @@ jobs:
           panel=$(get panel /) admin=$(get api /v1/admin/audit-log) app=$(get api /v1/routes/)
           echo "panel $panel, admin API $admin, app API $app"
           [ "$panel" = 403 ] && [ "$admin" = 403 ] && [ "$app" = 401 ]
+      - name: Relay forwards only its ports, and comes off again
+        run: |
+          set -eu
+          r=/etc/nebula/relay.env
+          printf 'NEBULA_RELAY_TARGET=192.0.2.10\nNEBULA_RELAY_PORTS=2053/tcp:9443\n' | sudo tee $r >/dev/null
+          if sudo -E ./install.sh </dev/null >/tmp/relay-bad.log 2>&1; then echo "forwarded the agent port"; exit 1; fi
+          grep -q "never forwarded" /tmp/relay-bad.log
+          printf 'NEBULA_RELAY_TARGET=192.0.2.10\nNEBULA_RELAY_PORTS=2053/tcp:8447 2053/udp:8450\nNEBULA_RELAY_CONNTRACK_MAX=200000\n' | sudo tee $r >/dev/null
+          sudo -E ./install.sh </dev/null >/dev/null
+          sudo iptables -t nat -S PREROUTING | grep -q -- "-p tcp .*--dport 2053 .*-j DNAT --to-destination 192.0.2.10:8447"
+          sudo iptables -t nat -S PREROUTING | grep -q -- "-p udp .*--dport 2053 .*-j DNAT --to-destination 192.0.2.10:8450"
+          [ "$(sudo iptables -S ufw-before-forward | grep -c nebula-relay)" = 2 ]
+          ! sudo iptables -S | grep -q -- "-j LOG.*nebula-relay"
+          [ "$(sysctl -n net.netfilter.nf_conntrack_max)" = 200000 ]
+          sudo grep -qx NEBULA_RELAY_CHECK_TARGETS=192.0.2.10:8447 /etc/nebula/agent.env
+          sudo sha256sum /etc/ufw/before.rules > /tmp/relay1.txt
+          sudo -E ./install.sh </dev/null >/dev/null
+          sudo sha256sum /etc/ufw/before.rules | diff /tmp/relay1.txt -
+          sudo rm $r
+          sudo -E ./install.sh </dev/null >/dev/null
+          ! sudo iptables -t nat -S | grep -q 192.0.2.10
+          ! sudo grep -q NEBULA_RELAY_CHECK_TARGETS /etc/nebula/agent.env
+          systemctl is-active nebula-vpn-agent
       - name: Logs on failure
         if: failure()
         run: |

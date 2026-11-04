@@ -7,6 +7,7 @@ like a source with nothing to report, and those mean very different things
 when someone's usage suddenly stops growing.
 """
 
+import socket
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
@@ -253,3 +254,36 @@ def test_a_source_whose_endpoint_refuses_the_connection_is_reported_as_failed(
     # property of the machine running the test, not of the code.
     assert "hysteria2" in body["sources_failed"]
     assert "hysteria2" not in body["sources_read"]
+
+
+def _closed_port() -> int:
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port: int = probe.getsockname()[1]
+    return port
+
+
+@pytest.mark.usefixtures("collectors")
+def test_relay_is_read_while_one_target_answers(tmp_path: Path) -> None:
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        open_port = listener.getsockname()[1]
+        targets = f"127.0.0.1:{open_port},127.0.0.1:{_closed_port()}"
+        for client in _client(tmp_path, _settings(relay_check_targets=targets)):
+            body = client.post("/v1/usage/collect").json()
+    assert "relay" in body["sources_read"]
+    assert "relay" not in body["sources_failed"]
+
+
+@pytest.mark.usefixtures("collectors")
+def test_relay_fails_when_no_target_answers(tmp_path: Path) -> None:
+    targets = f"127.0.0.1:{_closed_port()}"
+    for client in _client(tmp_path, _settings(relay_check_targets=targets)):
+        body = client.post("/v1/usage/collect").json()
+    assert body["sources_failed"] == ["relay"]
+
+
+def test_relay_is_not_checked_when_not_a_relay(client: TestClient, collectors: Collectors) -> None:
+    body = client.post("/v1/usage/collect").json()
+    assert "relay" not in body["sources_read"] + body["sources_failed"]

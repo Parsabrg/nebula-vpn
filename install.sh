@@ -119,6 +119,36 @@ hysteria_hop() {
   awk -v r="$rule" 'NR == 1 { printf "%s", r } { print }' "$file" > "$file.nebula" \
     && cat "$file.nebula" > "$file" && rm -f "$file.nebula"
 }
+# A relay forwards some of this server's ports to another server ($3), for
+# apps that reach this one and not that (docs/runbooks/relay.md). $4 is
+# "443/tcp:8447 ..." (port here/proto:port there). Rewritten on every run,
+# and removed when $4 is empty. Forwarded connections are never logged.
+relay_forwarding() {
+  local wan=$1 file=$2 target=$3 ports=$4 nat="" fwd="" p here proto there
+  # ufw reload leaves nat rules it no longer has; take the live ones out.
+  if command -v iptables >/dev/null; then
+    iptables -t nat -S | grep -- '--comment nebula-relay' | sed 's/^-A /-D /' \
+      | while read -r rule; do iptables -t nat $rule; done || true
+  fi
+  awk '/^# nebula-relay start/ { skip = 1 } !skip && !/--comment nebula-relay/ { print }
+    /^# nebula-relay end/ { skip = 0 }' "$file" > "$file.nebula"
+  if [ -n "$ports" ]; then
+    nat="# nebula-relay start: forwarded to $target\n*nat\n:PREROUTING ACCEPT [0:0]\n:POSTROUTING ACCEPT [0:0]\n"
+    for p in $ports; do
+      here=${p%%/*}; proto=${p#*/}; proto=${proto%%:*}; there=${p##*:}
+      nat+="-A PREROUTING -i $wan -p $proto --dport $here -m comment --comment nebula-relay -j DNAT --to-destination $target:$there\n"
+      nat+="-A POSTROUTING -o $wan -d $target -p $proto --dport $there -m comment --comment nebula-relay -j MASQUERADE\n"
+      # Only these ports, only to the target, may be forwarded.
+      fwd+="-A ufw-before-forward -i $wan -o $wan -d $target -p $proto --dport $there -m comment --comment nebula-relay -j ACCEPT\n"
+    done
+    nat+="COMMIT\n# nebula-relay end\n"
+    awk -v nat="$nat" -v fwd="$fwd" '
+      NR == 1 { printf "%s", nat }
+      /^-A ufw-before-input -i lo -j ACCEPT/ && !done { printf "%s", fwd; done = 1 }
+      { print }' "$file.nebula" > "$file.nebula2" && mv "$file.nebula2" "$file.nebula"
+  fi
+  cat "$file.nebula" > "$file" && rm -f "$file.nebula"
+}
 api() { compose exec -T api nebula-api "$@"; }
 
 # Downloads that fail from some networks (PyPI's file host and GitHub are slow
@@ -655,6 +685,32 @@ fi
 # ponytail: IPv4 only, and the redirect keeps the port it was made with; a
 # Hysteria2 port moved later with --configure needs the rule edited.
 [ -z "$HOP" ] || hysteria_hop "$WAN" /etc/ufw/before.rules "$HOP" "${HYPORT:-8450}"
+# Relay: only when the owner has written relay.env (docs/runbooks/relay.md).
+relayget() { [ -f $ETC/relay.env ] && sed -n "s/^$1=//p" $ETC/relay.env | tail -1; return 0; }
+RELAY_TARGET=$(relayget NEBULA_RELAY_TARGET) RELAY_PORTS=$(relayget NEBULA_RELAY_PORTS) RELAY_CHECK=""
+if [ -n "$RELAY_PORTS" ]; then
+  python3 -c 'import ipaddress,sys; ipaddress.IPv4Address(sys.argv[1])' "$RELAY_TARGET" 2>/dev/null \
+    || die "NEBULA_RELAY_TARGET in $ETC/relay.env must be the other server's IPv4 address"
+  for p in $RELAY_PORTS; do
+    [[ $p =~ ^([0-9]{1,5})/(tcp|udp):([0-9]{1,5})$ ]] || die "relay port '$p' must look like 443/tcp:8447"
+    here=${BASH_REMATCH[1]} proto=${BASH_REMATCH[2]} there=${BASH_REMATCH[3]}
+    # Never the other server's SSH, agent, panel or certificate renewal.
+    case " 22 80 8444 9443 " in *" $there "*) die "relay port $there is not a VPN port; it is never forwarded" ;; esac
+    [ "$here" != "$SSH_PORT" ] && [ "$here" != 80 ] || die "relay port $here is this server's own"
+    flag=$([ "$proto" = tcp ] && echo -Hltn || echo -Hlun)
+    [ -z "$(ss "$flag" "sport = :$here")" ] || die "relay port $here/$proto is already in use on this server"
+    [ "$proto" = tcp ] && RELAY_CHECK+="${RELAY_CHECK:+,}$RELAY_TARGET:$there"
+  done
+  # Room to track every relayed connection; established ones idle out
+  # after two hours instead of the kernel's five days.
+  printf 'nf_conntrack\n' > /etc/modules-load.d/nebula-relay.conf; modprobe nf_conntrack
+  printf 'net.netfilter.nf_conntrack_max=%s\nnet.netfilter.nf_conntrack_tcp_timeout_established=7200\n' \
+    "$(relayget NEBULA_RELAY_CONNTRACK_MAX | grep -E '^[0-9]+$' || echo 131072)" > /etc/sysctl.d/99-nebula-relay.conf
+  sysctl -q -p /etc/sysctl.d/99-nebula-relay.conf
+else
+  rm -f /etc/modules-load.d/nebula-relay.conf /etc/sysctl.d/99-nebula-relay.conf
+fi
+relay_forwarding "$WAN" /etc/ufw/before.rules "$RELAY_TARGET" "$RELAY_PORTS"
 printf 'net.ipv4.ip_forward=1\n' > /etc/sysctl.d/99-nebula-forward.conf
 sysctl -q -p /etc/sysctl.d/99-nebula-forward.conf
 sed -i 's|^#\?net/ipv4/ip_forward=.*|net/ipv4/ip_forward=1|' /etc/ufw/sysctl.conf
@@ -717,6 +773,9 @@ fi
 # from: editing Xray's config by hand is overwritten at the next change.
 agentget() { sed -n "s/^$1=//p" $ETC/agent.env | tail -1; }
 agentset() { sed -i "/^$1=/d" $ETC/agent.env; printf '%s=%s\n' "$1" "$2" >> $ETC/agent.env; }
+# A relay's agent checks the forwarded TCP ports answer from here.
+if [ -n "$RELAY_CHECK" ]; then agentset NEBULA_RELAY_CHECK_TARGETS "$RELAY_CHECK"
+else sed -i '/^NEBULA_RELAY_CHECK_TARGETS=/d' $ETC/agent.env; fi
 # name | enable key | port key | default port | proto | profile codes
 PROTOCOLS=(
   "gRPC|NEBULA_XRAY_GRPC_ENABLED|NEBULA_XRAY_GRPC_PORT|8447|tcp|vless-grpc-tls"

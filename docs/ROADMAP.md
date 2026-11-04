@@ -17,7 +17,6 @@ written plan in [plans/2026-11-plans.md](plans/2026-11-plans.md), agreed
 2026-11-04; the number is the plan's.
 
 **Censorship**
-- *plan 4* Relay role: a server inside Iran forwarding to one abroad (section 23).
 - *plan 3* AmneziaWG as an engine, server and apps (section 4); a spike first.
 - *plan 10* DNS tunnelling as a last-resort route (ADR 0004).
 - A second CDN route on CloudFront: the server side is done; the distribution needs the owner's AWS account (section 11).
@@ -46,6 +45,7 @@ Updated in the same pull request as the work (section 92).
 
 | Section | Item | State |
 | --- | --- | --- |
+| plan 4 | Relay inside Iran: `relay.env` on a joined server (DNAT + MASQUERADE of the listed ports only, ufw forward rules to the exit only, conntrack sized, no logging); the API lists `NEBULA_RELAYS` entries as servers of their own with the exit's forwarded profiles and hands out the device's exit credential at the relay's address; the relay's agent checks the exit's ports each usage poll and the relay shows as maintenance while it cannot; CI checks the rules, the refused ports and removal (`docs/runbooks/relay.md`) | Done in code (tests, CI); not on Tehran until the owner OKs ports and traffic; phone tests per network pending; automatic fallback is the next step |
 | plan 2 | Port 443: new installs serve the panel, API and XHTTP on TCP 443 by name (plain nginx `listen 443`, not `ssl_preread`, which would hide client addresses from rate limits and the admin allowlist) and Hysteria2 on UDP 443; old ports stay open and listed after; REALITY keeps its own port; existing servers keep theirs (`docs/runbooks/port-443.md`); CI checks 443 on a new install | Done in code (CI); off on existing servers until the owner turns it on; phone test pending |
 | 4, 11 (list), plan 1 | VLESS + REALITY on the server: agent `NEBULA_XRAY_REALITY_*` (off by default; `xray x25519` pair, hex short id, borrowed site), inbounds `vless-reality-vision` (raw, Vision flow) and `vless-reality-xhttp`; credential gives the borrowed name, public key, short id and flow (never the private key); never sent through the CDN route; seeded by `seed-direct-protocols`; `install.sh --configure` option; the app reads the fields | Done in code (tests); off on every server until the owner turns it on |
 | 19 (list) | Admin passkeys (WebAuthn, `webauthn` 3.0.1): `admin_passkeys` (migration 0021); add/list/remove under `/v1/admin/auth/passkeys` (step-up); after the password, `/mfa/passkey/options` reads the sign-in challenge without spending it and `/mfa/passkey/verify` signs in (session method `passkey`, sign count kept); relying party is the first allowed origin's host; the panel uses the browser's own JSON helpers. Step-up stays TOTP | Done in code (tests); first passkey on the live panel pending |
