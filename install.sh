@@ -664,7 +664,8 @@ if [ -n "$JOIN_URL" ]; then
     fetch -o /tmp/dnsproxy.tgz \
       "https://github.com/AdguardTeam/dnsproxy/releases/download/v$DNSPROXY_VERSION/dnsproxy-linux-$ARCH-v$DNSPROXY_VERSION.tar.gz"
     echo "${DNSPROXY_SHA[$ARCH]}  /tmp/dnsproxy.tgz" | sha256sum -c --quiet || die "dnsproxy download failed its checksum"
-    tar -xzf /tmp/dnsproxy.tgz -C /tmp "linux-$ARCH/dnsproxy"
+    # Its entries start with "./", so the whole archive rather than one name.
+    tar -xzf /tmp/dnsproxy.tgz -C /tmp
     install -m 0755 "/tmp/linux-$ARCH/dnsproxy" /usr/local/bin/dnsproxy
   fi
   # Kept when present: the owner may list other upstreams here.
