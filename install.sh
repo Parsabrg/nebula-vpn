@@ -695,7 +695,7 @@ if [ -n "$RELAY_PORTS" ]; then
     [[ $p =~ ^([0-9]{1,5})/(tcp|udp):([0-9]{1,5})$ ]] || die "relay port '$p' must look like 443/tcp:8447"
     here=${BASH_REMATCH[1]} proto=${BASH_REMATCH[2]} there=${BASH_REMATCH[3]}
     # Never the other server's SSH, agent, panel or certificate renewal.
-    case " 22 80 8444 9443 " in *" $there "*) die "relay port $there is not a VPN port; it is never forwarded" ;; esac
+    case $there in 22|80|8444|9443) die "relay port $there is not a VPN port; it is never forwarded" ;; esac
     [ "$here" != "$SSH_PORT" ] && [ "$here" != 80 ] || die "relay port $here is this server's own"
     flag=$([ "$proto" = tcp ] && echo -Hltn || echo -Hlun)
     [ -z "$(ss "$flag" "sport = :$here")" ] || die "relay port $here/$proto is already in use on this server"
