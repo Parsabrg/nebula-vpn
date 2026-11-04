@@ -43,6 +43,7 @@ from nebula_api.bootstrap import (
 )
 from nebula_api.db.engine import create_database_engine, create_session_factory
 from nebula_api.db.schema import SCHEMA_HEAD, schema_is_current
+from nebula_api.dns_profiles import ResolverHealth
 from nebula_api.enrollment.service import EnrollmentService, certificate_hostnames
 from nebula_api.models.topology import VPNServer
 from nebula_api.pki import (
@@ -1157,10 +1158,11 @@ async def _collect_usage_once(
         usage,
     )
     relays = settings.relay_list()
-    if relays:
+    if relays or settings.xray_client_dns:
         redis_client = Redis.from_url(settings.redis_url.get_secret_value())
         try:
             await RelayHealth(cast(Any, redis_client)).record(relays, summary.relay_checked)
+            await ResolverHealth(cast(Any, redis_client)).record(summary.resolver_checked)
         finally:
             await redis_client.aclose()
     # Straight after the poll, on the same totals it just wrote. An

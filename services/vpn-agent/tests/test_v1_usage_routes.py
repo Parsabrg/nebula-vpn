@@ -8,6 +8,7 @@ when someone's usage suddenly stops growing.
 """
 
 import socket
+import threading
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
@@ -287,3 +288,28 @@ def test_relay_fails_when_no_target_answers(tmp_path: Path) -> None:
 def test_relay_is_not_checked_when_not_a_relay(client: TestClient, collectors: Collectors) -> None:
     body = client.post("/v1/usage/collect").json()
     assert "relay" not in body["sources_read"] + body["sources_failed"]
+
+
+def test_dns_is_read_while_the_resolver_answers(tmp_path: Path, collectors: Collectors) -> None:
+    resolver = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    resolver.bind(("127.0.0.1", 0))
+    port = resolver.getsockname()[1]
+
+    def answer() -> None:
+        query, peer = resolver.recvfrom(512)
+        resolver.sendto(query[:2] + b"\x81\x80" + query[4:], peer)
+
+    thread = threading.Thread(target=answer, daemon=True)
+    thread.start()
+    settings = _settings(xray_dns_redirect=f"198.18.0.53=127.0.0.1:{port}")
+    for client in _client(tmp_path, settings):
+        body = client.post("/v1/usage/collect").json()
+    resolver.close()
+    assert "dns" in body["sources_read"]
+
+
+def test_dns_fails_without_a_resolver(tmp_path: Path, collectors: Collectors) -> None:
+    settings = _settings(xray_dns_redirect=f"198.18.0.53=127.0.0.1:{_closed_port()}")
+    for client in _client(tmp_path, settings):
+        body = client.post("/v1/usage/collect").json()
+    assert body["sources_failed"] == ["dns"]

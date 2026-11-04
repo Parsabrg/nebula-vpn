@@ -52,6 +52,13 @@ declare -A HYSTERIA_SHA=(
   [amd64]=86fef8e2f1b2bf41318ac96724eee6c3b449e4e510022cc89658b63a6713922a
   [arm64]=9ec8f49f4ea554b1cac04e6f3690cea76ff835082e943e54196d7f323fcfba71
 )
+# A joined server's resolver for the tunnels (the control plane runs AdGuard
+# Home in its stack). Hashes of the release files, 2026-11-04.
+DNSPROXY_VERSION=0.86.0
+declare -A DNSPROXY_SHA=(
+  [amd64]=17ac43f76ebfcedf547c663f6f31aa70e68b8eb6fc41d2fc37d3bfe21a2ced66
+  [arm64]=eda840d39da0c2777ea2431d3d73407e813e3fc0e411bfe256a9fb4b97d08247
+)
 
 bold=$'\e[1m'; green=$'\e[32m'; yellow=$'\e[33m'; red=$'\e[31m'; reset=$'\e[0m'
 step() { printf '\n%s==> %s%s\n' "$bold" "$*" "$reset"; }
@@ -413,6 +420,14 @@ routes="https://$APIHOST:8444,https://$NEBULA_DOMAIN:8445"
 [ -n "$WEB" ] || routes="https://$APIHOST,https://$NEBULA_DOMAIN,$routes"
 setenv NEBULA_API_ROUTES "$routes"
 setenv NEBULA_EMAIL_FROM "$NEBULA_EMAIL_FROM"
+# The tunnels' DNS address, which each server's agent redirects to its own
+# resolver; the API hands it out only where that resolver answers. A value
+# already here (even empty) is kept.
+if grep -q '^NEBULA_XRAY_CLIENT_DNS=' $ETC/compose.env; then
+  setenv NEBULA_XRAY_CLIENT_DNS "$(sed -n 's/^NEBULA_XRAY_CLIENT_DNS=//p' $ETC/compose.env | tail -1)"
+else
+  setenv NEBULA_XRAY_CLIENT_DNS 198.18.0.53
+fi
 # What the apps call this server; every install was "Nebula" before.
 setenv NEBULA_DEPLOYMENT_NAME "$NEBULA_DOMAIN"
 case $NEBULA_EMAIL_MODE in
@@ -473,8 +488,17 @@ if [ -n "$RESTORE_DIR" ]; then
 fi
 
 step "Starting the control plane"
+# The tunnels' resolver (infrastructure/adguard/README.md). Once written the
+# config is this server's own: AdGuard Home rewrites it.
+ADGUARD_NEW=""
+if [ ! -f $ETC/adguard/conf/AdGuardHome.yaml ]; then
+  install -d -m 700 $ETC/adguard/conf /var/lib/nebula/adguard/work
+  install -m 600 "$REPO/infrastructure/adguard/AdGuardHome.yaml" $ETC/adguard/conf/
+  ADGUARD_NEW=1
+fi
 compose up -d --no-build --wait --wait-timeout 300 >/tmp/nebula-up.log 2>&1 || {
   tail -n 20 /tmp/nebula-up.log; compose logs --tail 30 api; die "the stack did not become healthy"; }
+[ -z "$ADGUARD_NEW" ] || compose restart dns >/dev/null 2>&1
 # The worker reads the mail credential when it starts, and a changed key file
 # alone does not make compose recreate it.
 compose restart worker >/dev/null 2>&1
@@ -632,6 +656,24 @@ if [ ! -f /etc/wireguard/wg0.conf ]; then
   umask 022
 fi
 systemctl enable --now wg-quick@wg0 >/dev/null 2>&1
+# A joined server's resolver for the tunnels, on 127.0.0.1:5354 like the
+# control plane's. DNS over HTTPS to resolvers named by address: looking a
+# name up first in plain DNS can be forged inside Iran. No query log.
+if [ -n "$JOIN_URL" ]; then
+  if ! /usr/local/bin/dnsproxy --version 2>/dev/null | grep -q "$DNSPROXY_VERSION"; then
+    fetch -o /tmp/dnsproxy.tgz \
+      "https://github.com/AdguardTeam/dnsproxy/releases/download/v$DNSPROXY_VERSION/dnsproxy-linux-$ARCH-v$DNSPROXY_VERSION.tar.gz"
+    echo "${DNSPROXY_SHA[$ARCH]}  /tmp/dnsproxy.tgz" | sha256sum -c --quiet || die "dnsproxy download failed its checksum"
+    tar -xzf /tmp/dnsproxy.tgz -C /tmp "linux-$ARCH/dnsproxy"
+    install -m 0755 "/tmp/linux-$ARCH/dnsproxy" /usr/local/bin/dnsproxy
+  fi
+  # Kept when present: the owner may list other upstreams here.
+  [ -f $ETC/dns.env ] || printf '%s\n' \
+    'NEBULA_DNS_UPSTREAMS=-u https://1.1.1.1/dns-query -u https://8.8.8.8/dns-query -u https://9.9.9.9/dns-query' \
+    > $ETC/dns.env
+  install -m 0644 "$REPO/infrastructure/systemd/nebula-dns.service" /etc/systemd/system/
+  systemctl daemon-reload; systemctl enable nebula-dns >/dev/null 2>&1; systemctl restart nebula-dns
+fi
 ok "Xray $(/usr/local/bin/xray version | awk 'NR==1{print $2}'), Hysteria2, WireGuard"
 
 step "Firewall"
@@ -665,6 +707,13 @@ if ! grep -q 'uid-owner nebula-xray' /etc/ufw/before.rules; then
   rules=""; for n in ::1/128 fc00::/7 fe80::/10; do
     rules+="-A ufw6-before-output -m owner --uid-owner nebula-xray -m conntrack --ctstate NEW -d $n -j REJECT\n"; done
   awk -v r="$rules" '/^-A ufw6-before-output -o lo -j ACCEPT/{printf "%s", r} {print}' /etc/ufw/before6.rules > /tmp/ufw-before6 && cat /tmp/ufw-before6 > /etc/ufw/before6.rules
+fi
+# The one exception to the block above: Xray reaches this server's resolver.
+if ! grep -q 'dport 5354' /etc/ufw/before.rules; then
+  rules=""; for proto in udp tcp; do
+    rules+="-A ufw-before-output -m owner --uid-owner nebula-xray -d 127.0.0.1/32 -p $proto --dport 5354 -j ACCEPT\n"; done
+  awk -v r="$rules" '/uid-owner nebula-xray/ && !done { printf "%s", r; done = 1 } { print }' /etc/ufw/before.rules \
+    > /tmp/ufw-before && cat /tmp/ufw-before > /etc/ufw/before.rules
 fi
 # WireGuard clients reach the internet: forwarding, NAT on the outgoing
 # interface and a ufw route. Without them a fresh server's WireGuard carried
@@ -773,6 +822,11 @@ fi
 # from: editing Xray's config by hand is overwritten at the next change.
 agentget() { sed -n "s/^$1=//p" $ETC/agent.env | tail -1; }
 agentset() { sed -i "/^$1=/d" $ETC/agent.env; printf '%s=%s\n' "$1" "$2" >> $ETC/agent.env; }
+# The tunnels' DNS goes to this server's resolver; a redirect already set is
+# kept. A running Xray only loads the new rule when it restarts (below).
+DNS_NEW=""
+[ -n "$(agentget NEBULA_XRAY_DNS_REDIRECT)" ] \
+  || { agentset NEBULA_XRAY_DNS_REDIRECT 198.18.0.53=127.0.0.1:5354; DNS_NEW=1; }
 # A relay's agent checks the forwarded TCP ports answer from here.
 if [ -n "$RELAY_CHECK" ]; then agentset NEBULA_RELAY_CHECK_TARGETS "$RELAY_CHECK"
 else sed -i '/^NEBULA_RELAY_CHECK_TARGETS=/d' $ETC/agent.env; fi
@@ -900,6 +954,9 @@ done
 systemctl enable nebula-vpn-agent >/dev/null 2>&1; systemctl restart nebula-vpn-agent
 for _ in $(seq 1 30); do [ -f /etc/nebula/xray/config.json ] && break; sleep 1; done
 systemctl enable --now nebula-xray nebula-hysteria >/dev/null 2>&1
+# ponytail: a fixed pause for the agent to render the new DNS rule; a slower
+# agent leaves the old one until Xray's next restart.
+[ -z "$DNS_NEW" ] || { sleep 5; systemctl restart nebula-xray; }
 ok "agent running; server enrolled${JOIN_URL:+ with $JOIN_URL}"
 
 if [ -z "$JOIN_URL" ]; then

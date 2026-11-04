@@ -103,6 +103,33 @@ jobs:
             echo "$host on 443 answered $code"; [ "$code" != 000 ]
           done
           sudo grep -q '^NEBULA_XRAY_HYSTERIA_PORT=443$' /etc/nebula/agent.env
+          # The tunnels' resolver answers where Xray's redirect sends them.
+          sudo grep -qx 'NEBULA_XRAY_DNS_REDIRECT=198.18.0.53=127.0.0.1:5354' /etc/nebula/agent.env
+          sudo grep -q 'nebula-xray -d 127.0.0.1/32 -p udp --dport 5354 -j ACCEPT' /etc/ufw/before.rules
+          python3 - <<'PY'
+          import socket
+          q = bytes.fromhex("4e420100000100000000000000076578616d706c6503636f6d0000010001")
+          s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+          s.settimeout(10)
+          import time
+          a = b""
+          for _ in range(12):
+              try:
+                  s.sendto(q, ("127.0.0.1", 5354))
+                  a = s.recv(512)
+                  if a[:2] == q[:2] and a[7] > 0:
+                      break
+              except OSError:
+                  pass
+              time.sleep(5)
+          # A reply proves the resolver and its address. Its upstreams (DNS
+          # over HTTPS by IP) have not answered from the runner's network
+          # (SERVFAIL), while the same config answers on a real server.
+          if a[:2] != q[:2]:
+              raise SystemExit("the resolver on 127.0.0.1:5354 did not reply")
+          print(f"resolver replied, rcode {a[3] & 15}, {a[7]} answer(s)")
+          PY
+          sudo docker logs --tail 15 nebula-production-dns-1 2>&1 | grep -iE "error|upstream|fail" | tail -5 || true
           # Metrics on the host's loopback only.
           curl -fsS http://127.0.0.1:8000/metrics | grep -q nebula_api_requests_total
           curl -fsS http://127.0.0.1:9464/metrics | grep -q nebula_agent_requests_total

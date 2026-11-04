@@ -1,0 +1,29 @@
+[Unit]
+Description=Nebula VPN resolver for tunnelled clients (dnsproxy, DNS over HTTPS)
+Documentation=https://github.com/Parsabrg/vpn/blob/main/infrastructure/adguard/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Only Xray's DNS redirect reaches it (127.0.0.1:5354). Upstreams in
+# /etc/nebula/dns.env, by address: DNS over HTTPS, no plain lookup first.
+# Without --verbose it logs no queries; --cache keeps answers in memory only.
+EnvironmentFile=/etc/nebula/dns.env
+ExecStart=/usr/local/bin/dnsproxy --listen=127.0.0.1 --port=5354 --upstream-mode=parallel --cache $NEBULA_DNS_UPSTREAMS
+DynamicUser=yes
+Restart=always
+RestartSec=2
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+MemoryMax=128M
+
+[Install]
+WantedBy=multi-user.target

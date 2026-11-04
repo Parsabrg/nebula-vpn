@@ -41,11 +41,14 @@ dns:
   ratelimit_subnet_len_ipv6: 56
   ratelimit_whitelist: []
   refuse_any: true
-  # Encrypted to two providers, so the hosting network sees neither the
-  # names nor the answers (plain DNS to a public resolver showed both).
+  # Encrypted, so the hosting network sees neither the names nor the answers
+  # (plain DNS to a public resolver showed both). Named by address: finding
+  # an upstream by name first takes a plain lookup, which can be forged
+  # inside Iran (Tehran answered 10.10.34.35 for www.youtube.com).
   upstream_dns:
-    - https://dns10.quad9.net/dns-query
-    - https://cloudflare-dns.com/dns-query
+    - https://1.1.1.1/dns-query
+    - https://9.9.9.9/dns-query
+    - https://8.8.8.8/dns-query
   upstream_dns_file: ""
   bootstrap_dns:
     - 9.9.9.10

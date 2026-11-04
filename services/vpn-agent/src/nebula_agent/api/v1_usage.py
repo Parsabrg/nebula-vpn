@@ -23,7 +23,7 @@ from nebula_agent.drivers.hysteria_config_store import (
     traffic_stats_secret,
 )
 from nebula_agent.drivers.xray_config_store import STATS_API_PORT
-from nebula_agent.settings import Settings
+from nebula_agent.settings import Settings, parse_dns_redirect
 from nebula_agent.usage import (
     UsageSample,
     collect_hysteria_usage,
@@ -79,6 +79,37 @@ async def check_relay(targets: str) -> list[UsageSample]:
     return []
 
 
+# A query for "cloudflare.com" A: any answer with our ID means the resolver
+# is up, whatever it says.
+_DNS_QUERY = bytes.fromhex("4e42010000010000000000000a636c6f7564666c61726503636f6d0000010001")
+
+
+class _Answer(asyncio.DatagramProtocol):
+    def __init__(self) -> None:
+        self.got: asyncio.Future[bytes] = asyncio.get_running_loop().create_future()
+
+    def datagram_received(self, data: bytes, addr: object) -> None:
+        if not self.got.done():
+            self.got.set_result(data)
+
+
+async def check_resolver(target: str) -> list[UsageSample]:
+    """Raise unless the resolver the tunnels' DNS is redirected to answers."""
+    host, _, port = target.rpartition(":")
+    loop = asyncio.get_running_loop()
+    transport, protocol = await loop.create_datagram_endpoint(
+        _Answer, remote_addr=(host, int(port))
+    )
+    try:
+        transport.sendto(_DNS_QUERY)
+        answer = await asyncio.wait_for(protocol.got, RELAY_CHECK_SECONDS)
+    finally:
+        transport.close()
+    if answer[:2] != _DNS_QUERY[:2]:
+        raise ConnectionError("the resolver answered something else")
+    return []
+
+
 def get_settings(request: Request) -> Settings:
     settings: Settings = request.app.state.settings
     return settings
@@ -131,6 +162,13 @@ async def collect_usage(
                 secret=traffic_stats_secret(hysteria_profile),
             ),
         )
+
+    # The control plane hands out the redirected DNS address only for
+    # servers where this reads: a server without its resolver would get
+    # every tunnel's DNS blackholed.
+    redirect = parse_dns_redirect(settings.xray_dns_redirect)
+    if redirect is not None:
+        await gather("dns", check_resolver(redirect[1]))
 
     if settings.relay_check_targets:
         await gather("relay", check_relay(settings.relay_check_targets))
