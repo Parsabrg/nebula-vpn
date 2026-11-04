@@ -384,8 +384,23 @@ def test_dns_redirect_sends_only_the_dns_address_to_the_resolver_before_the_bloc
         )
     )
     dns = [o for o in config["outbounds"] if o["tag"] == "nebula-dns"]
+    # Allowed explicitly: Xray 26.10 blackholes loopback targets otherwise.
     assert dns == [
-        {"tag": "nebula-dns", "protocol": "freedom", "settings": {"redirect": "127.0.0.1:5354"}}
+        {
+            "tag": "nebula-dns",
+            "protocol": "freedom",
+            "settings": {
+                "redirect": "127.0.0.1:5354",
+                "finalRules": [
+                    {
+                        "action": "allow",
+                        "network": "tcp,udp",
+                        "ip": ["127.0.0.1"],
+                        "port": "5354",
+                    }
+                ],
+            },
+        }
     ]
     tags = [r["outboundTag"] for r in config["routing"]["rules"]]
     assert tags.index("nebula-dns") < tags.index("blocked")

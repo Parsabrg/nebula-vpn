@@ -23,6 +23,9 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   ask for the code. Needs a current browser.
 
 ### Servers
+- DNS inside tunnels works again on servers with Xray 26.10: its default policy blocked
+  the redirect to the server's own resolver, so pages did not load and the app kept
+  reconnecting. The agent now allows exactly that target.
 - A device's server list names the relays of the servers it holds a credential on, so the
   app no longer ends a relay tunnel with "Your access to this server has ended".
 - Relays: a joined server can forward chosen ports to another server, and the app

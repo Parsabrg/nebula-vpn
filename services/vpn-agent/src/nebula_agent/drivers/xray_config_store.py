@@ -371,7 +371,21 @@ def render_xray_server_config(
                     {
                         "tag": _DNS_TAG,
                         "protocol": "freedom",
-                        "settings": {"redirect": dns_redirect[1]},
+                        "settings": {
+                            "redirect": dns_redirect[1],
+                            # Xray 26.10 refuses private and loopback targets
+                            # for traffic from VLESS and the like unless a rule
+                            # allows them: without this every tunnel's DNS was
+                            # blackholed (2026-11-04). Only the resolver.
+                            "finalRules": [
+                                {
+                                    "action": "allow",
+                                    "network": "tcp,udp",
+                                    "ip": [dns_redirect[1].rpartition(":")[0]],
+                                    "port": dns_redirect[1].rpartition(":")[2],
+                                }
+                            ],
+                        },
                     }
                 ]
                 if dns_redirect
