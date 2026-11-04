@@ -295,6 +295,9 @@ class NativeXrayDriver:
             profile,
             api_host=self._settings.xray_api_host,
             auth_url=self._hysteria_auth_url() if self._settings.xray_live_client_updates else None,
+            resolver=redirect[1]
+            if (redirect := parse_dns_redirect(self._settings.xray_dns_redirect))
+            else None,
         )
 
     def _hysteria_auth_url(self) -> str:
