@@ -111,16 +111,19 @@ jobs:
           q = bytes.fromhex("4e420100000100000000000000076578616d706c6503636f6d0000010001")
           s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
           s.settimeout(10)
-          for _ in range(6):
+          import time
+          a = b""
+          for _ in range(12):
               try:
                   s.sendto(q, ("127.0.0.1", 5354))
                   a = s.recv(512)
-                  break
+                  if a[:2] == q[:2] and a[7] > 0:
+                      break
               except OSError:
-                  continue
+                  pass
+              time.sleep(5)
           else:
-              raise SystemExit("the resolver on 127.0.0.1:5354 did not answer")
-          assert a[:2] == q[:2] and a[7] > 0, "no answer for example.com"
+              raise SystemExit(f"no answer for example.com from 127.0.0.1:5354 (last reply {a[:12].hex()})")
           print("resolver answered example.com")
           PY
           # Metrics on the host's loopback only.
