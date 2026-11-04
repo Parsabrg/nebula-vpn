@@ -110,6 +110,9 @@ terminal. It never accepts a password argument or environment variable, refuses 
 replace an existing owner, and records the creation in the audit log in the same
 transaction.
 
+Further admins are added by an owner on the panel's Admins page, which hands
+out a one-time password; the new admin sets up an authenticator at first sign-in.
+
 ## Quality gates
 
 - Python: Ruff lint/format, strict mypy, pytest, and coverage thresholds for each

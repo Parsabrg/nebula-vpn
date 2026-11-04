@@ -13,6 +13,12 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   not answer is dropped and a fresh one asked for, once. Disconnect no longer gives
   the peer back; sign-out, an admin, or the account running out removes it.
 
+### Admin panel
+- Admins page (owners only): add an admin with a one-time password, change a role
+  (owner, operator, auditor), disable or re-enable, and see or end their sessions.
+  Each change needs a fresh code and is audited. You cannot change or disable
+  yourself there, so a deployment always keeps an owner.
+
 ## 0.1.34 — 2026-11-03
 
 ### Apps

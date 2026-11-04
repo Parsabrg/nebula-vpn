@@ -96,6 +96,39 @@ redis.call('PEXPIRE', KEYS[1], math.min(idle_ms, absolute_ms - now_ms))
 return 1
 """
 
+# Every live session of one admin: a SCAN over session keys, which is fine
+# for the handful of admins a deployment has.
+# ponytail: SCAN of every session key; a per-admin index if admins number in the thousands.
+_LIST_ADMIN_SESSIONS_LUA = """
+local found = {}
+local cursor = '0'
+repeat
+  local page = redis.call('SCAN', cursor, 'MATCH', ARGV[1], 'COUNT', 500)
+  cursor = page[1]
+  for _, key in ipairs(page[2]) do
+    if redis.call('HGET', key, 'admin_id') == ARGV[2] then
+      table.insert(found, redis.call('HGETALL', key))
+    end
+  end
+until cursor == '0'
+return found
+"""
+
+_REVOKE_ADMIN_SESSION_BY_ID_LUA = """
+local cursor = '0'
+repeat
+  local page = redis.call('SCAN', cursor, 'MATCH', ARGV[1], 'COUNT', 500)
+  cursor = page[1]
+  for _, key in ipairs(page[2]) do
+    local owner = redis.call('HMGET', key, 'admin_id', 'session_id')
+    if owner[1] == ARGV[2] and owner[2] == ARGV[3] then
+      return redis.call('DEL', key)
+    end
+  end
+until cursor == '0'
+return 0
+"""
+
 _ROTATE_SESSION_LUA = """
 if redis.call('EXISTS', KEYS[1]) == 0 or redis.call('EXISTS', KEYS[2]) == 1 then return {} end
 local now_ms = tonumber(ARGV[1])
@@ -221,7 +254,7 @@ class RedisAuthState:
             raise AuthStateUnavailable("authentication state is unavailable") from error
         if type(result) is not int or result not in {0, 1}:
             raise AuthStateUnavailable("authentication state is unavailable")
-        return result == 1
+        return bool(result == 1)
 
     async def lockout_status(self, account_key: str) -> LockoutState:
         now_ms = self._now_ms()
@@ -494,6 +527,40 @@ class RedisAuthState:
             await self._client.delete(key)
         except Exception as error:
             raise AuthStateUnavailable("authentication state is unavailable") from error
+
+    async def list_admin_sessions(self, admin_id: UUID) -> list[AdminSessionRecord]:
+        """Every live session of [admin_id], newest first."""
+
+        try:
+            result = await self._client.eval(
+                _LIST_ADMIN_SESSIONS_LUA, 0, f"{self._prefix}:session:*", str(admin_id)
+            )
+        except Exception as error:
+            raise AuthStateUnavailable("authentication state is unavailable") from error
+        if not isinstance(result, (list, tuple)):
+            raise AuthStateUnavailable("authentication state is unavailable")
+        now = self._now()
+        records = [
+            record
+            for record in (_session_record(_decode_hash(item)) for item in result)
+            if record.absolute_expires_at > now
+        ]
+        return sorted(records, key=lambda record: record.last_seen_at, reverse=True)
+
+    async def revoke_admin_session_by_id(self, admin_id: UUID, session_id: UUID) -> bool:
+        """End one session of [admin_id]; False when it is already gone."""
+
+        try:
+            result = await self._client.eval(
+                _REVOKE_ADMIN_SESSION_BY_ID_LUA,
+                0,
+                f"{self._prefix}:session:*",
+                str(admin_id),
+                str(session_id),
+            )
+        except Exception as error:
+            raise AuthStateUnavailable("authentication state is unavailable") from error
+        return bool(result == 1)
 
     def _session_key(self, token: str) -> str | None:
         try:

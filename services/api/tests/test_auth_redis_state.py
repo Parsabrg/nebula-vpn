@@ -8,9 +8,11 @@ import pytest
 from nebula_api.auth.redis_state import (
     _CONSUME_PREAUTH_LUA,
     _GET_SESSION_LUA,
+    _LIST_ADMIN_SESSIONS_LUA,
     _LOCKOUT_FAILURE_LUA,
     _LOCKOUT_STATUS_LUA,
     _RATE_LIMIT_LUA,
+    _REVOKE_ADMIN_SESSION_BY_ID_LUA,
     _ROTATE_CSRF_LUA,
     _ROTATE_SESSION_LUA,
     _SET_HASH_WITH_TTL_LUA,
@@ -81,6 +83,21 @@ class FakeRedis:
                 return 0
             fields["csrf_digest"] = str(arguments[3])
             return 1
+        if script == _LIST_ADMIN_SESSIONS_LUA:
+            return [
+                _flatten(fields)
+                for fields in self.hashes.values()
+                if fields.get("admin_id") == arguments[1]
+            ]
+        if script == _REVOKE_ADMIN_SESSION_BY_ID_LUA:
+            for key, fields in list(self.hashes.items()):
+                if (
+                    fields.get("admin_id") == arguments[1]
+                    and fields.get("session_id") == arguments[2]
+                ):
+                    del self.hashes[key]
+                    return 1
+            return 0
         if script == _ROTATE_SESSION_LUA:
             try:
                 fields = self.hashes.pop(keys[0])
@@ -644,3 +661,57 @@ def test_hash_creation_lockout_and_key_helpers_fail_closed() -> None:
 
     with pytest.raises(AuthStateUnavailable):
         _strict_integer("42")
+
+
+def test_admin_sessions_are_listed_and_ended_by_id() -> None:
+    client = FakeRedis()
+    state = make_state(client)
+    admin_id = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+    other_id = UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+    first = asyncio.run(
+        state.issue_admin_session(
+            admin_id=admin_id,
+            mfa_method="totp",
+            idle_ttl=timedelta(minutes=30),
+            absolute_ttl=timedelta(hours=8),
+        )
+    )
+    asyncio.run(
+        state.issue_admin_session(
+            admin_id=other_id,
+            mfa_method="totp",
+            idle_ttl=timedelta(minutes=30),
+            absolute_ttl=timedelta(hours=8),
+        )
+    )
+    # One past its absolute expiry that Redis has not dropped yet.
+    stale = {**next(iter(client.hashes.values()))}
+    stale.update(session_id=str(UUID(int=7)), absolute_expires_ms="1")
+    client.hashes["nebula:auth:v1:session:stale"] = stale
+
+    listed = asyncio.run(state.list_admin_sessions(admin_id))
+    assert [record.session_id for record in listed] == [first.record.session_id]
+    assert asyncio.run(state.revoke_admin_session_by_id(other_id, first.record.session_id)) is False
+    assert asyncio.run(state.revoke_admin_session_by_id(admin_id, first.record.session_id)) is True
+    assert asyncio.run(state.list_admin_sessions(admin_id)) == []
+
+
+def test_admin_session_listing_fails_closed() -> None:
+    client = FakeRedis()
+    state = make_state(client)
+    client.raise_error = True
+    with pytest.raises(AuthStateUnavailable):
+        asyncio.run(state.list_admin_sessions(UUID(int=1)))
+    with pytest.raises(AuthStateUnavailable):
+        asyncio.run(state.revoke_admin_session_by_id(UUID(int=1), UUID(int=2)))
+    client.raise_error = False
+    client.hashes = {}
+    original = client.eval
+
+    async def not_a_list(*_args: object) -> Any:
+        return 5
+
+    client.eval = not_a_list  # type: ignore[method-assign,assignment]
+    with pytest.raises(AuthStateUnavailable):
+        asyncio.run(state.list_admin_sessions(UUID(int=1)))
+    client.eval = original  # type: ignore[method-assign]
