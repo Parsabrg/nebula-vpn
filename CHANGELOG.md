@@ -23,6 +23,8 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   ask for the code. Needs a current browser.
 
 ### Servers
+- WireGuard clients of a joined server ask its own resolver (the tunnel's gateway, port
+  53 redirected to it, wg0 only) instead of plain 1.1.1.1, which inside Iran is forged.
 - Every server gets its own resolver for the tunnels' DNS: `install.sh --join` sets up
   `dnsproxy` (DNS over HTTPS by address, no query log), and the API hands out the
   resolver address only for servers whose agent reports it answering. Joined servers
