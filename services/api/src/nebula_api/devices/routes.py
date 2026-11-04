@@ -152,9 +152,10 @@ def _to_xray_response(
         encryption=result.encryption,
         ad_block=result.ad_block,
         ech_config_list=ech,
-        # Xray only: Hysteria2 runs outside Xray, where the agent's redirect
-        # does not reach.
-        client_dns=list(client_dns or []) if result.transport != "hysteria" else [],
+        # Hysteria2 too: its server lets this address through and the host
+        # redirects it to the same resolver (install.sh). Without it the
+        # phone's lookups left the server in plain text, forged inside Iran.
+        client_dns=list(client_dns or []),
     )
 
 

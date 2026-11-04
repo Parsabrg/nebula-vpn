@@ -48,8 +48,11 @@ resolver blackholed every lookup through it.
 4. Docker publishes the container's port 5353 on `127.0.0.1:5354`, loopback
    only.
 
-Hysteria2 runs outside Xray, so the API gives its clients no `client_dns`
-and they keep the app's default.
+Hysteria2 runs outside Xray. Its clients get the same `client_dns`; the
+agent's Hysteria2 rules let `198.18.0.53` port 53 through, and `install.sh`
+adds a kernel rule (marked `nebula-local-dns` in `before.rules`) that sends
+this host's own connections to `198.18.0.53:53` to `127.0.0.1:5354`. Before
+(2026-11-04) their lookups left the server in plain text, forged in Iran.
 
 ## Deploying
 
