@@ -96,7 +96,7 @@ def render_hysteria_server_config(
     *,
     api_host: str = "127.0.0.1",
     auth_url: str | None = None,
-    resolver: str | None = None,
+    dns_redirect: tuple[str, str] | None = None,
 ) -> str:
     """The server config, with clients either listed or asked about.
 
@@ -133,7 +133,7 @@ def render_hysteria_server_config(
     else:
         lines += ["  type: userpass", "  userpass:", *_userpass_entries(client_uuids, profile)]
 
-    lines += _after_auth(profile, api_host, resolver)
+    lines += _after_auth(profile, api_host, dns_redirect)
     return "\n".join(lines)
 
 
@@ -164,7 +164,11 @@ def _userpass_entries(client_uuids: tuple[UUID, ...], profile: HysteriaServerPro
         return [f"    {_quote(NO_CLIENTS_USER)}: {_quote(_no_clients_secret(profile))}"]
 
 
-def _after_auth(profile: HysteriaServerProfile, api_host: str, resolver: str | None) -> list[str]:
+def _after_auth(
+    profile: HysteriaServerProfile, api_host: str, dns_redirect: tuple[str, str] | None
+) -> list[str]:
+    # The tunnels' DNS address and the resolver it is redirected to.
+    dns_address, resolver = dns_redirect if dns_redirect else (None, None)
     return [
         "",
         # Where a connected client must never be able to send traffic.
@@ -181,6 +185,14 @@ def _after_auth(profile: HysteriaServerProfile, api_host: str, resolver: str | N
         # so a name pointing at a local address is refused too.
         "acl:",
         "  inline:",
+        # The tunnels' DNS address, ahead of the block on its range: the
+        # host redirects it to its own resolver (install.sh), so a client's
+        # lookups are not sent in plain text from here (forged in Iran).
+        *(
+            [f"    - direct({dns_address}, udp/53)", f"    - direct({dns_address}, tcp/53)"]
+            if dns_address
+            else []
+        ),
         *[f"    - reject({destination})" for destination in BLOCKED_DESTINATIONS],
         "    - direct(all)",
         "",

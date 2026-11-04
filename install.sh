@@ -173,6 +173,20 @@ wireguard_dns() {
     /^-A ufw-before-input -i wg0 -j REJECT/ && !done { printf "%s", fwd; done = 1 }
     { print }' "$file" > "$file.nebula" && cat "$file.nebula" > "$file" && rm -f "$file.nebula"
 }
+# The tunnels' DNS address (198.18.0.53), dialled by this host itself, goes
+# to its resolver: Hysteria2 sends its clients' lookups there (Xray has its
+# own redirect). Once (marked).
+local_dns_redirect() {
+  local file=$1 nat proto
+  grep -q 'nebula-local-dns' "$file" && return 0
+  nat="# nebula-local-dns: this host's own lookups to 198.18.0.53 reach its resolver\n*nat\n:OUTPUT ACCEPT [0:0]\n"
+  for proto in udp tcp; do
+    nat+="-A OUTPUT -d 198.18.0.53/32 -p $proto --dport 53 -j DNAT --to-destination 127.0.0.1:5354\n"
+  done
+  nat+="COMMIT\n"
+  awk -v nat="$nat" 'NR == 1 { printf "%s", nat } { print }' "$file" > "$file.nebula" \
+    && cat "$file.nebula" > "$file" && rm -f "$file.nebula"
+}
 api() { compose exec -T api nebula-api "$@"; }
 
 # Downloads that fail from some networks (PyPI's file host and GitHub are slow
@@ -757,6 +771,7 @@ fi
 # Hysteria2 port moved later with --configure needs the rule edited.
 [ -z "$HOP" ] || hysteria_hop "$WAN" /etc/ufw/before.rules "$HOP" "${HYPORT:-8450}"
 [ -z "$JOIN_URL" ] || wireguard_dns "$WAN" /etc/ufw/before.rules "${WG_ADDR%/*}"
+local_dns_redirect /etc/ufw/before.rules
 # Relay: only when the owner has written relay.env (docs/runbooks/relay.md).
 relayget() { [ -f $ETC/relay.env ] && sed -n "s/^$1=//p" $ETC/relay.env | tail -1; return 0; }
 RELAY_TARGET=$(relayget NEBULA_RELAY_TARGET) RELAY_PORTS=$(relayget NEBULA_RELAY_PORTS) RELAY_CHECK=""

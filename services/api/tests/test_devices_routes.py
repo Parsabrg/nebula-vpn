@@ -659,8 +659,9 @@ def test_the_deployments_resolver_is_handed_to_xray_clients() -> None:
     assert response.json()["client_dns"] == ["198.18.0.53"]
 
 
-def test_hysteria_clients_are_not_given_the_xray_resolver() -> None:
-    # Hysteria2 runs outside Xray, where the agent's redirect does not reach.
+def test_hysteria_clients_are_given_the_resolver_too() -> None:
+    # The Hysteria2 server lets the address through and the host redirects
+    # it to its resolver; plain DNS from Tehran was forged (2026-11-04).
     service = FakeProvisioningService()
     service.xray_request_result = replace(
         service.xray_request_result, transport="hysteria", port=8450, path=None
@@ -670,7 +671,7 @@ def test_hysteria_clients_are_not_given_the_xray_resolver() -> None:
             f"/v1/devices/{DEVICE_ID}/xray-client", json=VALID_XRAY_BODY, headers=AUTH_HEADERS
         )
 
-    assert response.json()["client_dns"] == []
+    assert response.json()["client_dns"] == ["198.18.0.53"]
 
 
 def test_no_resolver_configured_hands_out_none() -> None:

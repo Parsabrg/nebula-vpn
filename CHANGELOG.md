@@ -23,6 +23,9 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   ask for the code. Needs a current browser.
 
 ### Servers
+- Hysteria2 clients use the server's resolver too (their lookups had left the server in
+  plain text, forged in Iran): the API hands them the DNS address, Hysteria2 lets it
+  through, and the host sends it to the resolver.
 - Hysteria2 looks names up through the server's own resolver where it has one, not plain
   8.8.8.8: from Tehran that was forged, and Hysteria2 carried nothing.
 - WireGuard clients of a joined server ask its own resolver (the tunnel's gateway, port

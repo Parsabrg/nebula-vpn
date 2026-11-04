@@ -141,6 +141,12 @@ def test_the_servers_own_resolver_answers_hysteria_when_it_has_one() -> None:
     # Plain DNS to 8.8.8.8 from Tehran is forged; the server's resolver asks
     # over DNS over HTTPS.
     assert "addr: 8.8.8.8:53" in render_hysteria_server_config((), PROFILE)
-    rendered = render_hysteria_server_config((), PROFILE, resolver="127.0.0.1:5354")
+    rendered = render_hysteria_server_config(
+        (), PROFILE, dns_redirect=("198.18.0.53", "127.0.0.1:5354")
+    )
     assert "addr: 127.0.0.1:5354" in rendered
     assert "8.8.8.8" not in rendered
+    # The clients' DNS address passes the block on its range, and only it.
+    allow = rendered.index("    - direct(198.18.0.53, udp/53)")
+    assert allow < rendered.index("    - reject(198.18.0.0/15)")
+    assert "    - direct(198.18.0.53, tcp/53)" in rendered
