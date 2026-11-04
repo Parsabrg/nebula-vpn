@@ -761,3 +761,20 @@ def test_vless_encryption_carries_its_client_string() -> None:
 
     assert body["encryption"] == "mlkem768x25519plus.native.0rtt.k"
     assert body["server_address"] == "vps1.example.com"
+
+
+def test_the_hop_range_goes_only_with_a_direct_route() -> None:
+    service = FakeProvisioningService()
+    service.xray_request_result = replace(service.xray_request_result, port_hop="20000-50000")
+    with make_client(service) as client:
+        direct = client.post(
+            f"/v1/devices/{DEVICE_ID}/xray-client", json=VALID_XRAY_BODY, headers=AUTH_HEADERS
+        ).json()
+    assert direct["port_hop"] == "20000-50000"
+    with _cdn_client(service) as client:
+        fronted = client.post(
+            f"/v1/devices/{DEVICE_ID}/xray-client",
+            json=VALID_XRAY_BODY,
+            headers={**AUTH_HEADERS, "Host": "cdn.example.test"},
+        ).json()
+    assert fronted["port_hop"] is None

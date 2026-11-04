@@ -208,6 +208,8 @@ class RequestXrayClientResult:
     ad_block: bool
     # Shadowsocks-2022 only: the outbound's protocol, method and password.
     protocol: str = "vless"
+    # Hysteria2 only: the server's port-hopping range, when it has one.
+    port_hop: str | None = None
     method: str | None = None
     password: str | None = None
     # VLESS Encryption only: the client's `encryption` string.
@@ -1365,6 +1367,7 @@ class ProvisioningService:
             path=response.path,
             service_name=response.service_name,
             obfs_password=response.obfs_password,
+            port_hop=response.port_hop,
             protocol=response.protocol,
             method=response.method,
             password=response.password,

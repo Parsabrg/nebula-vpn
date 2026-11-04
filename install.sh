@@ -108,6 +108,17 @@ wireguard_routing() {
     /^-A ufw-before-input -i lo -j ACCEPT/ && !done { printf "%s", fwd; done = 1 }
     { print }' "$file" > "$file.nebula" && cat "$file.nebula" > "$file" && rm -f "$file.nebula"
 }
+# Hysteria2 port hopping: UDP to any port of [hop] ("20000-50000") is
+# redirected to Hysteria2's own port. Filtering sees the redirected port,
+# which is already open, so the range opens nothing else.
+hysteria_hop() {
+  local wan=$1 file=$2 hop=$3 port=$4 rule
+  grep -q 'nebula-hysteria-hop' "$file" && return 0
+  rule="# nebula-hysteria-hop: Hysteria2 answers on $hop too\n*nat\n:PREROUTING ACCEPT [0:0]\n"
+  rule+="-A PREROUTING -i $wan -p udp --dport ${hop/-/:} -j REDIRECT --to-ports $port\nCOMMIT\n"
+  awk -v r="$rule" 'NR == 1 { printf "%s", r } { print }' "$file" > "$file.nebula" \
+    && cat "$file.nebula" > "$file" && rm -f "$file.nebula"
+}
 api() { compose exec -T api nebula-api "$@"; }
 
 # Downloads that fail from some networks (PyPI's file host and GitHub are slow
@@ -617,13 +628,24 @@ fi
 WAN=$(ip -4 route show default | awk '{for (i = 1; i < NF; i++) if ($i == "dev") d = $(i + 1)} END {print d}')
 [ -n "$WAN" ] || die "no default route: cannot tell which interface WireGuard clients leave by"
 wireguard_routing "$WAN" /etc/ufw/before.rules
+# New installs hop; an existing server keeps its ports until its owner adds
+# NEBULA_XRAY_HYSTERIA_HOP_PORTS to agent.env and reruns this.
+if [ -f $ETC/agent.env ]; then
+  HOP=$(sed -n 's/^NEBULA_XRAY_HYSTERIA_HOP_PORTS=//p' $ETC/agent.env | tail -1)
+  HYPORT=$(sed -n 's/^NEBULA_XRAY_HYSTERIA_PORT=//p' $ETC/agent.env | tail -1)
+else
+  HOP=20000-50000 HYPORT=""
+fi
+# ponytail: IPv4 only, and the redirect keeps the port it was made with; a
+# Hysteria2 port moved later with --configure needs the rule edited.
+[ -z "$HOP" ] || hysteria_hop "$WAN" /etc/ufw/before.rules "$HOP" "${HYPORT:-8450}"
 printf 'net.ipv4.ip_forward=1\n' > /etc/sysctl.d/99-nebula-forward.conf
 sysctl -q -p /etc/sysctl.d/99-nebula-forward.conf
 sed -i 's|^#\?net/ipv4/ip_forward=.*|net/ipv4/ip_forward=1|' /etc/ufw/sysctl.conf
 ufw route allow in on wg0 out on "$WAN" comment nebula-wireguard >/dev/null
 ufw --force enable >/dev/null; ufw reload >/dev/null
 if [ -n "$JOIN_URL" ]; then opened="9443 from $CONTROL_IP"; else opened="8444"; fi
-ok "open: ssh ($SSH_PORT), 80, $opened, 8445, 8447-8449, 8450/udp, 51820/udp"
+ok "open: ssh ($SSH_PORT), 80, $opened, 8445, 8447-8449, 8450/udp${HOP:+ (and $HOP/udp to it)}, 51820/udp"
 
 step "VPN agent"
 if [ ! -x /opt/nebula-vpn-agent/.venv/bin/nebula-agent-serve ]; then
@@ -661,6 +683,7 @@ NEBULA_XRAY_WS_ENABLED=true
 NEBULA_XRAY_TCP_ENABLED=true
 NEBULA_XRAY_HYSTERIA_ENABLED=true
 NEBULA_XRAY_HYSTERIA_OBFS_PASSWORD=$(openssl rand -hex 16)
+NEBULA_XRAY_HYSTERIA_HOP_PORTS=$HOP
 NEBULA_XRAY_XHTTP_PATH=$XHTTP_PATH
 NEBULA_XRAY_WS_PATH=$WS_PATH
 NEBULA_XRAY_GRPC_SERVICE_NAME=$GRPC_NAME

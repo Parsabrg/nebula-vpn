@@ -548,7 +548,13 @@ String _renderHysteriaClientConfigJson(
 /// transport really does filter less than the same profile on the others.
 String _hysteriaYaml(XrayClientResult result, LocalProxy localProxy) {
   final StringBuffer buffer = StringBuffer()
-    ..writeln('server: ${result.serverAddress}:${result.port}')
+    // With hopping, the server's own port and its range: the client
+    // starts on one and moves every 30 s, so a block on one port does not
+    // end the connection.
+    ..writeln(
+      'server: ${result.serverAddress}:${result.port}'
+      '${result.portHop == null ? '' : ',${result.portHop}'}',
+    )
     // The client UUID is the whole credential; the server renders it as both
     // username and password in its own userpass map.
     ..writeln('auth: ${result.uuid}:${result.uuid}')
@@ -565,6 +571,12 @@ String _hysteriaYaml(XrayClientResult result, LocalProxy localProxy) {
       ..writeln('  type: salamander')
       ..writeln('  salamander:')
       ..writeln('    password: $obfsPassword');
+  }
+  if (result.portHop != null) {
+    buffer
+      ..writeln('transport:')
+      ..writeln('  udp:')
+      ..writeln('    hopInterval: 30s');
   }
   buffer
     ..writeln('socks5:')

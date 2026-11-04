@@ -60,6 +60,7 @@ class XrayClientResponse(AuthModel):
     path: str | None = None
     service_name: str | None = None
     obfs_password: str | None = None
+    port_hop: str | None = None
     # Shadowsocks-2022 only; "vless" for every other Xray profile.
     protocol: str = "vless"
     method: str | None = None

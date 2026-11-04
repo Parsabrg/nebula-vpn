@@ -544,6 +544,28 @@ void main() {
       expect(yaml, contains('insecure: false'));
     });
 
+    test('a hopping server is dialled on its port and its range', () {
+      const XrayClientResult result = XrayClientResult(
+        clientId: 'client-1',
+        uuid: 'a1b2c3d4-0000-0000-0000-000000000000',
+        serverAddress: '203.0.113.10',
+        port: 8450,
+        sni: 'ams-1.example.test',
+        adBlock: false,
+        transport: 'hysteria',
+        transportSecurity: 'tls',
+        portHop: '20000-50000',
+      );
+      final String yaml =
+          (jsonDecode(
+                    renderXrayClientConfigJson(result, localProxy: _localProxy),
+                  )
+                  as Map<String, dynamic>)['nebulaHysteriaConfig']
+              as String;
+      expect(yaml, contains('server: 203.0.113.10:8450,20000-50000'));
+      expect(yaml, contains('hopInterval: 30s'));
+    });
+
     test('hysteria listens on the port tun2socks dials', () {
       // These two must agree or the tunnel is silently dead: tun2socks dials a
       // fixed local port and whichever engine is running has to be listening

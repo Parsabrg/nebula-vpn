@@ -244,6 +244,8 @@ class ProvisionXrayClientResponse(_ResponseModel):
     # client can render a matching `udpmasks` block. Every other transport
     # leaves this unset.
     obfs_password: str | None = None
+    # Hysteria2 only: the UDP range the server also answers on ("20000-50000").
+    port_hop: str | None = Field(default=None, pattern=r"^[0-9]{4,5}-[0-9]{4,5}$")
     # Shadowsocks-2022 only (vpn-agent's ss2022 inbound): what the client's
     # outbound takes. VLESS and Hysteria2 leave method and password unset.
     protocol: Literal["vless", "shadowsocks", "vmess"] = "vless"

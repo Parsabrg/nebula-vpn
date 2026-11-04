@@ -154,6 +154,11 @@ class Settings(BaseSettings):
     # so shipping Hysteria2 without this would be shipping a profile that
     # provably doesn't work for the users it's meant for.
     xray_hysteria_obfs_password: str | None = None
+    # Port hopping: a UDP range ("20000-50000") the firewall redirects to
+    # xray_hysteria_port. Clients told of it move between its ports, so a
+    # block on one port does not end the connection. install.sh sets it on
+    # new installs; unset, clients dial the one port as before.
+    xray_hysteria_hop_ports: str | None = Field(default=None, pattern=r"^[0-9]{4,5}-[0-9]{4,5}$")
     # Where the standalone binary's config is rendered, and the decoy an
     # unauthenticated prober is proxied to instead of meeting a silent port.
     xray_hysteria_config_file: PurePosixPath = PurePosixPath("/etc/nebula/hysteria/config.yaml")
@@ -371,6 +376,15 @@ class Settings(BaseSettings):
             raise ValueError(
                 "xray_hysteria_obfs_password is required when xray_hysteria_enabled is set"
             )
+        return self
+
+    @model_validator(mode="after")
+    def check_hysteria_hop_ports(self) -> Self:
+        if self.xray_hysteria_hop_ports is None:
+            return self
+        low, high = (int(p) for p in self.xray_hysteria_hop_ports.split("-"))
+        if not 1024 <= low < high <= 65535:
+            raise ValueError("xray_hysteria_hop_ports must be low-high within 1024-65535")
         return self
 
     @model_validator(mode="after")
