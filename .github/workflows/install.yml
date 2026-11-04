@@ -96,6 +96,13 @@ jobs:
           code=$(curl -sS --cacert /etc/letsencrypt/live/panel.$NEBULA_DOMAIN/fullchain.pem -o /dev/null -w '%{http_code}' \
             --resolve api.$NEBULA_DOMAIN:8444:127.0.0.1 https://api.$NEBULA_DOMAIN:8444/v1/routes/)
           echo "API answered $code"; [ "$code" = 401 ]
+          # A new install also serves the API and panel on 443, by name.
+          for host in api panel; do
+            code=$(curl -sS --cacert /etc/letsencrypt/live/panel.$NEBULA_DOMAIN/fullchain.pem -o /dev/null -w '%{http_code}' \
+              --resolve $host.$NEBULA_DOMAIN:443:127.0.0.1 https://$host.$NEBULA_DOMAIN/v1/routes/)
+            echo "$host on 443 answered $code"; [ "$code" != 000 ]
+          done
+          grep -q '^NEBULA_XRAY_HYSTERIA_PORT=443$' /etc/nebula/agent.env
           # Metrics on the host's loopback only.
           curl -fsS http://127.0.0.1:8000/metrics | grep -q nebula_api_requests_total
           curl -fsS http://127.0.0.1:9464/metrics | grep -q nebula_agent_requests_total

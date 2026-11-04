@@ -448,8 +448,6 @@ class Settings(BaseSettings):
             ports.append(self.xray_ws_port)
         if self.xray_tcp_enabled:
             ports.append(self.xray_tcp_port)
-        if self.xray_hysteria_enabled:
-            ports.append(self.xray_hysteria_port)
         if self.xray_ss2022_enabled:
             ports.append(self.xray_ss2022_port)
         if self.xray_vlessenc_enabled:
@@ -458,6 +456,8 @@ class Settings(BaseSettings):
             ports.extend((self.xray_vmess_port, self.xray_vmess_ws_port))
         if self.xray_reality_enabled:
             ports.extend((self.xray_reality_port, self.xray_reality_xhttp_port))
+        # Hysteria2 alone is UDP, so it may share a number with a TCP listener
+        # (UDP 443 beside nginx's TCP 443).
         if len(ports) != len(set(ports)):
             raise ValueError("xray/agent listener ports must all be distinct")
         return self
