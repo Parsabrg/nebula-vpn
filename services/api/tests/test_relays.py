@@ -26,7 +26,7 @@ from nebula_api.auth.http import install_auth_http_safeguards
 from nebula_api.auth.user_service import UserAuthService
 from nebula_api.devices.routes import router as devices_router
 from nebula_api.provisioning.service import ProvisioningService, RequestXrayClientResult
-from nebula_api.relays import RELAY_UP_SECONDS, RelayHealth, parse_relays
+from nebula_api.relays import RELAY_UP_SECONDS, RelayHealth, parse_relays, with_relay_codes
 from nebula_api.servers.routes import router as servers_router
 from nebula_api.servers.service import (
     AvailableProfileEntry,
@@ -252,3 +252,11 @@ def test_relay_codes_are_unique_and_empty_means_none() -> None:
     with pytest.raises(ValidationError, match="unique"):
         Settings(env="test", relays=json.dumps([RELAY, RELAY]))
     assert Settings(env="test").relay_list() == ()
+
+
+def test_a_device_on_the_exit_also_holds_its_relays() -> None:
+    # The app ends a tunnel whose server is missing from its device's codes;
+    # without this, a relay tunnel dropped with "access ended" (phone, 2026-11-04).
+    relays = parse_relays(RELAYS)
+    assert with_relay_codes(["de-1", "thr"], relays) == ["de-1", "de-via-thr", "thr"]
+    assert with_relay_codes(["thr"], relays) == ["thr"]

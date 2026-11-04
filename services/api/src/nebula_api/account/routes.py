@@ -22,6 +22,7 @@ from nebula_api.auth.user_service import (
     AuthenticationRejected,
     UserAuthService,
 )
+from nebula_api.relays import with_relay_codes
 
 router = APIRouter(prefix="/v1/account", tags=["account"])
 _LOGGER = logging.getLogger(__name__)
@@ -74,6 +75,7 @@ async def list_devices(
         principal.user_id, principal.device_id
     )
     apply_auth_response_headers(response)
+    relays = request.app.state.settings.relay_list()
     return DeviceListResponse(
         items=[
             DeviceItem(
@@ -84,7 +86,7 @@ async def list_devices(
                 client_version=entry.client_version,
                 registered_at=entry.registered_at,
                 is_current=entry.is_current,
-                server_codes=entry.server_codes,
+                server_codes=with_relay_codes(entry.server_codes, relays),
             )
             for entry in entries
         ]
