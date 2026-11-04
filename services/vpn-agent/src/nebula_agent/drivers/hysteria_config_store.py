@@ -96,6 +96,7 @@ def render_hysteria_server_config(
     *,
     api_host: str = "127.0.0.1",
     auth_url: str | None = None,
+    resolver: str | None = None,
 ) -> str:
     """The server config, with clients either listed or asked about.
 
@@ -132,7 +133,7 @@ def render_hysteria_server_config(
     else:
         lines += ["  type: userpass", "  userpass:", *_userpass_entries(client_uuids, profile)]
 
-    lines += _after_auth(profile, api_host)
+    lines += _after_auth(profile, api_host, resolver)
     return "\n".join(lines)
 
 
@@ -163,7 +164,7 @@ def _userpass_entries(client_uuids: tuple[UUID, ...], profile: HysteriaServerPro
         return [f"    {_quote(NO_CLIENTS_USER)}: {_quote(_no_clients_secret(profile))}"]
 
 
-def _after_auth(profile: HysteriaServerProfile, api_host: str) -> list[str]:
+def _after_auth(profile: HysteriaServerProfile, api_host: str, resolver: str | None) -> list[str]:
     return [
         "",
         # Where a connected client must never be able to send traffic.
@@ -222,10 +223,13 @@ def _after_auth(profile: HysteriaServerProfile, api_host: str) -> list[str]:
         "",
         "ignoreClientBandwidth: true",
         "",
+        # The server's own resolver when it has one (the Xray DNS redirect's
+        # target): plain DNS to 8.8.8.8 from a server in Iran is forged, and
+        # Hysteria2 connected its users to the filter's address (2026-11-04).
         "resolver:",
         "  type: udp",
         "  udp:",
-        "    addr: 8.8.8.8:53",
+        f"    addr: {resolver or '8.8.8.8:53'}",
         "    timeout: 10s",
         "",
         "# Anything failing authentication is transparently proxied to a real",
