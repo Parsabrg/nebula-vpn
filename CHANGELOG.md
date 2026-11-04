@@ -23,6 +23,8 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   ask for the code. Needs a current browser.
 
 ### Servers
+- A device's server list names the relays of the servers it holds a credential on, so the
+  app no longer ends a relay tunnel with "Your access to this server has ended".
 - Relays: a joined server can forward chosen ports to another server, and the app
   lists it as a server of its own ("Germany via Tehran") with the device's existing
   credential on the exit. Forwarded by the kernel, never logged; listed as under

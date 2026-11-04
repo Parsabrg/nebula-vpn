@@ -143,3 +143,11 @@ async def relays_up(request: Request, relays: tuple[Relay, ...]) -> set[str]:
     # No health store (no Redis): no relay is known to work, so none is offered.
     health: RelayHealth | None = getattr(request.app.state, "relay_health", None)
     return await health.up(relays) if health is not None and relays else set()
+
+
+def with_relay_codes(server_codes: list[str], relays: Iterable[Relay]) -> list[str]:
+    """A device holding a credential on an exit holds it for its relays too.
+
+    The app ends a tunnel whose server is not among its device's codes.
+    """
+    return sorted({*server_codes, *(r.code for r in relays if r.exit in server_codes)})
