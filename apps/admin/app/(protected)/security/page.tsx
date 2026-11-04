@@ -3,8 +3,10 @@ import { DataTable } from "@/components/data-table";
 import { RecoveryCodesRotate } from "@/components/recovery-codes-rotate";
 import {
   ChangeOwnPassword,
+  OwnPasskeys,
   ReplaceOwnAuthenticator,
 } from "@/components/own-sign-in";
+import { listPasskeys } from "@/lib/passkeys";
 import { getSecurityStatus, type CheckStatus } from "@/lib/security";
 
 export const metadata: Metadata = {
@@ -19,7 +21,10 @@ const STATUS_LABEL: Record<CheckStatus, string> = {
 };
 
 export default async function SecurityPage() {
-  const checks = await getSecurityStatus();
+  const [checks, passkeys] = await Promise.all([
+    getSecurityStatus(),
+    listPasskeys(),
+  ]);
   const attention = checks.filter(
     (check) => check.status === "failing" || check.status === "warning",
   ).length;
@@ -75,6 +80,15 @@ export default async function SecurityPage() {
       <section className="status-card" aria-labelledby="own-mfa-title">
         <h2 id="own-mfa-title">Your authenticator</h2>
         <ReplaceOwnAuthenticator />
+      </section>
+
+      <section className="status-card" aria-labelledby="own-passkeys-title">
+        <h2 id="own-passkeys-title">Your passkeys</h2>
+        <p>
+          Sign in with a passkey (fingerprint, face, or a security key) in place
+          of the 6-digit code. Changes that need a fresh code still ask for one.
+        </p>
+        <OwnPasskeys initial={passkeys} />
       </section>
     </>
   );

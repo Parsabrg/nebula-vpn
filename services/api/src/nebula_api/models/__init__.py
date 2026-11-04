@@ -10,6 +10,7 @@ from nebula_api.models.deployment import Deployment
 from nebula_api.models.enrollment import NodeEnrollmentToken
 from nebula_api.models.identity import (
     AdminMfaRecoveryCode,
+    AdminPasskey,
     AdminTotpCredential,
     AdminUser,
     Device,
@@ -45,6 +46,7 @@ __all__ = [
     "AccountRequest",
     "AccountRequestEvent",
     "AdminMfaRecoveryCode",
+    "AdminPasskey",
     "AdminTotpCredential",
     "AdminUser",
     "AgentOperation",
