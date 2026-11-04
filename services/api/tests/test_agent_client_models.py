@@ -98,3 +98,27 @@ def test_a_hop_range_is_a_range_of_ports() -> None:
     assert ProvisionXrayClientResponse(**fields, port_hop="20000-50000").port_hop == "20000-50000"
     with pytest.raises(ValidationError):
         ProvisionXrayClientResponse(**fields, port_hop="20000-50000; rm")
+
+
+def test_reality_fields_are_checked() -> None:
+    from pydantic import ValidationError
+
+    from nebula_api.agent_client.models import ProvisionXrayClientResponse
+
+    fields = {
+        "state": "active",
+        "applied_generation": 1,
+        "server_address": "vps1.example.com",
+        "port": 8456,
+        "sni": "www.example.com",
+        "transport": "raw",
+        "transport_security": "reality",
+    }
+    ok = ProvisionXrayClientResponse(
+        **fields, reality_public_key="k", reality_short_id="0a", flow="xtls-rprx-vision"
+    )
+    assert ok.flow == "xtls-rprx-vision"
+    with pytest.raises(ValidationError):
+        ProvisionXrayClientResponse(**fields, reality_short_id="not hex")
+    with pytest.raises(ValidationError):
+        ProvisionXrayClientResponse(**fields, flow="something-else")

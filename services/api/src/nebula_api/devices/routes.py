@@ -120,7 +120,13 @@ def _to_xray_response(
     # endpoints through it as well; see nebula_api/cdn.py.
     # A profile with its own encryption and no TLS (Shadowsocks-2022, VLESS
     # Encryption, VMess) is dialled at the server itself: the CDN carries TLS.
-    direct = result.protocol != "vless" or result.encryption is not None
+    # REALITY is direct too: it borrows another site's TLS, which no CDN
+    # can carry.
+    direct = (
+        result.protocol != "vless"
+        or result.encryption is not None
+        or result.transport_security == "reality"
+    )
     through = route.tunnel(result.transport) if route and not direct else None
     host, ech = through if through else (None, None)
     return XrayClientResponse(
@@ -136,6 +142,9 @@ def _to_xray_response(
         obfs_password=result.obfs_password,
         # A CDN route is one TCP port; hopping is for the direct UDP one.
         port_hop=None if host else result.port_hop,
+        reality_public_key=result.reality_public_key,
+        reality_short_id=result.reality_short_id,
+        flow=result.flow,
         protocol=result.protocol,
         method=result.method,
         password=result.password,

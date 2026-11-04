@@ -53,7 +53,7 @@ class XrayInboundProfile:
     transport: Transport
     listen: str
     port: int
-    security: Literal["none", "tls"]
+    security: Literal["none", "tls", "reality"]
     # Exactly one of these is set, matching `transport` -- enforced by
     # construction in settings.py's profile-building helper, not here.
     xhttp_path: str | None = None
@@ -88,6 +88,15 @@ class XrayInboundProfile:
     vless_encryption: str | None = None
     # VMess with no TLS: its own encryption, 39-47 Mbit/s from the home line.
     vmess: bool = False
+    # REALITY only: the server key, the site whose TLS handshake it borrows
+    # ("host:443"), the name clients send, and the short id they show.
+    reality_private_key: str | None = None
+    reality_public_key: str | None = None
+    reality_dest: str | None = None
+    reality_server_name: str | None = None
+    reality_short_id: str | None = None
+    # VLESS flow `xtls-rprx-vision` for every client (raw REALITY).
+    vision: bool = False
 
     @property
     def direct(self) -> bool:
@@ -218,8 +227,17 @@ def _stream_settings(profile: XrayInboundProfile) -> dict[str, object]:
             ]
     # "raw" needs no per-transport settings block at all.
     network["security"] = profile.security
+    if profile.security == "reality":
+        network["realitySettings"] = {
+            "dest": profile.reality_dest,
+            "serverNames": [profile.reality_server_name],
+            "privateKey": profile.reality_private_key,
+            "shortIds": [profile.reality_short_id],
+        }
     return network
 
+
+VISION_FLOW = "xtls-rprx-vision"
 
 _INTERNET_TAG = "internet"
 _BLOCKED_TAG = "blocked"
@@ -299,7 +317,11 @@ def render_xray_server_config(
             # client_email -- and also what a live `rmu` names a client by.
             settings = {
                 "clients": [
-                    {"id": str(c.client_uuid), "email": client_email(c.client_uuid)}
+                    {
+                        "id": str(c.client_uuid),
+                        "email": client_email(c.client_uuid),
+                        **({"flow": VISION_FLOW} if profile.vision else {}),
+                    }
                     for c in clients
                 ],
                 "decryption": profile.vless_decryption or "none",

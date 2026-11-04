@@ -89,7 +89,7 @@ class ProvisionXrayClientResponse(_ResponseModel):
     port: int = Field(ge=1, le=65535)
     sni: str
     transport: Literal["xhttp", "grpc", "websocket", "raw", "hysteria"]
-    transport_security: Literal["none", "tls"]
+    transport_security: Literal["none", "tls", "reality"]
     # At most one of these is set, matching `transport` -- xhttp/websocket
     # carry a path, grpc carries a service name, raw carries neither.
     path: str | None = None
@@ -102,6 +102,11 @@ class ProvisionXrayClientResponse(_ResponseModel):
     # Hysteria2 only: the UDP range the server also answers on, when it
     # hops ("20000-50000").
     port_hop: str | None = None
+    # REALITY only: the server's public key and the short id to show.
+    reality_public_key: str | None = None
+    reality_short_id: str | None = None
+    # VLESS flow, `xtls-rprx-vision` on raw REALITY.
+    flow: str | None = None
     # Shadowsocks-2022 only: what the client's outbound takes. VLESS and
     # Hysteria2 leave method and password unset.
     protocol: Literal["vless", "shadowsocks", "vmess"] = "vless"

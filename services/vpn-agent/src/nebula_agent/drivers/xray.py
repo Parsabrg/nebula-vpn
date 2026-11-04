@@ -75,6 +75,7 @@ from nebula_agent.drivers.xray_base import (
 from nebula_agent.drivers.xray_config_store import (
     SS2022_METHOD,
     STATS_API_PORT,
+    VISION_FLOW,
     DesiredXrayState,
     RenderedXrayClient,
     XrayConfigStore,
@@ -684,6 +685,17 @@ class NativeXrayDriver:
             "path": profile.xhttp_path or profile.ws_path,
             "service_name": profile.grpc_service_name,
             "obfs_password": profile.hysteria_obfs_password,
+            # REALITY: the name it borrows instead of this server's own.
+            **(
+                {
+                    "sni": profile.reality_server_name,
+                    "reality_public_key": profile.reality_public_key,
+                    "reality_short_id": profile.reality_short_id,
+                }
+                if profile.security == "reality"
+                else {}
+            ),
+            **({"flow": VISION_FLOW} if profile.vision else {}),
         }
 
     def _client_fields(self, protocol_profile_code: str, client_uuid: UUID) -> dict[str, object]:

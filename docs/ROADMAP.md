@@ -17,7 +17,6 @@ written plan in [plans/2026-11-plans.md](plans/2026-11-plans.md), agreed
 2026-11-04; the number is the plan's.
 
 **Censorship**
-- *plan 1* VLESS + REALITY (Vision, XHTTP) on the server, no domain or certificate needed (section 4).
 - *plan 2* Everything on port 443, TCP and UDP, split by name with nginx `ssl_preread`.
 - *plan 4* Relay role: a server inside Iran forwarding to one abroad (section 23).
 - *plan 3* AmneziaWG as an engine, server and apps (section 4); a spike first.
@@ -48,6 +47,7 @@ Updated in the same pull request as the work (section 92).
 
 | Section | Item | State |
 | --- | --- | --- |
+| 4, 11 (list), plan 1 | VLESS + REALITY on the server: agent `NEBULA_XRAY_REALITY_*` (off by default; `xray x25519` pair, hex short id, borrowed site), inbounds `vless-reality-vision` (raw, Vision flow) and `vless-reality-xhttp`; credential gives the borrowed name, public key, short id and flow (never the private key); never sent through the CDN route; seeded by `seed-direct-protocols`; `install.sh --configure` option; the app reads the fields | Done in code (tests); off on every server until the owner turns it on |
 | 19 (list) | Admin passkeys (WebAuthn, `webauthn` 3.0.1): `admin_passkeys` (migration 0021); add/list/remove under `/v1/admin/auth/passkeys` (step-up); after the password, `/mfa/passkey/options` reads the sign-in challenge without spending it and `/mfa/passkey/verify` signs in (session method `passkey`, sign count kept); relying party is the first allowed origin's host; the panel uses the browser's own JSON helpers. Step-up stays TOTP | Done in code (tests); first passkey on the live panel pending |
 | 16 (list), plan 5 | Backup routes per account: `NEBULA_API_ROUTES_PER_ACCOUNT` (0 = all, the default) gives each account a stable share of `NEBULA_API_ROUTES`, ranked by a hash of account and route so shares spread across routes; the route the request came in on is always kept | Done in code (tests); off until the owner sets it |
 | 20 (list) | Admins in the panel: `/v1/admin/admins/` (owners only; list, invite with a one-time password, role, disable/reactivate, sessions listed from Redis and ended one by one or all at once; a role change or disable ends that admin's sessions; the acting owner cannot change themselves) and the Admins page | Done in code (tests); panel test on the live server pending |

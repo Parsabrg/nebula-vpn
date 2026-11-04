@@ -778,3 +778,37 @@ def test_the_hop_range_goes_only_with_a_direct_route() -> None:
             headers={**AUTH_HEADERS, "Host": "cdn.example.test"},
         ).json()
     assert fronted["port_hop"] is None
+
+
+def test_reality_is_dialled_directly_with_its_key() -> None:
+    service = FakeProvisioningService()
+    service.xray_request_result = replace(
+        service.xray_request_result,
+        port=8456,
+        sni="www.example.com",
+        transport="raw",
+        transport_security="reality",
+        path=None,
+        reality_public_key="public-key-canary",
+        reality_short_id="0123abcd",
+        flow="xtls-rprx-vision",
+    )
+    # Even when the API was reached through the CDN: REALITY's TLS is borrowed
+    # from another site, which no CDN can carry.
+    with _cdn_client(service) as client:
+        body = client.post(
+            f"/v1/devices/{DEVICE_ID}/xray-client",
+            json=VALID_XRAY_BODY,
+            headers={**AUTH_HEADERS, "Host": "cdn.example.test"},
+        ).json()
+    assert (body["server_address"], body["port"], body["sni"]) == (
+        "vps1.example.com",
+        8456,
+        "www.example.com",
+    )
+    assert body["transport_security"] == "reality"
+    assert (body["reality_public_key"], body["reality_short_id"], body["flow"]) == (
+        "public-key-canary",
+        "0123abcd",
+        "xtls-rprx-vision",
+    )

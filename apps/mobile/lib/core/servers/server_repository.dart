@@ -419,6 +419,10 @@ class DioServerRepository implements ServerRepository {
         serviceName: data['service_name'] as String?,
         obfsPassword: data['obfs_password'] as String?,
         portHop: data['port_hop'] as String?,
+        // VLESS + REALITY: the server's public key, short id and flow.
+        flow: data['flow'] as String?,
+        realityPublicKey: data['reality_public_key'] as String?,
+        realityShortId: data['reality_short_id'] as String?,
         // Shadowsocks-2022 (roadmap: direct route Iran lets through); an
         // older server sends none of these and means VLESS.
         protocol: data['protocol'] as String? ?? 'vless',

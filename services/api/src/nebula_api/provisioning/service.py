@@ -210,6 +210,10 @@ class RequestXrayClientResult:
     protocol: str = "vless"
     # Hysteria2 only: the server's port-hopping range, when it has one.
     port_hop: str | None = None
+    # REALITY only, and its VLESS flow.
+    reality_public_key: str | None = None
+    reality_short_id: str | None = None
+    flow: str | None = None
     method: str | None = None
     password: str | None = None
     # VLESS Encryption only: the client's `encryption` string.
@@ -1368,6 +1372,9 @@ class ProvisioningService:
             service_name=response.service_name,
             obfs_password=response.obfs_password,
             port_hop=response.port_hop,
+            reality_public_key=response.reality_public_key,
+            reality_short_id=response.reality_short_id,
+            flow=response.flow,
             protocol=response.protocol,
             method=response.method,
             password=response.password,

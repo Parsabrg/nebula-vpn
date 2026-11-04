@@ -23,6 +23,10 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   ask for the code. Needs a current browser.
 
 ### Servers
+- VLESS + REALITY (Vision on raw TCP, and XHTTP): no domain or certificate needed; a
+  probe without the key sees another site's TLS. Off until the owner turns it on with
+  `install.sh --configure` (`docs/runbooks/vless-reality.md`). The apps read it from the
+  server as they already read REALITY links.
 - Backup routes per account: with `NEBULA_API_ROUTES_PER_ACCOUNT=k` each account is told
   only k of the API's routes (a stable share that keeps the route it asked through), so
   one leaked account does not give away every route. Unset, everyone gets all, as before.
