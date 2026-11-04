@@ -22,6 +22,8 @@ from nebula_api.accounts.email_outbox import (
 from nebula_api.accounts.routes import admin_router as account_request_admin_router
 from nebula_api.accounts.routes import router as account_request_router
 from nebula_api.accounts.service import AccountRequestService
+from nebula_api.admin_management import AdminManagementService
+from nebula_api.admin_management import router as admin_management_router
 from nebula_api.agent_client.client import AgentClient
 from nebula_api.api_routes import router as api_routes_router
 from nebula_api.audit.routes import router as audit_log_router
@@ -113,6 +115,8 @@ def create_app(
     effective_enrollment_service: EnrollmentService | None = None
     # Answers a generic app's pairing request and the panel's pairing link.
     pairing_service: PairingService | None = None
+    # Owners managing the other admins; built with the admin sign-in.
+    admin_management_service: AdminManagementService | None = None
 
     if readiness_check is None:
         database_engine = create_database_engine(
@@ -166,6 +170,9 @@ def create_app(
                     key_material,
                     runtime_settings,
                 )
+            admin_management_service = AdminManagementService(
+                create_session_factory(database_engine), redis_auth_state
+            )
             if effective_account_request_service is None:
                 effective_account_request_service = AccountRequestService(
                     create_session_factory(database_engine),
@@ -284,6 +291,7 @@ def create_app(
     application.state.redis_client = redis_client
     application.state.user_auth_service = effective_user_auth_service
     application.state.admin_auth_service = effective_admin_auth_service
+    application.state.admin_management_service = admin_management_service
     application.state.account_request_service = effective_account_request_service
     application.state.audit_log_service = effective_audit_log_service
     application.state.email_delivery_service = effective_email_delivery_service
@@ -312,6 +320,7 @@ def create_app(
     application.add_middleware(MetricsMiddleware)
     application.include_router(user_auth_router)
     application.include_router(admin_auth_router)
+    application.include_router(admin_management_router)
     application.include_router(account_request_router)
     application.include_router(account_request_admin_router)
     application.include_router(audit_log_router)

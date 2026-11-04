@@ -27,7 +27,6 @@ written plan in [plans/2026-11-plans.md](plans/2026-11-plans.md), agreed
 - A second CDN route on CloudFront: the server side is done; the distribution needs the owner's AWS account (section 11).
 
 **Security and admin**
-- Manage admins in the panel: invite, roles, disable, sessions.
 - Passkeys for admin sign-in, alongside TOTP.
 
 **Running servers**
@@ -54,6 +53,7 @@ Updated in the same pull request as the work (section 92).
 
 | Section | Item | State |
 | --- | --- | --- |
+| 20 (list) | Admins in the panel: `/v1/admin/admins/` (owners only; list, invite with a one-time password, role, disable/reactivate, sessions listed from Redis and ended one by one or all at once; a role change or disable ends that admin's sessions; the acting owner cannot change themselves) and the Admins page | Done in code (tests); panel test on the live server pending |
 | 92 | Roadmap "Next" trimmed to what is left; plans for the *plan* items written and agreed (`docs/plans/2026-11-plans.md`), DNS tunnelling back as plan 10 | Done 2026-11-04 |
 | Snappiness | App: WireGuard connects from the saved peer (kept per server and profile in secure storage, with the key it was issued for), skipping the API and agent round trip; a saved peer that fails the handshake or traffic check is forgotten and asked for again once; disconnect keeps the peer; the protocol test reuses and saves it too | Done in code (tests); phone timing pending |
 | Snappiness | App: disconnect Off in 2-3 ms (the WireGuard peer is now kept, see the saved-peer row); the two post-connect traffic checks in parallel (Protected 1.5-1.9 s from 3.2 s on a saved link); the main button presses in, ticks (haptic) and ignores a second tap within 400 ms; a connect timeline in the system log (`adb logcat -s flutter`) | Done; measured on the owner's phone (0.1.34 test build) |
