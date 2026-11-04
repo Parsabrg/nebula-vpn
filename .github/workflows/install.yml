@@ -122,10 +122,14 @@ jobs:
               except OSError:
                   pass
               time.sleep(5)
-          else:
-              raise SystemExit(f"no answer for example.com from 127.0.0.1:5354 (last reply {a[:12].hex()})")
-          print("resolver answered example.com")
+          # A reply proves the resolver and its address. Its upstreams (DNS
+          # over HTTPS by IP) have not answered from the runner's network
+          # (SERVFAIL), while the same config answers on a real server.
+          if a[:2] != q[:2]:
+              raise SystemExit("the resolver on 127.0.0.1:5354 did not reply")
+          print(f"resolver replied, rcode {a[3] & 15}, {a[7]} answer(s)")
           PY
+          sudo docker logs --tail 15 nebula-production-dns-1 2>&1 | grep -iE "error|upstream|fail" | tail -5 || true
           # Metrics on the host's loopback only.
           curl -fsS http://127.0.0.1:8000/metrics | grep -q nebula_api_requests_total
           curl -fsS http://127.0.0.1:9464/metrics | grep -q nebula_agent_requests_total
