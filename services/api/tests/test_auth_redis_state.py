@@ -11,6 +11,7 @@ from nebula_api.auth.redis_state import (
     _LIST_ADMIN_SESSIONS_LUA,
     _LOCKOUT_FAILURE_LUA,
     _LOCKOUT_STATUS_LUA,
+    _PEEK_PREAUTH_LUA,
     _RATE_LIMIT_LUA,
     _REVOKE_ADMIN_SESSION_BY_ID_LUA,
     _ROTATE_CSRF_LUA,
@@ -72,6 +73,14 @@ class FakeRedis:
                 return []
             self.hashes.pop(keys[0], None)
             return _flatten(fields)
+        if script == _PEEK_PREAUTH_LUA:
+            fields = self.hashes.get(keys[0], {})
+            if (
+                fields.get("purpose") != arguments[0]
+                or fields.get("context_digest") != arguments[1]
+            ):
+                return None
+            return fields["admin_id"].encode()
         if script == _GET_SESSION_LUA:
             fields = self.hashes.get(keys[0], {})
             if fields:
@@ -715,3 +724,66 @@ def test_admin_session_listing_fails_closed() -> None:
     with pytest.raises(AuthStateUnavailable):
         asyncio.run(state.list_admin_sessions(UUID(int=1)))
     client.eval = original  # type: ignore[method-assign]
+
+
+def test_a_sign_in_challenge_can_be_read_without_spending_it() -> None:
+    client = FakeRedis()
+    state = make_state(client)
+    admin_id = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+    challenge = asyncio.run(
+        state.issue_preauth(admin_id=admin_id, purpose="login", context="net", ttl_seconds=60)
+    )
+    assert (
+        asyncio.run(state.peek_preauth(challenge.token, purpose="login", context="net")) == admin_id
+    )
+    assert (
+        asyncio.run(state.peek_preauth(challenge.token, purpose="login", context="other")) is None
+    )
+    assert asyncio.run(state.peek_preauth("not-a-token", purpose="login", context="net")) is None
+    # Still there to spend.
+    assert asyncio.run(state.consume_preauth(challenge.token, purpose="login", context="net"))
+
+
+def test_webauthn_challenges_are_one_time_and_per_admin() -> None:
+    client = FakeRedis()
+    state = make_state(client)
+    admin_id = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+    asyncio.run(
+        state.put_webauthn_challenge("login:x", admin_id=admin_id, challenge=b"one", ttl_seconds=60)
+    )
+    asyncio.run(
+        state.put_webauthn_challenge("login:x", admin_id=admin_id, challenge=b"two", ttl_seconds=60)
+    )
+    assert asyncio.run(state.take_webauthn_challenge("login:x", admin_id=UUID(int=9))) is None
+    assert asyncio.run(state.take_webauthn_challenge("login:x", admin_id=admin_id)) == b"two"
+    assert asyncio.run(state.take_webauthn_challenge("login:x", admin_id=admin_id)) is None
+
+
+def test_webauthn_and_peek_fail_closed() -> None:
+    client = FakeRedis()
+    state = make_state(client)
+    admin_id = UUID(int=1)
+    token = asyncio.run(
+        state.issue_preauth(admin_id=admin_id, purpose="login", context="net", ttl_seconds=60)
+    ).token
+    client.raise_error = True
+    with pytest.raises(AuthStateUnavailable):
+        asyncio.run(state.peek_preauth(token, purpose="login", context="net"))
+    with pytest.raises(AuthStateUnavailable):
+        asyncio.run(
+            state.put_webauthn_challenge("s", admin_id=admin_id, challenge=b"c", ttl_seconds=60)
+        )
+    with pytest.raises(AuthStateUnavailable):
+        asyncio.run(state.take_webauthn_challenge("s", admin_id=admin_id))
+    client.raise_error = False
+    key = next(k for k in client.hashes)
+    client.hashes[key]["admin_id"] = "not-a-uuid"
+    with pytest.raises(AuthStateUnavailable):
+        asyncio.run(state.peek_preauth(token, purpose="login", context="net"))
+    asyncio.run(
+        state.put_webauthn_challenge("s", admin_id=admin_id, challenge=b"c", ttl_seconds=60)
+    )
+    webauthn_key = next(k for k in client.hashes if ":webauthn:" in k)
+    client.hashes[webauthn_key]["challenge"] = "zz"
+    with pytest.raises(AuthStateUnavailable):
+        asyncio.run(state.take_webauthn_challenge("s", admin_id=admin_id))

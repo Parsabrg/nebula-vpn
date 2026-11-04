@@ -13,6 +13,8 @@ from nebula_api.auth.opaque_tokens import digest_opaque_token, issue_opaque_toke
 
 Clock = Callable[[], datetime]
 Purpose = Literal["login", "enroll", "step-up"]
+# How an admin session was signed in to.
+SessionMethod = Literal["totp", "recovery", "passkey"]
 
 _NAMESPACE_PATTERN = re.compile(r"[a-z][a-z0-9-]{0,31}\Z")
 _PREFIX = "nebula:auth:v1"
@@ -70,6 +72,14 @@ if redis.call('HGET', KEYS[1], 'context_digest') ~= ARGV[2] then return {} end
 local values = redis.call('HGETALL', KEYS[1])
 redis.call('DEL', KEYS[1])
 return values
+"""
+
+# The admin a sign-in challenge belongs to, without spending it: a passkey
+# prompt that is cancelled must leave the code path open.
+_PEEK_PREAUTH_LUA = """
+if redis.call('HGET', KEYS[1], 'purpose') ~= ARGV[1] then return false end
+if redis.call('HGET', KEYS[1], 'context_digest') ~= ARGV[2] then return false end
+return redis.call('HGET', KEYS[1], 'admin_id')
 """
 
 _GET_SESSION_LUA = """
@@ -193,7 +203,7 @@ class ConsumedPreAuth:
 class AdminSessionRecord:
     admin_id: UUID
     session_id: UUID
-    mfa_method: Literal["totp", "recovery"]
+    mfa_method: SessionMethod
     created_at: datetime
     last_seen_at: datetime
     absolute_expires_at: datetime
@@ -367,18 +377,84 @@ class RedisAuthState:
             raise AuthStateUnavailable("authentication state is unavailable")
         return ConsumedPreAuth(admin_id=admin_id, purpose=purpose)
 
+    async def peek_preauth(self, token: str, *, purpose: Purpose, context: str) -> UUID | None:
+        """The admin a challenge was issued to, leaving it usable."""
+
+        try:
+            digest = digest_opaque_token(token, self._key_ring, namespace="admin-preauth")
+        except ValueError:
+            return None
+        try:
+            result = await self._client.eval(
+                _PEEK_PREAUTH_LUA,
+                1,
+                self._digest_key("preauth", digest.value),
+                purpose,
+                self._derive("preauth-context", context).hex(),
+            )
+        except Exception as error:
+            raise AuthStateUnavailable("authentication state is unavailable") from error
+        if not result:
+            return None
+        try:
+            return UUID(result.decode() if isinstance(result, bytes) else str(result))
+        except ValueError:
+            raise AuthStateUnavailable("authentication state is unavailable") from None
+
+    async def put_webauthn_challenge(
+        self, subject: str, *, admin_id: UUID, challenge: bytes, ttl_seconds: int
+    ) -> None:
+        """One WebAuthn challenge per [subject]; a new one replaces the old."""
+
+        key = self._derived_key("webauthn", subject)
+        try:
+            await self._client.delete(key)
+        except Exception as error:
+            raise AuthStateUnavailable("authentication state is unavailable") from error
+        await self._set_hash_once(
+            key,
+            {
+                "admin_id": str(admin_id),
+                "purpose": "webauthn",
+                "context_digest": str(admin_id),
+                "challenge": challenge.hex(),
+            },
+            ttl_seconds=ttl_seconds,
+        )
+
+    async def take_webauthn_challenge(self, subject: str, *, admin_id: UUID) -> bytes | None:
+        """The challenge for [subject], once; None when absent or another admin's."""
+
+        try:
+            result = await self._client.eval(
+                _CONSUME_PREAUTH_LUA,
+                1,
+                self._derived_key("webauthn", subject),
+                "webauthn",
+                str(admin_id),
+            )
+            values = _decode_hash(result)
+        except Exception as error:
+            raise AuthStateUnavailable("authentication state is unavailable") from error
+        if not values:
+            return None
+        try:
+            return bytes.fromhex(values["challenge"])
+        except (KeyError, ValueError):
+            raise AuthStateUnavailable("authentication state is unavailable") from None
+
     async def issue_admin_session(
         self,
         *,
         admin_id: UUID,
-        mfa_method: Literal["totp", "recovery"],
+        mfa_method: SessionMethod,
         idle_ttl: timedelta,
         absolute_ttl: timedelta,
         stepped_up: bool = False,
     ) -> IssuedAdminSession:
         idle_ms = _duration_ms(idle_ttl)
         absolute_ms = _duration_ms(absolute_ttl)
-        if idle_ms > absolute_ms or mfa_method not in {"totp", "recovery"}:
+        if idle_ms > absolute_ms or mfa_method not in {"totp", "recovery", "passkey"}:
             raise ValueError("administrator session policy is invalid")
         now = self._now()
         now_ms = int(now.timestamp() * 1_000)
@@ -648,9 +724,9 @@ def _decode_text(value: object) -> str:
 def _session_record(values: Mapping[str, str]) -> AdminSessionRecord:
     try:
         method = values["mfa_method"]
-        if method not in {"totp", "recovery"}:
+        if method not in {"totp", "recovery", "passkey"}:
             raise ValueError
-        mfa_method = cast(Literal["totp", "recovery"], method)
+        mfa_method = cast(SessionMethod, method)
         step_up_ms = values["step_up_ms"]
         return AdminSessionRecord(
             admin_id=UUID(values["admin_id"]),

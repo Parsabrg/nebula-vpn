@@ -18,6 +18,9 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   (owner, operator, auditor), disable or re-enable, and see or end their sessions.
   Each change needs a fresh code and is audited. You cannot change or disable
   yourself there, so a deployment always keeps an owner.
+- Passkeys: add one on the Security page (fingerprint, face or a security key), then
+  sign in with it in place of the 6-digit code. Changes that need a fresh code still
+  ask for the code. Needs a current browser.
 
 ### Servers
 - Hysteria2 port hopping: new installs also answer Hysteria2 on UDP 20000-50000,

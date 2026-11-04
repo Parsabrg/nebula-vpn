@@ -468,3 +468,29 @@ class RefreshToken(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     def __repr__(self) -> str:
         return f"<RefreshToken id={self.id!s} state={self.state.value}>"
+
+
+class AdminPasskey(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A WebAuthn credential an admin signs in with, beside TOTP."""
+
+    __tablename__ = "admin_passkeys"
+    __table_args__ = (
+        CheckConstraint("sign_count >= 0", name="sign_count_not_negative"),
+        CheckConstraint("char_length(name) BETWEEN 1 AND 64", name="name_length"),
+        UniqueConstraint("credential_id", name="uq_admin_passkeys_credential_id"),
+        Index("ix_admin_passkeys_admin_user_id", "admin_user_id"),
+    )
+
+    admin_user_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("admin_users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    credential_id: Mapped[bytes] = mapped_column(LargeBinary(1023), nullable=False)
+    public_key: Mapped[bytes] = mapped_column(LargeBinary(), nullable=False)
+    sign_count: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    def __repr__(self) -> str:
+        return f"<AdminPasskey id={self.id!s} admin={self.admin_user_id!s}>"

@@ -72,6 +72,10 @@ PUBLIC_ROUTES = {
         "POST",
     ): "second factor of a login in progress; the partial session is the credential",
     (
+        "/v1/admin/auth/mfa/passkey/options",
+        "POST",
+    ): "passkey prompt for a login in progress; the partial session is the credential",
+    (
         "/v1/admin/auth/mfa/enrollment",
         "POST",
     ): "the single-use preauth challenge in the body is the credential; the "

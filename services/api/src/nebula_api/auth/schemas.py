@@ -1,6 +1,7 @@
 """Strict, bounded HTTP contracts for authentication endpoints."""
 
-from typing import Literal
+from datetime import datetime
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
@@ -153,3 +154,33 @@ class AdminAuthenticatorSetupResponse(AuthModel):
 
 class AdminAuthenticatorConfirmRequest(AuthModel):
     code: SecretStr = Field(min_length=6, max_length=6)
+
+
+class AdminPasskeyItem(AuthModel):
+    id: UUID
+    name: str
+    created_at: datetime
+    last_used_at: datetime | None
+
+
+class AdminPasskeyListResponse(AuthModel):
+    items: list[AdminPasskeyItem]
+
+
+class AdminPasskeyOptionsResponse(AuthModel):
+    """WebAuthn options for navigator.credentials, as the browser takes them."""
+
+    options: dict[str, Any]
+
+
+class AdminPasskeyRegisterRequest(AuthModel):
+    name: str = Field(min_length=1, max_length=64)
+    credential: dict[str, Any]
+
+
+class AdminPasskeyLoginOptionsRequest(AuthModel):
+    challenge: SecretStr = Field(min_length=10, max_length=128)
+
+
+class AdminPasskeyLoginRequest(AdminPasskeyLoginOptionsRequest):
+    credential: dict[str, Any]

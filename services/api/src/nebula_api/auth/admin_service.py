@@ -5,11 +5,26 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Literal, cast
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urlsplit
 from uuid import UUID, uuid4
 
 from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from webauthn import (
+    generate_authentication_options,
+    generate_registration_options,
+    options_to_json,
+    verify_authentication_response,
+    verify_registration_response,
+)
+from webauthn.helpers import base64url_to_bytes
+from webauthn.helpers.exceptions import WebAuthnException
+from webauthn.helpers.structs import (
+    AuthenticatorSelectionCriteria,
+    PublicKeyCredentialDescriptor,
+    ResidentKeyRequirement,
+    UserVerificationRequirement,
+)
 
 from nebula_api.auth.audit import add_audit_event
 from nebula_api.auth.key_material import AuthKeyMaterial
@@ -28,12 +43,14 @@ from nebula_api.auth.redis_state import (
     IssuedAdminSession,
     RateBucket,
     RedisAuthState,
+    SessionMethod,
 )
 from nebula_api.auth.user_service import AuthenticationRateLimited, AuthenticationRejected
 from nebula_api.db.engine import SessionFactory
 from nebula_api.identity import normalize_email, normalize_username
 from nebula_api.models.identity import (
     AdminMfaRecoveryCode,
+    AdminPasskey,
     AdminTotpCredential,
     AdminUser,
 )
@@ -86,7 +103,7 @@ class AdminPrincipal:
     session_id: UUID
     role: AdminRole
     step_up: bool
-    mfa_method: MfaMethod
+    mfa_method: SessionMethod
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,6 +120,20 @@ class AdminCredentialRejected(Exception):
 class AdminAuthenticatorSetup:
     base32_secret: str
     provisioning_uri: str
+
+
+@dataclass(frozen=True, slots=True)
+class AdminPasskeySummary:
+    passkey_id: UUID
+    name: str
+    created_at: datetime
+    last_used_at: datetime | None
+
+
+# How long a passkey prompt may stay open.
+_WEBAUTHN_TTL_SECONDS = 300
+# Any failure to read what a browser sent is the same refusal.
+_WEBAUTHN_ERRORS = (WebAuthnException, ValueError, KeyError, TypeError)
 
 
 class AdminAuthService:
@@ -851,6 +882,246 @@ class AdminAuthService:
             await session.commit()
         return batch.take_plaintext_codes()
 
+    # --- Passkeys ---------------------------------------------------------
+    #
+    # Sign-in only: after the password, a passkey stands in for the code.
+    # Step-up keeps asking for the code.
+
+    def _origins(self) -> list[str]:
+        return [origin.strip() for origin in self._settings.allowed_origins.split(",")]
+
+    def _rp_id(self) -> str:
+        # ponytail: the first allowed origin names the panel; a second panel
+        # host would need its own relying party.
+        return urlsplit(self._origins()[0]).hostname or "localhost"
+
+    async def list_passkeys(self, admin_id: UUID) -> list[AdminPasskeySummary]:
+        async with self._session_factory() as session:
+            rows = (
+                await session.scalars(
+                    select(AdminPasskey)
+                    .where(AdminPasskey.admin_user_id == admin_id)
+                    .order_by(AdminPasskey.created_at)
+                )
+            ).all()
+        return [_passkey_summary(row) for row in rows]
+
+    async def passkey_registration_options(self, *, session_token: str) -> str:
+        principal = await self._stepped_up(session_token)
+        async with self._session_factory() as session:
+            admin = await self._active_admin(session, principal.admin_id, for_update=False)
+            if admin is None:
+                raise AuthenticationRejected("Authentication was not accepted")
+            existing = (
+                await session.scalars(
+                    select(AdminPasskey.credential_id).where(AdminPasskey.admin_user_id == admin.id)
+                )
+            ).all()
+        options = generate_registration_options(
+            rp_id=self._rp_id(),
+            rp_name="Nebula VPN admin panel",
+            user_name=admin.email,
+            user_id=admin.id.bytes,
+            authenticator_selection=AuthenticatorSelectionCriteria(
+                resident_key=ResidentKeyRequirement.PREFERRED,
+                user_verification=UserVerificationRequirement.PREFERRED,
+            ),
+            exclude_credentials=[PublicKeyCredentialDescriptor(id=c) for c in existing],
+        )
+        await self._redis.put_webauthn_challenge(
+            f"register:{principal.session_id}",
+            admin_id=principal.admin_id,
+            challenge=options.challenge,
+            ttl_seconds=_WEBAUTHN_TTL_SECONDS,
+        )
+        return options_to_json(options)
+
+    async def register_passkey(
+        self,
+        *,
+        session_token: str,
+        name: str,
+        credential: dict[str, object],
+        request_id: UUID,
+    ) -> AdminPasskeySummary:
+        principal = await self._stepped_up(session_token)
+        challenge = await self._redis.take_webauthn_challenge(
+            f"register:{principal.session_id}", admin_id=principal.admin_id
+        )
+        if challenge is None:
+            raise AdminCredentialRejected("The passkey request ran out of time. Start again.")
+        try:
+            verified = verify_registration_response(
+                credential=credential,
+                expected_challenge=challenge,
+                expected_rp_id=self._rp_id(),
+                expected_origin=self._origins(),
+            )
+        except _WEBAUTHN_ERRORS:
+            raise AdminCredentialRejected("This passkey could not be checked. Try again.") from None
+        async with self._session_factory() as session:
+            taken = await session.scalar(
+                select(AdminPasskey.id).where(AdminPasskey.credential_id == verified.credential_id)
+            )
+            if taken is not None:
+                raise AdminCredentialRejected("This passkey is already added.")
+            row = AdminPasskey(
+                admin_user_id=principal.admin_id,
+                credential_id=verified.credential_id,
+                public_key=verified.credential_public_key,
+                sign_count=verified.sign_count,
+                name=name.strip(),
+                # Set here: the database default is not loaded after an insert.
+                created_at=self._now(),
+            )
+            session.add(row)
+            await session.flush()
+            add_audit_event(
+                session,
+                actor_kind="admin",
+                actor_id=principal.admin_id,
+                target_kind="admin",
+                target_id=principal.admin_id,
+                event_code="admin_mfa_changed",
+                outcome="succeeded",
+                request_id=request_id,
+                reason_code="passkey_added",
+            )
+            await session.commit()
+            return _passkey_summary(row)
+
+    async def remove_passkey(
+        self, *, session_token: str, passkey_id: UUID, request_id: UUID
+    ) -> None:
+        principal = await self._stepped_up(session_token)
+        async with self._session_factory() as session:
+            row = await session.scalar(
+                select(AdminPasskey)
+                .where(
+                    AdminPasskey.id == passkey_id,
+                    AdminPasskey.admin_user_id == principal.admin_id,
+                )
+                .with_for_update()
+            )
+            if row is None:
+                raise AdminCredentialRejected("That passkey is already removed.")
+            await session.delete(row)
+            add_audit_event(
+                session,
+                actor_kind="admin",
+                actor_id=principal.admin_id,
+                target_kind="admin",
+                target_id=principal.admin_id,
+                event_code="admin_mfa_changed",
+                outcome="succeeded",
+                request_id=request_id,
+                reason_code="passkey_removed",
+            )
+            await session.commit()
+
+    async def passkey_login_options(self, *, challenge: str, network_prefix: str) -> str:
+        """A passkey prompt for the admin a sign-in challenge belongs to.
+
+        The challenge is only read, so cancelling the prompt leaves the code.
+        """
+
+        admin_id = await self._redis.peek_preauth(
+            challenge, purpose="login", context=network_prefix
+        )
+        if admin_id is None:
+            raise AuthenticationRejected("Authentication was not accepted")
+        async with self._session_factory() as session:
+            credentials = (
+                await session.scalars(
+                    select(AdminPasskey.credential_id).where(AdminPasskey.admin_user_id == admin_id)
+                )
+            ).all()
+        if not credentials:
+            raise AdminCredentialRejected("No passkey is set up for this account. Use the code.")
+        options = generate_authentication_options(
+            rp_id=self._rp_id(),
+            allow_credentials=[PublicKeyCredentialDescriptor(id=c) for c in credentials],
+            user_verification=UserVerificationRequirement.PREFERRED,
+        )
+        await self._redis.put_webauthn_challenge(
+            f"login:{challenge}",
+            admin_id=admin_id,
+            challenge=options.challenge,
+            ttl_seconds=_WEBAUTHN_TTL_SECONDS,
+        )
+        return options_to_json(options)
+
+    async def verify_passkey_login(
+        self,
+        *,
+        challenge: str,
+        credential: dict[str, object],
+        network_prefix: str,
+        request_id: UUID,
+    ) -> AdminAuthentication:
+        consumed = await self._consume_mfa_challenge(
+            challenge, purpose="login", network_prefix=network_prefix
+        )
+        expected = await self._redis.take_webauthn_challenge(
+            f"login:{challenge}", admin_id=consumed.admin_id
+        )
+        issued_session: IssuedAdminSession | None = None
+        async with self._session_factory() as session:
+            admin = await self._active_admin(session, consumed.admin_id, for_update=True)
+            if admin is None or expected is None:
+                raise AuthenticationRejected("Authentication was not accepted")
+            try:
+                raw_id = base64url_to_bytes(str(credential["rawId"]))
+            except _WEBAUTHN_ERRORS:
+                raw_id = b""
+            passkey = await session.scalar(
+                select(AdminPasskey)
+                .where(
+                    AdminPasskey.admin_user_id == admin.id,
+                    AdminPasskey.credential_id == raw_id,
+                )
+                .with_for_update()
+            )
+            verified = None
+            if passkey is not None:
+                try:
+                    verified = verify_authentication_response(
+                        credential=credential,
+                        expected_challenge=expected,
+                        expected_rp_id=self._rp_id(),
+                        expected_origin=self._origins(),
+                        credential_public_key=passkey.public_key,
+                        credential_current_sign_count=passkey.sign_count,
+                    )
+                except _WEBAUTHN_ERRORS:
+                    verified = None
+            if passkey is None or verified is None:
+                await self._record_mfa_denial(
+                    session, admin_id=admin.id, request_id=request_id, reason_code="invalid_passkey"
+                )
+                raise AuthenticationRejected("Authentication was not accepted")
+            passkey.sign_count = verified.new_sign_count
+            passkey.last_used_at = self._now()
+            issued_session = await self._new_admin_session(admin.id, "passkey")
+            add_audit_event(
+                session,
+                actor_kind="admin",
+                actor_id=admin.id,
+                target_kind="admin_session",
+                target_id=issued_session.record.session_id,
+                event_code="admin_authenticated",
+                outcome="succeeded",
+                request_id=request_id,
+                reason_code="passkey",
+            )
+            try:
+                await session.commit()
+            except BaseException:
+                await self._redis.revoke_admin_session(issued_session.session_token)
+                raise
+        await self._redis.clear_admin_failures(str(consumed.admin_id))
+        return AdminAuthentication(session=issued_session)
+
     async def _stepped_up(self, session_token: str) -> AdminPrincipal:
         principal = await self.principal(session_token)
         if not principal.step_up:
@@ -993,7 +1264,7 @@ class AdminAuthService:
         )
         await session.commit()
 
-    async def _new_admin_session(self, admin_id: UUID, method: MfaMethod) -> IssuedAdminSession:
+    async def _new_admin_session(self, admin_id: UUID, method: SessionMethod) -> IssuedAdminSession:
         return await self._redis.issue_admin_session(
             admin_id=admin_id,
             mfa_method=method,
@@ -1074,3 +1345,12 @@ def _provisioning_uri(encoded_seed: str, email: str) -> str:
         }
     )
     return f"otpauth://totp/{label}?{query}"
+
+
+def _passkey_summary(row: AdminPasskey) -> AdminPasskeySummary:
+    return AdminPasskeySummary(
+        passkey_id=row.id,
+        name=row.name,
+        created_at=row.created_at,
+        last_used_at=row.last_used_at,
+    )

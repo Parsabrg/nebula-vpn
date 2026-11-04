@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { MfaCodeInput } from "./mfa-code-input";
 import { safeReturnPath } from "@/lib/end-session";
+import { getPasskey } from "@/lib/webauthn";
 
 interface ChallengeResponseBody {
   challenge: string;
@@ -136,6 +137,30 @@ export function LoginFlow() {
     }
   }
 
+  async function handlePasskey(challenge: string) {
+    setError(null);
+    setPending(true);
+    try {
+      const { options } = await postJson<{ options: unknown }>(
+        "/api/admin/auth/mfa/passkey/options",
+        { challenge },
+      );
+      const credential = await getPasskey(options);
+      await postJson<SessionResponseBody>(
+        "/api/admin/auth/mfa/passkey/verify",
+        {
+          challenge,
+          credential,
+        },
+      );
+      goToDashboard();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : GENERIC_ERROR);
+    } finally {
+      setPending(false);
+    }
+  }
+
   async function handleEnrollConfirm(
     event: FormEvent<HTMLFormElement>,
     challenge: string,
@@ -227,6 +252,16 @@ export function LoginFlow() {
           disabled={pending}
         >
           {pending ? "Verifying…" : "Verify"}
+        </button>
+        <button
+          type="button"
+          className="button"
+          disabled={pending}
+          onClick={() => {
+            void handlePasskey(phase.challenge);
+          }}
+        >
+          Use a passkey instead
         </button>
       </form>
     );

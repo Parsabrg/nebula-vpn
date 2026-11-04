@@ -4,6 +4,8 @@ import { type FormEvent, useRef, useState } from "react";
 import { readCsrfCookie } from "@/lib/csrf-client";
 import { RecoveryCodeActions } from "./login-flow";
 import { StepUpModal } from "./step-up-modal";
+import { LocalTime } from "./local-time";
+import { createPasskey, PASSKEY_CANCELLED } from "@/lib/webauthn";
 
 type Sent<T> = { ok: true; body: T } | { ok: false; message: string };
 
@@ -312,4 +314,152 @@ export function ReplaceOwnAuthenticator() {
       {modal}
     </div>
   );
+}
+
+export interface OwnPasskey {
+  id: string;
+  name: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
+interface PasskeyBody {
+  id: string;
+  name: string;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+/** Your passkeys: sign in with one in place of the code. */
+export function OwnPasskeys({ initial }: { initial: OwnPasskey[] }) {
+  const { post, run, modal } = useSteppedUpPost();
+  const [passkeys, setPasskeys] = useState(initial);
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  function add(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    run(async () => {
+      setPending(true);
+      try {
+        const options = await post<{ options: unknown }>(
+          "/api/admin/auth/passkeys/options",
+          {},
+        );
+        if (options === null) return false;
+        if (!options.ok) {
+          setError(options.message);
+          return true;
+        }
+        let credential: Record<string, unknown>;
+        try {
+          credential = await createPasskey(options.body.options);
+        } catch (caught) {
+          setError(
+            caught instanceof Error ? caught.message : PASSKEY_CANCELLED,
+          );
+          return true;
+        }
+        const added = await post<PasskeyBody>("/api/admin/auth/passkeys", {
+          name: name.trim() || "Passkey",
+          credential,
+        });
+        if (added === null) return false;
+        if (added.ok) {
+          setPasskeys((all) => [...all, toOwnPasskey(added.body)]);
+          setName("");
+        } else {
+          setError(added.message);
+        }
+        return true;
+      } finally {
+        setPending(false);
+      }
+    });
+  }
+
+  function remove(passkey: OwnPasskey) {
+    setError(null);
+    run(async () => {
+      const sent = await post(
+        `/api/admin/auth/passkeys/${encodeURIComponent(passkey.id)}/delete`,
+        {},
+      );
+      if (sent === null) return false;
+      if (sent.ok) {
+        setPasskeys((all) => all.filter((p) => p.id !== passkey.id));
+      } else {
+        setError(sent.message);
+      }
+      return true;
+    });
+  }
+
+  return (
+    <>
+      {passkeys.length === 0 ? (
+        <p>No passkeys yet. You sign in with the code from your app.</p>
+      ) : (
+        <ul className="passkey-list">
+          {passkeys.map((passkey) => (
+            <li key={passkey.id}>
+              <strong>{passkey.name}</strong> · added{" "}
+              <LocalTime value={passkey.createdAt} />
+              {passkey.lastUsedAt ? (
+                <>
+                  {" "}
+                  · last used <LocalTime value={passkey.lastUsedAt} />
+                </>
+              ) : null}{" "}
+              <button
+                type="button"
+                className="button"
+                onClick={() => remove(passkey)}
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form className="auth-form" onSubmit={add}>
+        <div className="field">
+          <label htmlFor="passkey-name" className="field__label">
+            Name for this passkey (optional)
+          </label>
+          <input
+            id="passkey-name"
+            value={name}
+            maxLength={64}
+            placeholder="Laptop, phone, security key…"
+            onChange={(event) => setName(event.target.value)}
+          />
+        </div>
+        {error ? (
+          <p role="alert" className="field__error">
+            {error}
+          </p>
+        ) : null}
+        <button
+          type="submit"
+          className="button button--primary"
+          disabled={pending}
+        >
+          {pending ? "Waiting for the passkey…" : "Add a passkey"}
+        </button>
+      </form>
+      {modal}
+    </>
+  );
+}
+
+function toOwnPasskey(body: PasskeyBody): OwnPasskey {
+  return {
+    id: body.id,
+    name: body.name,
+    createdAt: body.created_at,
+    lastUsedAt: body.last_used_at,
+  };
 }

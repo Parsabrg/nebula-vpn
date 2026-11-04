@@ -1,8 +1,9 @@
 """Administrator password/MFA routes with strict cookie, origin, and CSRF handling."""
 
 import hmac
+import json
 from typing import NoReturn, cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 
@@ -10,6 +11,7 @@ from nebula_api.auth.admin_service import (
     AdminAuthentication,
     AdminAuthService,
     AdminCredentialRejected,
+    AdminPasskeySummary,
 )
 from nebula_api.auth.http import (
     apply_auth_response_headers,
@@ -29,6 +31,12 @@ from nebula_api.auth.schemas import (
     AdminEnrollmentRequest,
     AdminEnrollmentResponse,
     AdminMfaRequest,
+    AdminPasskeyItem,
+    AdminPasskeyListResponse,
+    AdminPasskeyLoginOptionsRequest,
+    AdminPasskeyLoginRequest,
+    AdminPasskeyOptionsResponse,
+    AdminPasskeyRegisterRequest,
     AdminPasswordChangeRequest,
     AdminPasswordRequest,
     AdminRecoveryCodesResponse,
@@ -428,3 +436,123 @@ async def confirm_authenticator_replacement(
         _raise_auth_error(error)
     _set_csrf_cookie(response, request, replacement)
     return AdminRecoveryCodesResponse(recovery_codes=list(codes))
+
+
+# --- Passkeys ---------------------------------------------------------------
+
+
+def _passkey_item(summary: AdminPasskeySummary) -> AdminPasskeyItem:
+    return AdminPasskeyItem(
+        id=summary.passkey_id,
+        name=summary.name,
+        created_at=summary.created_at,
+        last_used_at=summary.last_used_at,
+    )
+
+
+@router.get("/passkeys", response_model=AdminPasskeyListResponse)
+async def list_passkeys(request: Request) -> AdminPasskeyListResponse:
+    try:
+        principal = await _service(request).principal(_session_token(request))
+    except (AuthenticationRejected, AuthStateUnavailable) as error:
+        _raise_auth_error(error)
+    passkeys = await _service(request).list_passkeys(principal.admin_id)
+    return AdminPasskeyListResponse(items=[_passkey_item(p) for p in passkeys])
+
+
+@router.post("/passkeys/options", response_model=AdminPasskeyOptionsResponse)
+async def passkey_registration_options(
+    request: Request, response: Response
+) -> AdminPasskeyOptionsResponse:
+    """What the browser needs to make a passkey for this admin."""
+
+    try:
+        session_token, replacement = await _protect_stepped_up_mutation(request)
+        options = await _service(request).passkey_registration_options(session_token=session_token)
+    except (AuthenticationRejected, AuthStateUnavailable) as error:
+        _raise_auth_error(error)
+    _set_csrf_cookie(response, request, replacement)
+    return AdminPasskeyOptionsResponse(options=json.loads(options))
+
+
+@router.post("/passkeys", response_model=AdminPasskeyItem)
+async def register_passkey(
+    payload: AdminPasskeyRegisterRequest, request: Request, response: Response
+) -> AdminPasskeyItem:
+    try:
+        session_token, replacement = await _protect_stepped_up_mutation(request)
+        summary = await _service(request).register_passkey(
+            session_token=session_token,
+            name=payload.name,
+            credential=payload.credential,
+            request_id=uuid4(),
+        )
+    except AdminCredentialRejected as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from None
+    except (AuthenticationRejected, AuthStateUnavailable) as error:
+        _raise_auth_error(error)
+    _set_csrf_cookie(response, request, replacement)
+    return _passkey_item(summary)
+
+
+@router.post("/passkeys/{passkey_id}/delete", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_passkey(passkey_id: UUID, request: Request, response: Response) -> Response:
+    try:
+        session_token, replacement = await _protect_stepped_up_mutation(request)
+        await _service(request).remove_passkey(
+            session_token=session_token, passkey_id=passkey_id, request_id=uuid4()
+        )
+    except AdminCredentialRejected as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from None
+    except (AuthenticationRejected, AuthStateUnavailable) as error:
+        _raise_auth_error(error)
+    response.status_code = status.HTTP_204_NO_CONTENT
+    _set_csrf_cookie(response, request, replacement)
+    return response
+
+
+@router.post("/mfa/passkey/options", response_model=AdminPasskeyOptionsResponse)
+async def passkey_login_options(
+    payload: AdminPasskeyLoginOptionsRequest, request: Request
+) -> AdminPasskeyOptionsResponse:
+    """After the password: a passkey prompt in place of the code."""
+
+    settings = _settings(request)
+    require_allowed_origin(request, settings)
+    require_json_request(request)
+    try:
+        options = await _service(request).passkey_login_options(
+            challenge=payload.challenge.get_secret_value(),
+            network_prefix=client_network_prefix(request),
+        )
+    except AdminCredentialRejected as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from None
+    except (AuthenticationRejected, AuthStateUnavailable) as error:
+        _raise_auth_error(error)
+    return AdminPasskeyOptionsResponse(options=json.loads(options))
+
+
+@router.post("/mfa/passkey/verify", response_model=AdminSessionResponse)
+async def verify_passkey_login(
+    payload: AdminPasskeyLoginRequest, request: Request, response: Response
+) -> AdminSessionResponse:
+    settings = _settings(request)
+    require_allowed_origin(request, settings)
+    require_json_request(request)
+    try:
+        authentication = await _service(request).verify_passkey_login(
+            challenge=payload.challenge.get_secret_value(),
+            credential=payload.credential,
+            network_prefix=client_network_prefix(request),
+            request_id=uuid4(),
+        )
+        principal = await _service(request).principal(authentication.session.session_token)
+    except (AuthenticationRejected, AuthStateUnavailable) as error:
+        _raise_auth_error(error)
+    _set_auth_cookies(response, authentication, settings)
+    return AdminSessionResponse(
+        admin_id=principal.admin_id,
+        role=principal.role,
+        csrf_token=authentication.session.csrf_token,
+        step_up=False,
+    )
