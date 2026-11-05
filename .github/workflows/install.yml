@@ -15,6 +15,7 @@ on:
       - "services/api/**"
       - "**/*.sh"
       - ".github/workflows/install.yml"
+      - "tool/server-bundle.sh"
   push:
     branches: [main]
     paths:
@@ -24,6 +25,7 @@ on:
       - "services/api/**"
       - "**/*.sh"
       - ".github/workflows/install.yml"
+      - "tool/server-bundle.sh"
   workflow_dispatch:
 
 permissions:
@@ -188,3 +190,81 @@ jobs:
           sudo journalctl -u nebula-vpn-agent -u nebula-xray --no-pager -n 60 || true
           sudo docker ps -a || true
           sudo sshd -T >/dev/null || echo "sshd -T exit $?"
+
+  bundle:
+    # Plan 6: a release's offline bundle installs with Docker Hub, GitHub and
+    # PyPI out of reach, and only when the signed checksum list vouches for it.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      # actions/checkout v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Names and a self-signed certificate in place of DNS and certbot
+        run: |
+          set -eu
+          ip=$(curl -4 -fsS -m 10 https://www.cloudflare.com/cdn-cgi/trace | sed -n 's/^ip=//p')
+          d=$NEBULA_DOMAIN
+          # The runner's public address belongs to Azure's NAT; a server owns
+          # its own. On loopback, connections to it stay on this machine.
+          sudo ip address add "$ip/32" dev lo
+          echo "$ip $d panel.$d api.$d" | sudo tee -a /etc/hosts
+          a=/etc/letsencrypt/archive/panel.$d l=/etc/letsencrypt/live/panel.$d
+          sudo mkdir -p "$a" "$l"
+          sudo openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 7 \
+            -subj "/CN=panel.$d" -addext "subjectAltName=DNS:$d,DNS:panel.$d,DNS:api.$d" \
+            -keyout "$a/privkey1.pem" -out "$a/fullchain1.pem"
+          # Trusted here as Let's Encrypt's would be: the agent enrols over it.
+          sudo cp "$a/fullchain1.pem" /usr/local/share/ca-certificates/nebula-ci.crt
+          sudo update-ca-certificates >/dev/null
+          sudo ln -s "../../archive/panel.$d/privkey1.pem" "$l/privkey.pem"
+          sudo ln -s "../../archive/panel.$d/fullchain1.pem" "$l/fullchain.pem"
+      - name: Build the bundle
+        run: tool/server-bundle.sh 0.0.0 /tmp/release
+      - name: Sign it with a key for this run only
+        run: |
+          set -eu
+          ssh-keygen -q -t ed25519 -N '' -C ci -f /tmp/ci-key
+          echo "releases@nebula-vpn namespaces=\"nebula-release\" $(cut -d' ' -f1,2 /tmp/ci-key.pub)" > /tmp/ci-signers
+          cd /tmp/release
+          sha256sum -b nebula-vpn-v0.0.0-server-linux-amd64.tar.gz > SHA256SUMS.txt
+          ssh-keygen -q -Y sign -f /tmp/ci-key -n nebula-release SHA256SUMS.txt
+      - name: Nothing to pull from, and nothing built here left behind
+        run: |
+          set -eu
+          for h in registry-1.docker.io auth.docker.io production.cloudflare.docker.com index.docker.io \
+                   github.com objects.githubusercontent.com release-assets.githubusercontent.com \
+                   pypi.org files.pythonhosted.org get.docker.com; do
+            echo "0.0.0.0 $h" | sudo tee -a /etc/hosts >/dev/null
+          done
+          docker image rm -f nebula-production-api nebula-production-worker nebula-production-admin \
+            postgres:17.11 redis:8.10.2-alpine3.23 adguard/adguardhome:nebula-bundle >/dev/null
+          ! curl -sS -m 10 -o /dev/null https://pypi.org/
+      - name: A bundle the signed list does not vouch for is refused
+        run: |
+          set -eu
+          mkdir -p /tmp/bad && cp /tmp/release/* /tmp/bad/
+          sed -i 's/^./0/' /tmp/bad/SHA256SUMS.txt
+          mkdir -p /tmp/src && tar -xzf /tmp/release/nebula-vpn-v0.0.0-server-linux-amd64.tar.gz -C /tmp/src
+          if sudo -E env NEBULA_RELEASE_SIGNERS=/tmp/ci-signers /tmp/src/nebula/install.sh \
+               --bundle /tmp/bad/nebula-vpn-v0.0.0-server-linux-amd64.tar.gz </dev/null >/tmp/bad.log 2>&1; then
+            echo "installed from a bundle with a broken signature"; exit 1
+          fi
+          grep -q "release key's signature" /tmp/bad.log
+      - name: Install from the bundle
+        run: |
+          sudo -E env NEBULA_RELEASE_SIGNERS=/tmp/ci-signers /tmp/src/nebula/install.sh \
+            --bundle /tmp/release/nebula-vpn-v0.0.0-server-linux-amd64.tar.gz </dev/null
+      - name: It serves, and every protocol carries traffic
+        run: |
+          set -eu
+          systemctl is-active nebula-vpn-agent nebula-xray nebula-hysteria nginx
+          code=$(curl -sS --cacert /etc/letsencrypt/live/panel.$NEBULA_DOMAIN/fullchain.pem -o /dev/null -w '%{http_code}' \
+            --resolve api.$NEBULA_DOMAIN:443:127.0.0.1 https://api.$NEBULA_DOMAIN/v1/routes/)
+          echo "API answered $code"; [ "$code" = 401 ]
+          sudo NEBULA_CHECK_CA=/usr/local/share/ca-certificates/nebula-ci.crt python3 /tmp/src/nebula/infrastructure/check-protocols.py
+      - name: Logs on failure
+        if: failure()
+        run: |
+          tail -n 40 /tmp/bad.log || true
+          sudo journalctl -u nebula-vpn-agent -u nebula-xray --no-pager -n 60 || true
+          sudo docker ps -a || true

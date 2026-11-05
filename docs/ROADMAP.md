@@ -22,7 +22,6 @@ written plan in [plans/2026-11-plans.md](plans/2026-11-plans.md), agreed
 - A second CDN route on CloudFront: the server side is done; the distribution needs the owner's AWS account (section 11).
 
 **Running servers**
-- *plan 6* Signed server images and an offline bundle with each release.
 - *plan 7* Upgrade servers from the panel, with health checks and rollback (section 2).
 
 **Apps**
@@ -44,6 +43,7 @@ Updated in the same pull request as the work (section 92).
 
 | Section | Item | State |
 | --- | --- | --- |
+| plan 6 | Offline server bundle: `tool/server-bundle.sh` in the Release workflow (source, images incl. PostgreSQL/Redis/AdGuard, pinned Xray/Hysteria2/dnsproxy, agent wheels; attested), signed by `SHA256SUMS.txt.sig`; `install.sh --bundle` verifies and installs without Docker Hub/GitHub/PyPI (amd64, new installs on 443); CI installs from a bundle with those blocked (`docs/runbooks/offline-bundle.md`) | Done in code (CI); first real bundle with the next release |
 | plan 8 | In-app updater: Android (APK for the phone's ABI, `REQUEST_INSTALL_PACKAGES`, FileProvider limited to the cache's updates/ folder) and Windows (setup program); `SHA256SUMS.txt.sig` checked against the pinned release key (SSHSIG, Ed25519) and the file's SHA-256 against the list before anything is installed; tests on the real 0.1.34 signature | Done in code (tests); phone install test pending; no CDN mirror of releases yet, so downloads go to GitHub (through the tunnel when connected) |
 | plan 3 | AmneziaWG | On hold (owner, 2026-11-05): WireGuard works from inside Iran on Tehran |
 | 26 (resolver), owner list 2026-11-04 | A resolver on every server: `install.sh --join` sets up `dnsproxy` (DNS over HTTPS by address, no query log); the control plane's AdGuard Home config is written when missing, upstreams by address; the agent reports its resolver as the usage source `dns` and the API hands out 198.18.0.53 only where it answers; CI checks the resolver on a new install | Done in code (tests, CI); Tehran not set up until the owner OKs it |
