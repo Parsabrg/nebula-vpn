@@ -26,7 +26,6 @@ written plan in [plans/2026-11-plans.md](plans/2026-11-plans.md), agreed
 - *plan 7* Upgrade servers from the panel, with health checks and rollback (section 2).
 
 **Apps**
-- *plan 8* In-app updater that checks the release signature before installing.
 - Signed Windows builds (SignPath, needs the owner's sign-up).
 - *plan 9* iOS and macOS apps (needs an Apple developer account and a Mac).
 
@@ -45,6 +44,8 @@ Updated in the same pull request as the work (section 92).
 
 | Section | Item | State |
 | --- | --- | --- |
+| plan 8 | In-app updater: Android (APK for the phone's ABI, `REQUEST_INSTALL_PACKAGES`, FileProvider limited to the cache's updates/ folder) and Windows (setup program); `SHA256SUMS.txt.sig` checked against the pinned release key (SSHSIG, Ed25519) and the file's SHA-256 against the list before anything is installed; tests on the real 0.1.34 signature | Done in code (tests); phone install test pending; no CDN mirror of releases yet, so downloads go to GitHub (through the tunnel when connected) |
+| plan 3 | AmneziaWG | On hold (owner, 2026-11-05): WireGuard works from inside Iran on Tehran |
 | 26 (resolver), owner list 2026-11-04 | A resolver on every server: `install.sh --join` sets up `dnsproxy` (DNS over HTTPS by address, no query log); the control plane's AdGuard Home config is written when missing, upstreams by address; the agent reports its resolver as the usage source `dns` and the API hands out 198.18.0.53 only where it answers; CI checks the resolver on a new install | Done in code (tests, CI); Tehran not set up until the owner OKs it |
 | plan 4 | Relay inside Iran: `relay.env` on a joined server (DNAT + MASQUERADE of the listed ports only, ufw forward rules to the exit only, conntrack sized, no logging); the API lists `NEBULA_RELAYS` entries as servers of their own with the exit's forwarded profiles and hands out the device's exit credential at the relay's address; the relay's agent checks the exit's ports each usage poll and the relay shows as maintenance while it cannot; CI checks the rules, the refused ports and removal (`docs/runbooks/relay.md`) | Live on one relay since 2026-11-04 (owner's OK). From abroad through it: TCP+TLS, WebSocket, gRPC, XHTTP and Shadowsocks-2022 carry traffic; VLESS Encryption fails on the relay's TCP 443 but works on another port; Hysteria2 (UDP) fails. Phone tests from inside Iran (MCI, Irancell, home) pending; automatic fallback is the next step |
 | plan 2 | Port 443: new installs serve the panel, API and XHTTP on TCP 443 by name (plain nginx `listen 443`, not `ssl_preread`, which would hide client addresses from rate limits and the admin allowlist) and Hysteria2 on UDP 443; old ports stay open and listed after; REALITY keeps its own port; existing servers keep theirs (`docs/runbooks/port-443.md`); CI checks 443 on a new install | Done in code (CI); off on existing servers until the owner turns it on; phone test pending |
