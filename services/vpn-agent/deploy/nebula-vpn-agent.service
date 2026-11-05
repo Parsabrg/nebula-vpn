@@ -70,7 +70,9 @@ StateDirectory=nebula/wireguard nebula/xray
 # makes everything outside this list read-only, so omitting it fails the
 # apply with EROFS -- and because the apply is what the API waits on, that
 # surfaces to the user as a plain refusal with no reason attached.
-ReadWritePaths=/var/lib/nebula/wireguard /var/lib/nebula/xray /etc/nebula/xray /etc/nebula/hysteria
+# The DNS tunnel's config folder only where one is set up ("-": skipped when
+# absent, so the agent still starts on every other server).
+ReadWritePaths=/var/lib/nebula/wireguard /var/lib/nebula/xray /etc/nebula/xray /etc/nebula/hysteria -/etc/nebula/cottendns
 ReadOnlyPaths=/etc/nebula/secrets
 
 ExecStart=/opt/nebula-vpn-agent/.venv/bin/nebula-agent-serve
