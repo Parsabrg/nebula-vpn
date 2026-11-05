@@ -30,6 +30,11 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   ask for the code. Needs a current browser.
 
 ### Servers
+- The DNS tunnel's server side (plan 10): `install.sh` sets up a pinned CottenDNS behind
+  the port-53 router when given `NEBULA_COTTENDNS_DOMAIN`, forwarding only to the VLESS
+  Encryption inbound with AES-256-GCM; the agent renders its config; signed-in apps read
+  the name, key and server from `GET /v1/dns-tunnel/`. Off until the owner adds the
+  router rule and DNS records (`docs/runbooks/dns-tunnel.md`). The app side follows.
 - An offline server bundle for each release (`nebula-vpn-vX-server-linux-amd64.tar.gz`):
   the source, every image, the pinned Xray, Hysteria2 and dnsproxy, and the agent's
   wheels, signed with the other release files. `install.sh --bundle <file>` checks the

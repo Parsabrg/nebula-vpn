@@ -70,6 +70,12 @@ class Settings(BaseSettings):
     # gives away only its share. Each account's share is stable, and the
     # route it asked through is always in it. See api_routes.py.
     api_routes_per_account: int = Field(default=0, ge=0, le=100)
+    # The DNS tunnel (plan 10): its delegated name, the server whose VLESS
+    # Encryption inbound it forwards to, and its key. Empty: none. See
+    # dns_tunnel.py and docs/runbooks/dns-tunnel.md.
+    dns_tunnel_domain: str = ""
+    dns_tunnel_server: str = ""
+    dns_tunnel_key_file: str = "/etc/nebula/secrets/cottendns_key"
     # Relays listed as servers of their own (JSON list); see relays.py and
     # docs/runbooks/relay.md. Empty: none.
     relays: str = ""

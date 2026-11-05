@@ -55,6 +55,12 @@ A weekly job deletes what is older than this.
   does, but not your traffic, which stays encrypted from your device to the
   exit server. It does not log forwarded connections, and the exit server
   sees the relay's address instead of yours.
+- **Through the DNS tunnel** (only when every other route has failed, once
+  the app supports it): your traffic is split into DNS queries sent through
+  public resolvers, often ones inside Iran, which pass them to the server.
+  Their contents are encrypted (AES-256-GCM, then the VLESS Encryption tunnel
+  inside); the resolvers see their volume and timing, and that they go to
+  the tunnel's domain.
 - **To GitHub:** if "Check for updates" is on, the app asks GitHub's public
   releases page for the newest version. GitHub sees your IP address, as for
   any download. When you install an update from the app, it
