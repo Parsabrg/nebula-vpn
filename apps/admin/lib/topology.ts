@@ -29,6 +29,8 @@ export interface VpnServerListItem {
   state: string;
   publicHost: string;
   maximumDevices: number;
+  /** Disabled as an exit and still forwarding for a relay. */
+  relayOnly: boolean;
 }
 
 export interface VpnServerHealthItem {
@@ -239,6 +241,7 @@ interface VpnServerListItemBody {
   state: string;
   public_host: string;
   maximum_devices: number;
+  relay_only?: boolean;
 }
 
 interface VpnServerHealthItemBody {
@@ -296,6 +299,7 @@ export async function listVpnServers(): Promise<VpnServerListItem[]> {
     state: item.state,
     publicHost: item.public_host,
     maximumDevices: item.maximum_devices,
+    relayOnly: item.relay_only ?? false,
   }));
 }
 

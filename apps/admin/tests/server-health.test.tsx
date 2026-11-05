@@ -346,3 +346,39 @@ it("uses the existing error boundary when history cannot be retrieved", async ()
     "history unavailable",
   );
 });
+
+it("labels a disabled server that still forwards for a relay as relay only", async () => {
+  vi.mocked(apiFetch).mockImplementation(async (path) => {
+    if (path === "/v1/admin/vpn-servers") {
+      return {
+        items: [
+          {
+            id: "s1",
+            code: "tehran",
+            display_name: "iran",
+            state: "disabled",
+            public_host: "tehran.example.test",
+            maximum_devices: 100,
+            relay_only: true,
+          },
+          {
+            id: "s2",
+            code: "old",
+            display_name: "old",
+            state: "disabled",
+            public_host: "old.example.test",
+            maximum_devices: 100,
+            relay_only: false,
+          },
+        ],
+      };
+    }
+    if (path === "/v1/admin/reconciliation-history") return emptyHistory;
+    return { items: [] };
+  });
+  render(await ServerHealthPage(defaultProps));
+  const badges = [...document.querySelectorAll(".badge--disabled")].map(
+    (badge) => badge.textContent,
+  );
+  expect(badges).toEqual(["Disabled (relay only)", "Disabled"]);
+});

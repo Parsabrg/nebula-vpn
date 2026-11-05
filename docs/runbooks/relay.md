@@ -58,6 +58,14 @@ default fits thousands of users.
 
 Turning it off: delete `/etc/nebula/relay.env` and rerun `sudo ./install.sh`.
 
+## A relay that is not an exit
+
+Set the relay's server to **Disabled** in Server health: it leaves the app's
+server list and takes no connections of its own, while the usage poll still
+asks it for its relay check (nothing else), so the relay stays up. Server
+health shows it as "Disabled (relay only)". Its own Xray, Hysteria2 and
+WireGuard keep running until they are stopped on the server.
+
 ## On the control plane
 
 Add the relay to `/etc/nebula/compose.env` (one line of JSON), then restart

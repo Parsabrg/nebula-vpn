@@ -253,6 +253,7 @@ async def list_protocol_profiles(
 async def list_vpn_servers(request: Request, response: Response) -> VpnServerListResponse:
     await require_admin_session(request)
     entries = await _service(request).list_vpn_servers()
+    vias = {relay.via for relay in request.app.state.settings.relay_list()}
     apply_auth_response_headers(response)
     return VpnServerListResponse(
         items=[
@@ -263,6 +264,7 @@ async def list_vpn_servers(request: Request, response: Response) -> VpnServerLis
                 state=entry.state,
                 public_host=entry.public_host,
                 maximum_devices=entry.maximum_devices,
+                relay_only=entry.state == "disabled" and entry.code in vias,
             )
             for entry in entries
         ]

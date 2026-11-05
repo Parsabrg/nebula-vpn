@@ -167,6 +167,7 @@ export default async function ServerHealthPage({
                     serverId={server.id}
                     code={server.code}
                     initialState={server.state}
+                    relayOnly={server.relayOnly}
                   />
                 </header>
                 <ServerForEveryone

@@ -31,8 +31,9 @@ LATER = datetime(2026, 9, 7, 12, 15, tzinfo=UTC)
 
 
 class FakeServer:
-    def __init__(self, code: str) -> None:
+    def __init__(self, code: str, state: str = "active") -> None:
         self.code = code
+        self.state = state
         self.agent_host = f"{code}.internal"
         self.agent_port = 9443
 
@@ -204,6 +205,43 @@ class TestRunUsagePoll:
         )
 
         assert summary.relay_checked == {"thr"}
+
+    def test_a_disabled_relay_server_is_asked_only_for_its_relay_check(self) -> None:
+        # Tehran as a relay only: disabled as an exit, still forwarding. Its
+        # check keeps the relay up; its counters and failures are not read.
+        clients = {
+            "thr": FakeAgentClient(
+                _response(samples=[_sample("c" * 64)], read=["relay"], failed=["dns"])
+            ),
+        }
+        usage = RecordingUsageService()
+
+        summary = asyncio.run(
+            run_usage_poll(
+                _session_factory(FakeSession([FakeServer("thr", "disabled")])),
+                _builder(clients),
+                cast(UsageService, usage),
+                relay_vias=frozenset({"thr"}),
+            )
+        )
+
+        assert summary.relay_checked == {"thr"}
+        assert usage.recorded == []
+        assert summary.sources_failed == []
+
+    def test_a_disabled_relay_server_whose_check_fails_lets_the_relay_lapse(self) -> None:
+        clients = {"thr": FakeAgentClient(_response(failed=["relay"]))}
+
+        summary = asyncio.run(
+            run_usage_poll(
+                _session_factory(FakeSession([FakeServer("thr", "disabled")])),
+                _builder(clients),
+                cast(UsageService, RecordingUsageService()),
+                relay_vias=frozenset({"thr"}),
+            )
+        )
+
+        assert summary.relay_checked == set()
 
     def test_servers_whose_resolver_answered_are_named(self) -> None:
         clients = {

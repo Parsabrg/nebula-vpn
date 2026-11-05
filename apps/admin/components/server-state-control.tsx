@@ -18,10 +18,12 @@ export function ServerStateControl({
   serverId,
   code,
   initialState,
+  relayOnly = false,
 }: {
   serverId: string;
   code: string;
   initialState: string;
+  relayOnly?: boolean;
 }) {
   const [state, setState] = useState(initialState);
   const [draft, setDraft] = useState<ServerState>(
@@ -30,7 +32,18 @@ export function ServerStateControl({
 
   return (
     <>
-      <span className={`badge badge--${state}`}>{label(state)}</span>{" "}
+      <span
+        className={`badge badge--${state}`}
+        title={
+          relayOnly && state === "disabled"
+            ? "Not an exit any more, and still forwarding for a relay. Making it active again offers it as an exit."
+            : undefined
+        }
+      >
+        {relayOnly && state === "disabled"
+          ? "Disabled (relay only)"
+          : label(state)}
+      </span>{" "}
       <MutationButton
         triggerLabel="Change"
         triggerClassName="button"

@@ -1156,6 +1156,7 @@ async def _collect_usage_once(
             agent_host=agent_host, agent_port=agent_port, settings=settings
         ),
         usage,
+        relay_vias=frozenset(relay.via for relay in settings.relay_list()),
     )
     relays = settings.relay_list()
     if relays or settings.xray_client_dns:

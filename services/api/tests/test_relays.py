@@ -298,3 +298,11 @@ def test_resolver_health_marks_only_servers_that_answered() -> None:
     assert asyncio.run(health.is_up("de-1")) is True
     assert asyncio.run(health.is_up("thr")) is False
     assert redis.values["nebula:resolver-up:de-1"][1] == RESOLVER_UP_SECONDS
+
+
+def test_the_relay_needs_only_its_exit_in_the_list() -> None:
+    # The via server ("thr") is not among the account's servers -- disabled
+    # as an exit, it never is -- and the relay is listed all the same.
+    items = _servers(_health(up=True))
+    assert "thr" not in [item["code"] for item in items]
+    assert "de-via-thr" in [item["code"] for item in items]

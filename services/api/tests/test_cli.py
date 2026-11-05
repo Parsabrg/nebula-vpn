@@ -654,7 +654,7 @@ def _loop_polls(
 
     remaining = list(steps)
 
-    async def poll(*_args: object) -> UsagePollSummary:
+    async def poll(*_args: object, **_kwargs: object) -> UsagePollSummary:
         step = remaining.pop(0)
         if not remaining:
             stop.set()
