@@ -9,7 +9,7 @@ ADR 0004, "2026-11-05 revision"; this page is the server half. The app half
 ## How it fits together
 
 ```
-phone -> ISP resolver -> ... -> NS for t.<domain> = this server, port 53
+phone -> ISP resolver -> ... -> NS for nt.<domain> = this server, port 53
       -> CottenRouter (the owner's, owns port 53; one rule per name)
       -> CottenDNS for Nebula on 127.0.0.1:5310 (nebula-cottendns.service)
       -> 127.0.0.1:8453, this server's VLESS Encryption inbound, only
