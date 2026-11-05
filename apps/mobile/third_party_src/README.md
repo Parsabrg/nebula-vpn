@@ -114,6 +114,16 @@ appeared to work because Android fell back to DNS over TLS on TCP, which is
 what made pages fail for 8 to 20 seconds after every connect. QUIC and voice
 calls had no fallback.
 
+**The DNS tunnel's client runs the same way (plan 10).** When the config
+carries `nebulaDnsTunnel` (`{config, resolvers, port}`), the plugin writes the
+CottenDNS TOML (it holds the tunnel key; app-only readable) and resolver list
+under `files/cottendns/`, runs `libcottendns_client.so`, and starts Xray only
+once the tunnel's local port accepts (up to 90 s: finding resolvers is slow).
+Xray's VLESS Encryption outbound dials that port. `startCottenDns` is public so
+the app can run the same binary with `-scan-only` for its resolver scan. The
+binaries come from the CottenDNS Android release zip, pinned by digest in
+`vendor_plugin.py`, all four ABIs.
+
 ## Regenerating the patch
 
 Edit the vendored copy in `../third_party/`, then diff it against the pub

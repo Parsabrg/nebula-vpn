@@ -22,12 +22,14 @@ digest below. Anything that does not match its digest is refused.
 """
 
 import hashlib
+import io
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import urllib.request
+import zipfile
 from pathlib import Path
 
 PLUGIN = "flutter_v2ray_client"
@@ -74,6 +76,15 @@ HEV_REPO = "https://github.com/heiher/hev-socks5-tunnel"
 HEV_TAG = "2.18.0"
 HEV_COMMIT = "d9dca26c7ad0e494492244f0309e80ee583e739e"
 HEV_JNI_CLASS = ("dev/amirzr/flutter_v2ray_client/v2ray/services", "TProxyService")
+
+# CottenDNS, the DNS tunnel's client (plan 10): one release zip carries all
+# four ABIs as executables named like libraries, run as a child process the
+# same way as Hysteria2. Pinned to the release the server half uses.
+COTTENDNS_ZIP = (
+    "https://github.com/WhiteDNS/CottenDNS/releases/download/v2026.11.03.161534-be99443/"
+    "CottenDNS-Android-v2026.11.03.161534-be99443.zip",
+    "cbf12eeebfaa9ec50d07a3195ea9a39b75c5da55f05742db5fa2aeda525665bf",
+)
 
 HERE = Path(__file__).resolve().parent
 MOBILE = HERE.parent
@@ -129,6 +140,23 @@ def fetch_engine(into: Path) -> None:
             f"libv2ray.aar digest mismatch\n  expected {digest}\n  got      {actual}"
         )
     into.write_bytes(payload)
+
+
+def fetch_cottendns(jni_libs: Path) -> None:
+    url, digest = COTTENDNS_ZIP
+    print(f"  downloading {url.rsplit('/', 1)[-1]}")
+    with urllib.request.urlopen(url, timeout=600) as response:  # noqa: S310
+        payload = response.read()
+    actual = hashlib.sha256(payload).hexdigest()
+    if actual != digest:
+        raise SystemExit(
+            f"CottenDNS zip digest mismatch\n  expected {digest}\n  got      {actual}"
+        )
+    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+        for abi in BINARIES:
+            name = f"jniLibs/{abi}/libcottendns_client.so"
+            (jni_libs / abi / "libcottendns_client.so").write_bytes(archive.read(name))
+            print(f"  {abi:<12} extracted")
 
 
 def android_ndk() -> Path:
@@ -220,6 +248,9 @@ def main() -> None:
 
     print("fetching the Xray engine (pinned by digest)")
     fetch_engine(TARGET / "android/libs/libv2ray.aar")
+
+    print("fetching the CottenDNS client (pinned by digest)")
+    fetch_cottendns(TARGET / "android/src/main/jniLibs")
 
     print()
     print("done. `flutter build apk` will now use the patched plugin via")
