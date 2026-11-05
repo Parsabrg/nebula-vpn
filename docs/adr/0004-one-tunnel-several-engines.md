@@ -76,8 +76,8 @@ rather than assumed.
 | Hysteria2 server | `apernet/hysteria`, standalone binary | MIT | `nebula-hysteria.service`, already deployed |
 | Hysteria2 client | Mihomo `hysteria2.go`, or upstream library | MIT | see D5; not yet chosen |
 | TUN <-> SOCKS bridge | `hev-socks5-tunnel` | MIT | built per ABI, as v2rayNG does |
-| DNS tunnel engine | `WhiteDNS/CottenDns` | MIT | git submodule pinned at `8eea49d1267b1a41441c25c75e69e6f12ad0a11f`, built `CGO_ENABLED=0` per ABI |
-| DNS tunnel server | same repo, `cmd/server` | MIT | authoritative DNS on the VPS |
+| DNS tunnel engine | `WhiteDNS/CottenDNS` | MIT (bundles QUIC-GO, QPACK and SOAR licences) | its **released** clients, pinned by version and sha256: CLI for Windows and Linux, the Android engine bundle (4 ABIs). Nothing ported or rebuilt (revised 2026-11-05, below; it was a submodule pinned at `8eea49d`) |
+| DNS tunnel server | same project, released server | MIT | a Nebula-only backend behind the owner's CottenRouter on the VPS (2026-11-05) |
 
 The DNS lineage is MasterDnsVPN -> StormDNS -> CottenDNS, MIT throughout, and
 CottenDNS keeps wire compatibility with the older clients. It is the actively
@@ -268,6 +268,55 @@ Every engine emits logs at a configurable level, and the level is reachable
 from the UI without a rebuild. ADR 0003 took four investigations largely
 because the core had never been asked to speak. Per-engine byte counters are
 exposed so the UI can show movement rather than a state word.
+
+## 2026-11-05 revision: the DNS tunnel (plan 10)
+
+Decided by the owner after reading the WhiteDNS projects. It replaces the DNS
+parts of D0 and of steps 7-9 below; the rest of this ADR stands. Built after
+plan 6, unless a shutdown looks likely.
+
+**Engine.** CottenDNS (github.com/WhiteDNS/CottenDNS, MIT), not dnstt: it has
+striping across many resolvers, a resolver scanner with an `iran` preset and
+`RESOLVER_DISCOVERY_COUNTRY`, released CLI clients for Windows and Linux, and an
+Android engine bundle for 4 ABIs. Those releases are used as they are, pinned by
+version and checksum; nothing is ported. **Nothing** is taken from
+WhiteDNS-Android (code, resolver lists or assets): its licence is proprietary
+("source-available, not open-source").
+
+**Server (the German VPS).**
+- A new CottenDNS backend just for Nebula, behind the owner's existing
+  CottenRouter on port 53, on a name under a separate domain. The owner adds the
+  router rule and the DNS records (an NS record and its glue A record, DNS only,
+  not proxied); the runbook gives them exactly. Nothing else on port 53 changes.
+- Fixed-TCP-target mode, pointing only at Nebula's VLESS Encryption inbound on
+  loopback. The tunnel key alone reaches nothing: a Nebula credential is still
+  required, revocation and quotas still apply, and traffic stays encrypted even
+  if CottenDNS's own cryptography has a flaw.
+- `DATA_ENCRYPTION_METHOD = 5`, `ENCRYPTION_AUTO_DETECT = false`. CottenMax off:
+  it is beta and uses an 8-byte authentication tag. Revisit later.
+- Installed like Xray and Hysteria2: a pinned release checked by sha256, an
+  unprivileged systemd unit with the same hardening, the key in
+  `/etc/nebula/secrets`, the config rendered by the agent. Never `curl | bash`
+  from a personal account.
+
+**App.**
+- The tunnel's name and key come from the API while it is reachable
+  (session-gated, like `/v1/routes`) and are kept on the device.
+- Resolvers are scanned in the background before any shutdown (scan-only mode,
+  `iran` preset) and the healthy ones cached on the device, refreshed weekly on
+  Wi-Fi: nothing can be downloaded during a shutdown.
+- The engine runs as a subprocess beneath Xray (D3), its local SOCKS port random
+  per session rather than the default 18000.
+- Offered only after every other route has failed, and marked slow; Diagnostics
+  shows the resolver count and speed.
+
+**Docs.** `THIRD_PARTY_NOTICES.md` gets the licences shipped in the CottenDNS
+repository (MIT, and its bundled QUIC-GO, QPACK and SOAR licences);
+`docs/privacy.md` says DNS queries go through resolvers in Iran, with their
+contents encrypted and their volume and timing visible.
+
+**Before release.** Tested on MCI, Irancell and home internet with public
+resolvers blocked, and compared with the WhiteDNS app on the same server.
 
 ## What this replaces
 
