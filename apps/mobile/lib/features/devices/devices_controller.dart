@@ -13,6 +13,7 @@ import '../../core/free/free_mode.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/network/api_route_sync.dart';
+import '../../core/network/dns_tunnel_sync.dart';
 import '../../core/network/error_copy.dart';
 import '../../core/network/network_guard.dart';
 import '../../core/routing/tunnel_routes.dart';
@@ -537,6 +538,7 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
       // a minute ago.
       try {
         unawaited(ref.read(apiRouteSyncProvider).refresh());
+        unawaited(ref.read(dnsTunnelSyncProvider).refresh());
       } catch (_) {
         // Including storage not being available at all, as in a headless
         // test: loading the screen does not depend on any of this.

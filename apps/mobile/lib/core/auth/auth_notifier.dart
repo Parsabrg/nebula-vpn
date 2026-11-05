@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../hardware_id.dart';
 import '../network/api_exception.dart';
+import '../network/dns_tunnel_sync.dart';
 import '../network/network_guard.dart';
 import '../storage/device_id_store.dart';
 import '../storage/secure_token_store.dart';
@@ -257,6 +258,7 @@ class AuthNotifier extends Notifier<AuthState> {
     try {
       await ref.read(xrayCredentialStoreProvider).clear();
       await ref.read(wireGuardPeerStoreProvider).clear();
+      await ref.read(dnsTunnelStoreProvider).clear();
     } catch (_) {
       // An unreadable keystore holds nothing usable either; never a reason
       // to leave someone signed in.
