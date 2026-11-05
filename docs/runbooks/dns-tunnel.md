@@ -86,6 +86,17 @@ tunnels (`ct.`, `st.`) share the domain and are left alone.
    Signed-in apps then read the names, the key and the server from
    `GET /v1/dns-tunnel/` and keep them for when the API is out of reach.
 
+## The app (Android)
+
+The app keeps the names, key and server from `GET /v1/dns-tunnel/` in secure
+storage. It runs the CottenDNS client (`libcottendns_client.so`, from the same
+release, pinned in `apps/mobile/third_party_src/vendor_plugin.py`) as a child
+process in TCP mode on a random loopback port; Xray's VLESS Encryption
+outbound to the named server dials that port, so the person's own credential
+still applies. The first name is active, the others standby. Resolvers start
+from CottenDNS's Iran list (`assets/dns_tunnel/resolvers_ir.txt`) and are
+narrowed by the engine's `-scan-only` run.
+
 ## Checking
 
 ```sh

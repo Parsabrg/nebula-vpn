@@ -22,6 +22,7 @@ aggregate and each keeps its own terms.
 | Xray-core | Windows, Linux (`xray`) | MPL-2.0 | XTLS/Xray-core. MPL-2.0 is compatible with GPL-3.0. |
 | AndroidLibXrayLite (`libv2ray.aar`, `libgojni.so`) | Android | LGPL-3.0 | 2dust/AndroidLibXrayLite; Xray-core underneath. |
 | Hysteria | all (`hysteria`, `libhysteria.so`) | MIT | apernet/hysteria |
+| CottenDNS client (DNS tunnel, plan 10) | Android (`libcottendns_client.so`), with its Iran resolver list | MIT, bundling quic-go (MIT), QPACK (MIT) and SOAR (Apache-2.0); all four notices in `cottendns.txt` | WhiteDNS/CottenDNS |
 | hev-socks5-tunnel (`libhev-socks5-tunnel.so`) | Android | MIT | heiher/hev-socks5-tunnel, built from source by `vendor_plugin.py` |
 | WireGuard for Android (`libwg-go.so`, `libwg.so`, `libwg-quick.so`) | Android | Apache-2.0 (tunnel library), MIT (wireguard-go) | WireGuard/wireguard-android |
 | Wintun (`wintun.dll`) | Windows | WireGuard LLC "Prebuilt Binaries License" | Redistributed unmodified, as that license allows; loaded by Xray, not linked into Nebula. Its terms ship beside it as `LICENSE-wintun.txt`. |

@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import com.wireguard.android.backend.Backend
+import dev.amirzr.flutter_v2ray_client.v2ray.core.V2rayCoreManager
 import com.wireguard.android.backend.GoBackend
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.config.Config
@@ -102,6 +103,9 @@ class MainActivity : FlutterActivity() {
                     )
                     "installApk" -> installApk(call.argument("path"), result)
                     "installedApps" -> installedApps(result)
+                    "dnsTunnelScan" -> dnsTunnelScan(
+                        call.argument("config"), call.argument("resolvers"), result,
+                    )
                     // Kept across reinstalls (per signing key and user); the
                     // Dart side hashes it before it leaves the phone.
                     "hardwareId" -> result.success(
@@ -396,6 +400,44 @@ class MainActivity : FlutterActivity() {
      * credentials the tunnel is built from -- and offering it as a choice
      * suggests a decision that is not actually available.
      */
+    /**
+     * Runs the DNS tunnel client with -scan-only and answers with the
+     * resolvers that carried a test through the tunnel (WD_SCAN valid lines).
+     * The app is outside its own VPN, so the scan uses the real network even
+     * while connected.
+     */
+    private fun dnsTunnelScan(config: String?, resolvers: String?, result: MethodChannel.Result) {
+        if (config == null || resolvers == null) {
+            result.error("bad_args", "config and resolvers are required", null)
+            return
+        }
+        Thread({
+            val valid = mutableListOf<String>()
+            var error: String? = null
+            try {
+                val process = V2rayCoreManager.startCottenDns(this, config, resolvers, true)
+                if (process == null) {
+                    error = "engine missing"
+                } else {
+                    // ponytail: no cancel; the scan is bounded by the engine's own timeouts.
+                    process.inputStream.bufferedReader().forEachLine { line ->
+                        val marker = "WD_SCAN event=valid resolver="
+                        val at = line.indexOf(marker)
+                        if (at >= 0) {
+                            valid += line.substring(at + marker.length).trim().split(" ")[0]
+                        }
+                    }
+                    process.waitFor()
+                }
+            } catch (e: Exception) {
+                error = e.message ?: "scan failed"
+            }
+            runOnUiThread {
+                if (error != null) result.error("scan_failed", error, null) else result.success(valid)
+            }
+        }, "CottenDNS_Scan").start()
+    }
+
     private fun installedApps(result: MethodChannel.Result) {
         val manager: PackageManager = packageManager
         val launchable: Set<String> =
