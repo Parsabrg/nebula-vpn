@@ -1,3 +1,4 @@
+import '../../core/network/dns_tunnel_engine.dart';
 import '../../core/servers/server_repository.dart';
 import 'devices_state.dart';
 
@@ -29,6 +30,12 @@ List<AvailableProfile> orderedProfiles(
   };
   final bool sortByDelay = !pinging && delays.isNotEmpty;
   ordered.sort((AvailableProfile a, AvailableProfile b) {
+    // The DNS tunnel is slow by nature: last, even when it answers.
+    final bool dnsA = a.code == kDnsTunnelProfileCode;
+    final bool dnsB = b.code == kDnsTunnelProfileCode;
+    if (dnsA != dnsB) {
+      return dnsA ? 1 : -1;
+    }
     if (sortByDelay) {
       final int byOutcome = rank(a).compareTo(rank(b));
       if (byOutcome != 0) {

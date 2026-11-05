@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io' show InternetAddress;
+import 'dart:io' show InternetAddress, Platform;
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../free/free_mode.dart';
 import '../network/api_client.dart';
 import '../network/api_exception.dart';
+import '../network/dns_tunnel_engine.dart';
+import '../network/dns_tunnel_sync.dart';
 import '../network/route_fallback.dart';
 import '../settings/locale_controller.dart';
 import '../storage/storage_providers.dart';
@@ -253,9 +255,22 @@ abstract interface class ServerRepository {
 }
 
 class DioServerRepository implements ServerRepository {
-  DioServerRepository(this._dio, {this.preferences});
+  DioServerRepository(this._dio, {this.preferences, this.dnsTunnel});
 
   final Dio _dio;
+
+  /// The DNS tunnel's details, where this platform runs it (Android).
+  final Future<DnsTunnelDetails?> Function()? dnsTunnel;
+
+  Future<List<AvailableServer>> _withDnsTunnel(
+    List<AvailableServer> servers,
+  ) async {
+    try {
+      return withDnsTunnelProfile(servers, await dnsTunnel?.call());
+    } catch (_) {
+      return servers; // An unreadable keystore offers nothing extra.
+    }
+  }
 
   /// Where the last list the server sent is kept, read lazily. Absent means
   /// no copy is kept, which is what tests that do not care get.
@@ -288,13 +303,13 @@ class DioServerRepository implements ServerRepository {
       } catch (_) {
         // A copy that could not be kept only matters on a later failure.
       }
-      return servers;
+      return _withDnsTunnel(servers);
     } on DioException catch (error) {
       final Object translated = translateDioException(error);
       if (translated is NebulaConnectivityException) {
         final List<AvailableServer>? cached = _cachedServers();
         if (cached != null) {
-          return cached;
+          return _withDnsTunnel(cached);
         }
       }
       throw translated;
@@ -399,7 +414,7 @@ class DioServerRepository implements ServerRepository {
         '/v1/devices/$deviceId/xray-client',
         data: <String, dynamic>{
           'server_code': serverCode,
-          'protocol_profile_code': protocolProfileCode,
+          'protocol_profile_code': credentialProfileCode(protocolProfileCode),
         },
         // The server hands back the credential this device already holds,
         // so asking again over another route changes nothing.
@@ -449,7 +464,7 @@ class DioServerRepository implements ServerRepository {
         '/v1/devices/$deviceId/xray-client/revoke',
         data: <String, dynamic>{
           'server_code': serverCode,
-          'protocol_profile_code': protocolProfileCode,
+          'protocol_profile_code': credentialProfileCode(protocolProfileCode),
         },
       );
     } on DioException catch (error) {
@@ -476,6 +491,9 @@ final serverRepositoryProvider = Provider<ServerRepository>((Ref ref) {
     server: DioServerRepository(
       ref.watch(dioProvider),
       preferences: () => ref.read(sharedPreferencesProvider),
+      dnsTunnel: Platform.isAndroid
+          ? () => ref.read(dnsTunnelStoreProvider).read()
+          : null,
     ),
     own: LocalServerRepository(
       builtIn: const <String>[],

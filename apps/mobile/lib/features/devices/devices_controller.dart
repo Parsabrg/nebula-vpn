@@ -13,6 +13,8 @@ import '../../core/free/free_mode.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/network/api_route_sync.dart';
+import '../../core/network/dns_tunnel_engine.dart';
+import '../../core/network/dns_tunnel_resolvers.dart';
 import '../../core/network/dns_tunnel_sync.dart';
 import '../../core/network/error_copy.dart';
 import '../../core/network/network_guard.dart';
@@ -507,6 +509,23 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
     } catch (_) {}
   }
 
+  /// The DNS tunnel's details, then (Android, weekly, on Wi-Fi) its
+  /// resolvers. Never awaited by the screen and never able to fail it.
+  Future<void> _refreshDnsTunnel() async {
+    try {
+      await ref.read(dnsTunnelSyncProvider).refresh();
+      if (!Platform.isAndroid || !ref.mounted) {
+        return;
+      }
+      final DnsTunnelDetails? details = await ref
+          .read(dnsTunnelStoreProvider)
+          .read();
+      if (details != null && ref.mounted) {
+        await ref.read(dnsTunnelResolversProvider).refreshIfDue(details);
+      }
+    } catch (_) {}
+  }
+
   Future<void> load() async {
     state = state.copyWith(loadStatus: DevicesLoadStatus.loading);
     try {
@@ -538,7 +557,7 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
       // a minute ago.
       try {
         unawaited(ref.read(apiRouteSyncProvider).refresh());
-        unawaited(ref.read(dnsTunnelSyncProvider).refresh());
+        unawaited(_refreshDnsTunnel());
       } catch (_) {
         // Including storage not being available at all, as in a headless
         // test: loading the screen does not depend on any of this.

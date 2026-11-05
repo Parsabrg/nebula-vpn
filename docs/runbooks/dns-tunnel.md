@@ -97,6 +97,11 @@ still applies. The first name is active, the others standby. Resolvers start
 from CottenDNS's Iran list (`assets/dns_tunnel/resolvers_ir.txt`) and are
 narrowed by the engine's `-scan-only` run.
 
+People see it as "DNS tunnel (slow, last resort)" under the server it reaches,
+last in the list. Automatic and the protocol test leave it out. A scan of the
+bundled list runs at most weekly, only on Wi-Fi; until then the bundled list is
+used as is (MCI, 2026-11-06: 32 of 262 usable, connected in 18 s, ~27 KB/s).
+
 ## Checking
 
 ```sh

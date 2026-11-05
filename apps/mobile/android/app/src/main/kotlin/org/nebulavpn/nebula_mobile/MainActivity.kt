@@ -103,6 +103,7 @@ class MainActivity : FlutterActivity() {
                     )
                     "installApk" -> installApk(call.argument("path"), result)
                     "installedApps" -> installedApps(result)
+                    "onWifi" -> result.success(onWifi())
                     "dnsTunnelScan" -> dnsTunnelScan(
                         call.argument("config"), call.argument("resolvers"), result,
                     )
@@ -406,6 +407,18 @@ class MainActivity : FlutterActivity() {
      * The app is outside its own VPN, so the scan uses the real network even
      * while connected.
      */
+    /** Whether a Wi-Fi network is up, VPN or not (the DNS tunnel's weekly scan). */
+    private fun onWifi(): Boolean {
+        val manager = getSystemService(android.net.ConnectivityManager::class.java) ?: return false
+        @Suppress("DEPRECATION")
+        return manager.allNetworks.any { network ->
+            manager.getNetworkCapabilities(network)?.let {
+                it.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) &&
+                    it.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            } ?: false
+        }
+    }
+
     private fun dnsTunnelScan(config: String?, resolvers: String?, result: MethodChannel.Result) {
         if (config == null || resolvers == null) {
             result.error("bad_args", "config and resolvers are required", null)

@@ -209,7 +209,11 @@ class AndroidXrayTunnelController implements XrayTunnelController {
         proxyOnly: proxyOnly,
       );
       await completer.future.timeout(
-        const Duration(seconds: 15),
+        // The DNS tunnel's engine finds resolvers before Xray starts; the
+        // plugin itself gives up after 90 s.
+        xrayConfigJson.contains('"nebulaDnsTunnel"')
+            ? const Duration(seconds: 100)
+            : const Duration(seconds: 15),
         onTimeout: () => throw const TunnelStartTimeout(),
       );
     } finally {

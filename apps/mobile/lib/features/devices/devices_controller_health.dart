@@ -216,7 +216,10 @@ mixin _HealthChecks on _DevicesCore {
     // small request and stalls a transfer, and read "Protected" for minutes
     // with 170 KB moved (Windows, 2026-10-30). Not every minute: that would
     // be 180 MB a day on a phone's data plan.
+    // Not over the DNS tunnel: it is slow by nature (10 KB/s on MCI,
+    // 2026-11-06), so 128 KB in 12 s would end every working one.
     if (data &&
+        state.activeProfileCode != kDnsTunnelProfileCode &&
         (!await ref.read(tunnelMovesDataProvider)(_tunnelProxy) ||
             !ref.mounted)) {
       return false;
