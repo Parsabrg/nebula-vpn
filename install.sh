@@ -781,7 +781,8 @@ if [ -n "$COTTENDNS_DOMAIN" ]; then
   # AES-256-GCM wants 32 characters; CottenDNS keeps a key of the right length.
   [ -s $SECRETS/cottendns_key ] || (umask 077; openssl rand -hex 16 > $SECRETS/cottendns_key)
   chown root:nebula-secrets $SECRETS/cottendns_key; chmod 0640 $SECRETS/cottendns_key
-  install -d -o nebula-agent -g nebula-cottendns -m 0750 /etc/nebula/cottendns
+  # setgid: the agent's config file takes this folder's group, which CottenDNS reads.
+  install -d -o nebula-agent -g nebula-cottendns -m 2750 /etc/nebula/cottendns
   install -m 0644 "$REPO/infrastructure/systemd/nebula-cottendns.service" /etc/systemd/system/
   systemctl daemon-reload; systemctl enable nebula-cottendns >/dev/null 2>&1
 fi
