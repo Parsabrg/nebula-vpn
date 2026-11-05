@@ -1,6 +1,7 @@
 """The DNS tunnel's server config (plan 10)."""
 
 import asyncio
+import os
 from pathlib import Path, PurePosixPath
 
 import pytest
@@ -84,4 +85,6 @@ def test_written_and_restarted_only_when_changed(
     assert asyncio.run(apply_cottendns(settings)) is False
     assert restarts == [["/usr/bin/systemctl", "restart", "nebula-cottendns.service"]]
     assert (tmp_path / "server_config.toml").read_text() == render_cottendns_config(settings)
+    if os.name == "posix":
+        assert (tmp_path / "server_config.toml").stat().st_mode & 0o777 == 0o640
     assert asyncio.run(apply_cottendns(_settings(tmp_path, cottendns_domains=""))) is False

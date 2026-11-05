@@ -65,6 +65,8 @@ def _write_if_changed(path: Path, rendered: str) -> bool:
         pass
     temporary = path.with_suffix(".tmp")
     temporary.write_text(rendered, encoding="utf-8")
+    # Group-readable: CottenDNS runs as its own user, in the folder's group.
+    temporary.chmod(0o640)
     temporary.replace(path)
     return True
 
