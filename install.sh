@@ -760,11 +760,11 @@ if [ -n "$JOIN_URL" ]; then
   systemctl daemon-reload; systemctl enable nebula-dns >/dev/null 2>&1; systemctl restart nebula-dns
 fi
 # The DNS tunnel's server (plan 10, docs/runbooks/dns-tunnel.md): only with a
-# delegated name (NEBULA_COTTENDNS_DOMAIN, remembered). It listens on loopback
+# delegated name or names (NEBULA_COTTENDNS_DOMAINS, comma-separated, remembered). It listens on loopback
 # behind the router that owns port 53; whatever runs on 53 is left as it is.
-COTTENDNS_DOMAIN=${NEBULA_COTTENDNS_DOMAIN:-$(sed -n 's/^NEBULA_COTTENDNS_DOMAIN=//p' "$STATE" 2>/dev/null | tail -1 || true)}
+COTTENDNS_DOMAIN=${NEBULA_COTTENDNS_DOMAINS:-$(sed -n 's/^NEBULA_COTTENDNS_DOMAINS=//p' "$STATE" 2>/dev/null | tail -1 || true)}
 if [ -n "$COTTENDNS_DOMAIN" ]; then
-  remember NEBULA_COTTENDNS_DOMAIN "$COTTENDNS_DOMAIN"
+  remember NEBULA_COTTENDNS_DOMAINS "$COTTENDNS_DOMAIN"
   if [ "$(cat /usr/local/lib/nebula-cottendns.version 2>/dev/null)" != "$COTTENDNS_VERSION" ]; then
     cname=CottenDns_Server_Linux_$([ $ARCH = amd64 ] && echo AMD64 || echo ARM64).tar.gz
     get /tmp/cottendns.tgz "https://github.com/WhiteDNS/CottenDNS/releases/download/v$COTTENDNS_VERSION/$cname"
@@ -943,7 +943,7 @@ DNS_NEW=""
 # The DNS tunnel forwards only to VLESS Encryption, so it needs that inbound.
 if [ -n "${COTTENDNS_DOMAIN:-}" ]; then
   if [ "$(agentget NEBULA_XRAY_VLESSENC_ENABLED)" = true ]; then
-    agentset NEBULA_COTTENDNS_DOMAIN "$COTTENDNS_DOMAIN"
+    agentset NEBULA_COTTENDNS_DOMAINS "$COTTENDNS_DOMAIN"
   else
     warn "the DNS tunnel needs VLESS Encryption: turn it on with --configure, then rerun"
   fi

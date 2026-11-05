@@ -18,7 +18,7 @@ def _settings(tmp_path: Path, **overrides: object) -> Settings:
         "xray_vlessenc_enabled": True,
         "xray_vlessenc_decryption": "mlkem768x25519plus.native.600s.server-key",
         "xray_vlessenc_encryption": "mlkem768x25519plus.native.0rtt.client-key",
-        "cottendns_domain": "t.example.org",
+        "cottendns_domains": "t.example.org",
         "cottendns_config_file": PurePosixPath(str(tmp_path / "server_config.toml")),
     }
     values.update(overrides)
@@ -26,7 +26,7 @@ def _settings(tmp_path: Path, **overrides: object) -> Settings:
 
 
 def test_none_without_a_domain(tmp_path: Path) -> None:
-    assert render_cottendns_config(_settings(tmp_path, cottendns_domain="")) is None
+    assert render_cottendns_config(_settings(tmp_path, cottendns_domains="")) is None
 
 
 def test_forwards_only_to_vless_encryption_with_aes_256(tmp_path: Path) -> None:
@@ -46,11 +46,20 @@ def test_forwards_only_to_vless_encryption_with_aes_256(tmp_path: Path) -> None:
         assert line in rendered.splitlines()
 
 
+def test_every_name_is_served(tmp_path: Path) -> None:
+    rendered = render_cottendns_config(
+        _settings(tmp_path, cottendns_domains="nt.example.org,t.backup.eu.org")
+    )
+    assert rendered is not None
+    assert 'DOMAIN = ["nt.example.org", "t.backup.eu.org"]' in rendered.splitlines()
+
+
 @pytest.mark.parametrize(
     "overrides",
     [
         {"xray_vlessenc_enabled": False},
-        {"cottendns_domain": "not a name"},
+        {"cottendns_domains": "not a name"},
+        {"cottendns_domains": "t.example.org,"},
         {"cottendns_listen": "0.0.0.0:53"},
     ],
 )
@@ -75,4 +84,4 @@ def test_written_and_restarted_only_when_changed(
     assert asyncio.run(apply_cottendns(settings)) is False
     assert restarts == [["/usr/bin/systemctl", "restart", "nebula-cottendns.service"]]
     assert (tmp_path / "server_config.toml").read_text() == render_cottendns_config(settings)
-    assert asyncio.run(apply_cottendns(_settings(tmp_path, cottendns_domain=""))) is False
+    assert asyncio.run(apply_cottendns(_settings(tmp_path, cottendns_domains=""))) is False

@@ -30,13 +30,15 @@ def _quote(value: str) -> str:
 def render_cottendns_config(settings: Settings) -> str | None:
     """The server's config, or None when this server runs no DNS tunnel."""
 
-    if not settings.cottendns_domain:
+    if not settings.cottendns_domains:
         return None
     host, _, port = settings.cottendns_listen.rpartition(":")
     return "\n".join(
         [
             "# Rendered by nebula-agent; edits are overwritten at its next start.",
-            f"DOMAIN = [{_quote(settings.cottendns_domain)}]",
+            "DOMAIN = ["
+            + ", ".join(_quote(name) for name in settings.cottendns_domains.split(","))
+            + "]",
             # One fixed target: this server's VLESS Encryption inbound.
             'PROTOCOL_TYPE = "TCP"',
             'FORWARD_IP = "127.0.0.1"',

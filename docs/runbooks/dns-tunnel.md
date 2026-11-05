@@ -32,17 +32,22 @@ phone -> ISP resolver -> ... -> NS for t.<domain> = this server, port 53
 
 ## Turning it on (owner)
 
-Pick a name under a domain other than the panel's, for example
-`t.<other domain>`, and a name for its nameserver, for example
-`ns-t.<other domain>`.
+The names are settings, never built into the app: the API lists them and the
+app tries each in turn, so a name can be added or moved without an app update.
+For now (2026-11-05) the one name is `nt.my-study-lab.org`; a backup on a
+free EU.org domain is to be added once it is approved. The owner's WhiteDNS
+tunnels (`ct.`, `st.`) share the domain and are left alone.
 
-1. **DNS records** at that domain's DNS host (Cloudflare: *DNS only*, the grey
-   cloud, never proxied):
+1. **DNS records** for `my-study-lab.org` in Cloudflare, both *DNS only* (the
+   grey cloud, never proxied):
 
-   | Type | Name | Value |
+   | Type | Name | Content |
    |---|---|---|
-   | A | `ns-t.<other domain>` | the server's IPv4 address (the glue) |
-   | NS | `t.<other domain>` | `ns-t.<other domain>` |
+   | A | `ns-nt` (`ns-nt.my-study-lab.org`) | `91.107.170.215` |
+   | NS | `nt` (`nt.my-study-lab.org`) | `ns-nt.my-study-lab.org` |
+
+   The nameserver sits beside the delegated name, not inside it: Cloudflare
+   cannot hold glue for a name within a zone it delegates away.
 
 2. **The router rule**, added to `routes` in `/etc/cottenrouter/config.json`,
    then restart CottenRouter. Nothing else in that file changes:
@@ -50,39 +55,42 @@ Pick a name under a domain other than the panel's, for example
    ```json
    {
      "name": "nebula",
-     "domains": ["t.<other domain>"],
+     "domains": ["nt.my-study-lab.org"],
      "backend": "127.0.0.1:5310",
      "tcp_backend": "127.0.0.1:5310"
    }
    ```
 
+   A backup name later goes into the same `domains` list.
+
 3. **The server**, with VLESS Encryption already on:
 
    ```sh
-   sudo env NEBULA_COTTENDNS_DOMAIN=t.<other domain> ./install.sh
+   sudo env NEBULA_COTTENDNS_DOMAINS=nt.my-study-lab.org ./install.sh
    systemctl is-active nebula-cottendns
    ```
 
    On a server whose nginx was set up by hand (Germany), do the same steps by
    hand instead of rerunning the installer: binary and hash as in
-   `install.sh`, the user, the key, the unit, and `NEBULA_COTTENDNS_DOMAIN` in
-   `agent.env`, then restart the agent.
+   `install.sh`, the user, the key, the unit, and
+   `NEBULA_COTTENDNS_DOMAINS` in `agent.env`, then restart the agent. A
+   second name is added to the comma-separated list.
 
 4. **The API**, in `/etc/nebula/compose.env`, then recreate `api`:
 
    ```
-   NEBULA_DNS_TUNNEL_DOMAIN=t.<other domain>
-   NEBULA_DNS_TUNNEL_SERVER=<this server's code, e.g. study-lab-1>
+   NEBULA_DNS_TUNNEL_DOMAINS=nt.my-study-lab.org
+   NEBULA_DNS_TUNNEL_SERVER=study-lab-1
    ```
 
-   Signed-in apps then read the name, the key and the server from
+   Signed-in apps then read the names, the key and the server from
    `GET /v1/dns-tunnel/` and keep them for when the API is out of reach.
 
 ## Checking
 
 ```sh
-dig +short @127.0.0.1 -p 5310 x.t.<other domain> TXT   # CottenDNS answers
-dig +short NS t.<other domain> @1.1.1.1                # the delegation is live
+dig +short @127.0.0.1 -p 5310 x.nt.my-study-lab.org TXT   # CottenDNS answers
+dig +short NS nt.my-study-lab.org @1.1.1.1                # the delegation is live
 ```
 
 The real test is a phone on MCI, Irancell and home internet with public

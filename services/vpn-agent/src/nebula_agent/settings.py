@@ -181,11 +181,13 @@ class Settings(BaseSettings):
     # required (validated below) if any of the three enabled flags is set.
     # Reuses whatever Let's Encrypt cert the deploying host already has for
     # xray_public_host/xray_sni; one cert across several listeners.
-    # The DNS tunnel's server (plan 10, docs/runbooks/dns-tunnel.md): the one
-    # delegated name it answers, behind CottenRouter on port 53. Empty: none.
+    # The DNS tunnel's server (plan 10, docs/runbooks/dns-tunnel.md): the
+    # delegated names it answers (comma-separated, e.g. a backup on another
+    # domain), behind CottenRouter on port 53. Empty: none.
     # It forwards only to the VLESS Encryption inbound, which it requires.
-    cottendns_domain: str = Field(
-        default="", pattern=r"^$|^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$"
+    cottendns_domains: str = Field(
+        default="",
+        pattern=r"^$|^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(,([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,})*$",
     )
     cottendns_listen: str = Field(
         default="127.0.0.1:5310", pattern=r"^127\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]{1,5}$"
@@ -412,8 +414,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def require_vlessenc_for_cottendns(self) -> Self:
-        if self.cottendns_domain and not self.xray_vlessenc_enabled:
-            raise ValueError("cottendns_domain needs xray_vlessenc_enabled: it forwards only there")
+        if self.cottendns_domains and not self.xray_vlessenc_enabled:
+            raise ValueError(
+                "cottendns_domains needs xray_vlessenc_enabled: it forwards only there"
+            )
         return self
 
     @model_validator(mode="after")

@@ -26,7 +26,7 @@ def test_signed_in_apps_get_the_name_key_and_server(tmp_path: Path) -> None:
     key = tmp_path / "cottendns_key"
     key.write_text("0123456789abcdef0123456789abcdef\n")
     with _client(
-        dns_tunnel_domain="t.example.org",
+        dns_tunnel_domains="nt.example.org, t.backup.eu.org",
         dns_tunnel_server="de-1",
         dns_tunnel_key_file=str(key),
     ) as client:
@@ -34,7 +34,7 @@ def test_signed_in_apps_get_the_name_key_and_server(tmp_path: Path) -> None:
 
     assert response.status_code == 200
     assert response.json() == {
-        "domain": "t.example.org",
+        "domains": ["nt.example.org", "t.backup.eu.org"],
         "key": "0123456789abcdef0123456789abcdef",
         "encryption_method": 5,
         "server_code": "de-1",
@@ -43,7 +43,7 @@ def test_signed_in_apps_get_the_name_key_and_server(tmp_path: Path) -> None:
 
 
 def test_signed_out_is_refused(tmp_path: Path) -> None:
-    with _client(dns_tunnel_domain="t.example.org", dns_tunnel_server="de-1") as client:
+    with _client(dns_tunnel_domains="t.example.org", dns_tunnel_server="de-1") as client:
         assert client.get("/v1/dns-tunnel/").status_code == 401
 
 
@@ -51,7 +51,7 @@ def test_none_configured_or_no_key_is_404(tmp_path: Path) -> None:
     with _client() as client:
         assert client.get("/v1/dns-tunnel/", headers=AUTH_HEADERS).status_code == 404
     with _client(
-        dns_tunnel_domain="t.example.org",
+        dns_tunnel_domains="t.example.org",
         dns_tunnel_server="de-1",
         dns_tunnel_key_file=str(tmp_path / "missing"),
     ) as client:

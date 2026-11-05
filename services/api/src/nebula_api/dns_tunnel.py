@@ -24,7 +24,8 @@ ENCRYPTION_METHOD = 5
 
 
 class DnsTunnelResponse(AuthModel):
-    domain: str
+    # Tried in turn: a second name on another domain needs no app update.
+    domains: list[str]
     key: str
     encryption_method: int
     server_code: str
@@ -39,7 +40,8 @@ def dns_tunnel(
     del principal  # Any signed-in account; the credential behind it decides.
     settings = cast(Settings, request.app.state.settings)
     key = ""
-    if settings.dns_tunnel_domain and settings.dns_tunnel_server:
+    domains = [name.strip() for name in settings.dns_tunnel_domains.split(",") if name.strip()]
+    if domains and settings.dns_tunnel_server:
         try:
             key = Path(settings.dns_tunnel_key_file).read_text(encoding="utf-8").strip()
         except OSError:
@@ -48,7 +50,7 @@ def dns_tunnel(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No DNS tunnel")
     apply_auth_response_headers(response)
     return DnsTunnelResponse(
-        domain=settings.dns_tunnel_domain,
+        domains=domains,
         key=key,
         encryption_method=ENCRYPTION_METHOD,
         server_code=settings.dns_tunnel_server,
