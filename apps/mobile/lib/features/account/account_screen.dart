@@ -19,10 +19,10 @@ import '../../core/widgets/panel/panel_atoms.dart';
 import '../../core/widgets/panel/panel_cta.dart';
 import '../../core/widgets/panel/panel_row.dart';
 import '../../core/widgets/refresh_while_visible.dart';
-import '../../core/wireguard/native_tunnel_channel.dart';
 import '../../l10n/app_localizations.dart';
 import '../devices/devices_controller.dart';
 import 'account_controller.dart';
+import 'update_dialog.dart';
 
 /// The account: who you are, what you have used, until when, and the way out.
 ///
@@ -211,7 +211,7 @@ class _Details extends ConsumerWidget {
                 label: text.rowUpdate,
                 value: text.updateAvailable(update.version),
                 valueColor: palette.blueText,
-                onTap: () => const NativeTunnelChannel().openUrl(update.page),
+                onTap: () => offerUpdate(context, ref, update),
               ),
             PanelRow(
               label: text.rowPassword,

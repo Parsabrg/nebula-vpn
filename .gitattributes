@@ -35,3 +35,5 @@ apps/mobile/windows/flutter/generated_plugin_registrant.cc text eol=lf
 apps/mobile/windows/flutter/generated_plugins.cmake text eol=lf
 # OpenSSH reads it; a carriage return would end up in the key line.
 docs/release-signers text eol=lf
+# Signed release files used as test fixtures: byte for byte, or the signature fails.
+apps/mobile/test/core/updates/fixtures/* -text

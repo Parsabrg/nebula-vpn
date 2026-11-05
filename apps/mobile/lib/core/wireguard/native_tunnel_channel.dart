@@ -128,6 +128,34 @@ class NativeTunnelChannel {
     return _channel.invokeMethod<String>('appVersion');
   }
 
+  /// Android only: the processor's ABI (`arm64-v8a`), which APK to fetch.
+  Future<String?> primaryAbi() async {
+    try {
+      return await _channel.invokeMethod<String>('primaryAbi');
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Android only: the folder an update is downloaded to (in the app's
+  /// cache, where the installer can be handed it).
+  Future<String> updateDirectory() async {
+    return (await _channel.invokeMethod<String>('updateDirectory'))!;
+  }
+
+  /// Android only: hands a downloaded APK to the system installer, which
+  /// asks the person to confirm. Throws when it cannot be opened.
+  Future<void> installApk(String path) async {
+    final bool opened =
+        await _channel.invokeMethod<bool>('installApk', <String, Object?>{
+          'path': path,
+        }) ??
+        false;
+    if (!opened) {
+      throw StateError('the installer could not be opened');
+    }
+  }
+
   /// Android only: opens an https page in the browser.
   Future<bool> openUrl(Uri url) async {
     try {

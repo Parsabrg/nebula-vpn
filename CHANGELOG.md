@@ -8,6 +8,10 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 ## Unreleased
 
 ### Apps
+- In-app updates (Android and Windows): tapping the update row downloads the release,
+  checks `SHA256SUMS.txt.sig` against the release key built into the app and the
+  file's hash against that list, then opens the system installer. A file that does
+  not check is deleted and never installed. Linux still opens the release page.
 - A saved credential the server has revoked no longer keeps a protocol from connecting:
   when it fails the start itself (Hysteria2 logs in as it starts), the app asks the server
   for a fresh one and tries again once.

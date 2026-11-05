@@ -57,7 +57,8 @@ A weekly job deletes what is older than this.
   sees the relay's address instead of yours.
 - **To GitHub:** if "Check for updates" is on, the app asks GitHub's public
   releases page for the newest version. GitHub sees your IP address, as for
-  any download.
+  any download. When you install an update from the app, it
+  downloads the release file and its signed checksum list from GitHub too.
 - **To public DNS resolvers (Cloudflare 1.1.1.1, Google 8.8.8.8, Quad9
   9.9.9.9):** before a connection through Cloudflare, one lookup of
   `cloudflare-ech.com`, which every Cloudflare encrypted connection makes.

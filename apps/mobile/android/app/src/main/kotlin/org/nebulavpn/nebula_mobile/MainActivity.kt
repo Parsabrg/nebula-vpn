@@ -96,6 +96,11 @@ class MainActivity : FlutterActivity() {
                         packageManager.getPackageInfo(packageName, 0).versionName,
                     )
                     "openUrl" -> openUrl(call.argument("url"), result)
+                    "primaryAbi" -> result.success(Build.SUPPORTED_ABIS.firstOrNull())
+                    "updateDirectory" -> result.success(
+                        java.io.File(cacheDir, "updates").also { it.mkdirs() }.absolutePath,
+                    )
+                    "installApk" -> installApk(call.argument("path"), result)
                     "installedApps" -> installedApps(result)
                     // Kept across reinstalls (per signing key and user); the
                     // Dart side hashes it before it leaves the phone.
@@ -169,6 +174,31 @@ class MainActivity : FlutterActivity() {
      */
     /** Opens an https page in the browser. The caller has already checked
      * where it points; this only refuses anything that is not https. */
+    /** Hands an update the Dart side downloaded and checked (signed checksum
+     * list, hash) to the system installer, which asks the person to confirm.
+     * Only files in this app's update folder. */
+    private fun installApk(path: String?, result: MethodChannel.Result) {
+        val folder = java.io.File(cacheDir, "updates").canonicalFile
+        val file = path?.let { java.io.File(it).canonicalFile }
+        if (file == null || file.parentFile != folder || !file.isFile || !file.name.endsWith(".apk")) {
+            result.success(false)
+            return
+        }
+        try {
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                this, "$packageName.updates", file,
+            )
+            startActivity(
+                Intent(Intent.ACTION_VIEW)
+                    .setDataAndType(uri, "application/vnd.android.package-archive")
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+            result.success(true)
+        } catch (error: Exception) {
+            result.success(false)
+        }
+    }
+
     private fun openUrl(url: String?, result: MethodChannel.Result) {
         if (url == null || !url.startsWith("https://")) {
             result.success(false)
