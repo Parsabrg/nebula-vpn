@@ -60,6 +60,9 @@ class VpnServerListItem(AuthModel):
     state: str
     public_host: str
     maximum_devices: int
+    # Disabled, and still forwarding for a relay: not broken, and not to be
+    # re-enabled as an exit by mistake.
+    relay_only: bool = False
 
 
 class SecurityCheckItem(AuthModel):

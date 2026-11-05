@@ -438,3 +438,35 @@ def test_vpn_server_health_service_unavailable() -> None:
         response = client.get("/v1/admin/vpn-servers/health")
 
     assert response.status_code == 503
+
+
+def test_a_disabled_relay_server_is_marked_relay_only() -> None:
+    # Server health says "Disabled (relay only)", so nobody takes it for
+    # broken or re-enables it as an exit.
+    service = FakeTopologyAdminService()
+    service.servers = [
+        VpnServerEntry(
+            id=uuid4(),
+            code=code,
+            display_name=code,
+            state=state,
+            public_host=f"{code}.example.test",
+            maximum_devices=10,
+        )
+        for code, state in (("thr", "disabled"), ("old", "disabled"), ("de-1", "active"))
+    ]
+    client = make_client(service)
+    client.app.state.settings = Settings(  # type: ignore[attr-defined]
+        env="test",
+        relays='[{"code":"de-via-thr","display_name":"Germany via Tehran","exit":"de-1",'
+        '"via":"thr","host":"198.51.100.7","ports":{"hysteria2":443}}]',
+    )
+    with client:
+        _authenticated(client)
+        items = client.get("/v1/admin/vpn-servers").json()["items"]
+
+    assert {item["code"]: item["relay_only"] for item in items} == {
+        "thr": True,
+        "old": False,
+        "de-1": False,
+    }

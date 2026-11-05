@@ -22,7 +22,7 @@ from sqlalchemy import select
 from nebula_api.agent_client.client import AgentClient, AgentClientError
 from nebula_api.db.engine import SessionFactory
 from nebula_api.models.topology import VPNServer
-from nebula_api.models.types import RUNNING_SERVER_STATES
+from nebula_api.models.types import RUNNING_SERVER_STATES, ServerState
 from nebula_api.usage.counters import Clock, read_counters
 from nebula_api.usage.service import UsageSample, UsageService
 
@@ -52,11 +52,21 @@ async def run_usage_poll(
     usage: UsageService,
     *,
     clock: Clock = lambda: datetime.now(UTC),
+    relay_vias: frozenset[str] = frozenset(),
 ) -> UsagePollSummary:
+    """[relay_vias]: servers some relay forwards through. One of them that is
+    disabled (a relay only, no exit) is still asked, for its relay check
+    alone: its counters and failures are no longer this poll's business."""
     async with session_factory() as session:
         servers = (
             await session.scalars(
-                select(VPNServer).where(VPNServer.state.in_(RUNNING_SERVER_STATES))
+                select(VPNServer).where(
+                    VPNServer.state.in_(RUNNING_SERVER_STATES)
+                    | (
+                        (VPNServer.state == ServerState.DISABLED.value)
+                        & VPNServer.code.in_(sorted(relay_vias))
+                    )
+                )
             )
         ).all()
 
@@ -83,6 +93,10 @@ async def run_usage_poll(
             continue
 
         polled += 1
+        if server.state == ServerState.DISABLED.value:
+            if "relay" in reading.sources_read:
+                relay_checked.add(server.code)
+            continue
         sources_failed.extend(f"{server.code}:{name}" for name in reading.sources_failed)
         collected.extend(reading.samples)
         if "relay" in reading.sources_read:

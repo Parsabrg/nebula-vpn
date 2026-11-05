@@ -30,6 +30,9 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   ask for the code. Needs a current browser.
 
 ### Servers
+- A relay's server can be disabled as an exit and keep relaying: the usage poll still
+  asks a disabled relay server for its relay check (and nothing else), and Server health
+  shows it as "Disabled (relay only)".
 - The DNS tunnel's server side (plan 10): `install.sh` sets up a pinned CottenDNS behind
   the port-53 router when given `NEBULA_COTTENDNS_DOMAIN`, forwarding only to the VLESS
   Encryption inbound with AES-256-GCM; the agent renders its config; signed-in apps read
