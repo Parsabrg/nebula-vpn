@@ -39,7 +39,8 @@ mixin _SpeedTests on _DevicesCore {
       protocolDelaysServer: () => server!.code,
       protocolDelays: <String, ProtocolDelay>{
         for (final AvailableProfile profile in server.profiles)
-          profile.code: const ProtocolDelay.testing(),
+          if (profile.code != kDnsTunnelProfileCode)
+            profile.code: const ProtocolDelay.testing(),
       },
     );
     // The list as the server gives it now. Read only at launch, a route the
@@ -99,6 +100,10 @@ mixin _SpeedTests on _DevicesCore {
     }
 
     for (final AvailableProfile profile in tested.profiles) {
+      // Measured here it would be plain VLESS Encryption, not the tunnel.
+      if (profile.code == kDnsTunnelProfileCode) {
+        continue;
+      }
       if (profile.protocolCode == wireguardProtocolCode) {
         wireguard.add(profile);
         continue;

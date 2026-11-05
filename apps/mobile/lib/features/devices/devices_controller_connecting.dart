@@ -550,6 +550,29 @@ mixin _Connecting on _DevicesCore {
     }
   }
 
+  /// [config] routed through the DNS tunnel: its engine on a free loopback
+  /// port, Xray's outbound dialling that port.
+  Future<String> _throughDnsTunnel(String config) async {
+    final DnsTunnelDetails? details = await ref
+        .read(dnsTunnelStoreProvider)
+        .read();
+    if (details == null) {
+      throw StateError('No DNS tunnel details on this device');
+    }
+    final ServerSocket probe = await ServerSocket.bind(
+      InternetAddress.loopbackIPv4,
+      0,
+    );
+    final int port = probe.port;
+    await probe.close();
+    return withDnsTunnelConfig(
+      config,
+      details,
+      port: port,
+      resolvers: await ref.read(dnsTunnelResolversProvider).current(),
+    );
+  }
+
   Future<void> _connectXray({
     required int attempt,
     required String deviceId,
@@ -690,14 +713,18 @@ mixin _Connecting on _DevicesCore {
               : await ref.read(localProxyFactoryProvider)();
           _tunnelProxy = proxyMode ? null : localProxy;
           await ref.read(echServerRefreshProvider)(echConfigListFor(result));
+          String config = renderXrayClientConfigJson(
+            result,
+            settings: settings,
+            localProxy: localProxy,
+            apiHosts: ref.read(apiHostsProvider),
+            cdnDial: dial,
+          );
+          if (protocolProfileCode == kDnsTunnelProfileCode) {
+            config = await _throughDnsTunnel(config);
+          }
           await _xrayTunnel.connect(
-            renderXrayClientConfigJson(
-              result,
-              settings: settings,
-              localProxy: localProxy,
-              apiHosts: ref.read(apiHostsProvider),
-              cdnDial: dial,
-            ),
+            config,
             excludedPackages: _excludedPackages,
             killSwitch: ref
                 .read(protectionControllerProvider)
