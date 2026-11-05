@@ -203,6 +203,31 @@ case "$(uname -m)" in
   x86_64) ARCH=amd64 ;; aarch64|arm64) ARCH=arm64 ;;
   *) die "unsupported CPU architecture $(uname -m)" ;;
 esac
+# An offline install from a signed release bundle (plan 6; docs/runbooks/
+# offline-bundle.md): sudo ./install.sh --bundle <file> [--join ...]. Checked
+# against the release's SHA256SUMS.txt and signature beside it, then unpacked
+# afresh: the images, binaries and wheels come only from the checked file.
+BUNDLE="" PAYLOAD=""
+if [ "${1:-}" = --bundle ]; then
+  bundle=${2:?usage: sudo ./install.sh --bundle <bundle file> [--join ...]}; shift 2
+  [ "$ARCH" = amd64 ] || die "bundles are built for amd64 servers; install this one online"
+  [ -f "$bundle" ] || die "no bundle at $bundle"
+  dir=$(cd "$(dirname "$bundle")" && pwd); name=$(basename "$bundle")
+  signers=${NEBULA_RELEASE_SIGNERS:-$REPO/docs/release-signers}
+  [ -f "$dir/SHA256SUMS.txt" ] && [ -f "$dir/SHA256SUMS.txt.sig" ] \
+    || die "put the release's SHA256SUMS.txt and SHA256SUMS.txt.sig beside $name"
+  ssh-keygen -Y verify -f "$signers" -I releases@nebula-vpn -n nebula-release \
+    -s "$dir/SHA256SUMS.txt.sig" < "$dir/SHA256SUMS.txt" >/dev/null 2>&1 \
+    || die "SHA256SUMS.txt does not carry the release key's signature"
+  line=$(grep -E "^[0-9a-f]{64} [ *]?$name\$" "$dir/SHA256SUMS.txt" || true)
+  [ -n "$line" ] || die "$name is not listed in SHA256SUMS.txt"
+  (cd "$dir" && printf '%s\n' "$line" | sha256sum -c --quiet) || die "$name does not match SHA256SUMS.txt"
+  BUNDLE=$dir/$name PAYLOAD=/var/lib/nebula/bundle
+  rm -rf $PAYLOAD; install -d -m 0700 $PAYLOAD
+  tar -xzf "$BUNDLE" -C $PAYLOAD --strip-components=2 nebula/bundle || die "the bundle could not be unpacked"
+fi
+# A download, or the same file from the bundle: $1 is where it goes, $2 its URL.
+get() { if [ -n "$PAYLOAD" ]; then cp "$PAYLOAD/$(basename "$2")" "$1"; else fetch -o "$1" "$2"; fi; }
 if [ "${1:-}" = --update ]; then
   # A release, not whatever main holds: the newest v* tag, or the one given.
   # Shows what changed, then installs from it as a rerun would.
@@ -309,6 +334,9 @@ else
   XPORT=443
 fi
 if [ "$XPORT" = 443 ]; then WEB=""; else WEB=":8444"; fi
+# The bundle's panel image carries no public address of its own, which only
+# a panel on 443 does without.
+[ -z "$BUNDLE" ] || [ -z "$WEB" ] || die "a bundle installs servers on port 443; this one uses 8444, so install it online"
 
 step "Administrator"
 ask NEBULA_ADMIN_EMAIL "Admin email$([ -n "$JOIN_URL" ] && echo " (for certificate expiry notices)")"
@@ -378,7 +406,7 @@ remember NEBULA_BACKUP_OFFSITE "$NEBULA_BACKUP_OFFSITE"
 fi
 
 step "Network check"
-if [ -z "${NEBULA_INSTALL_PROXY:-}" ] && \
+if [ -z "$BUNDLE" ] && [ -z "${NEBULA_INSTALL_PROXY:-}" ] && \
    [ "$(curl -s -o /dev/null -m 20 -w '%{http_code}' https://files.pythonhosted.org/packages/ || true)" = 000 ]; then
   echo "This server cannot reach PyPI's download host, which the build needs."
   echo "Give an HTTP proxy that can (e.g. http://127.0.0.1:10809), or leave empty to try anyway."
@@ -404,8 +432,15 @@ if [ -z "$(swapon --show --noheadings)" ] && [ "$(awk '/MemTotal/{print $2}' /pr
 fi
 if [ -z "$JOIN_URL" ]; then
   if ! command -v docker >/dev/null || ! docker compose version >/dev/null 2>&1; then
-    fetch https://get.docker.com -o /tmp/get-docker.sh
-    sh /tmp/get-docker.sh >/tmp/get-docker.log 2>&1 || die "Docker install failed; see /tmp/get-docker.log"
+    if [ -n "$BUNDLE" ]; then
+      # The distribution's own packages: its mirrors answer where Docker's
+      # download site may not.
+      apt-get -qq install -y docker.io docker-compose-v2 >/tmp/get-docker.log 2>&1 \
+        || die "Docker install failed; see /tmp/get-docker.log"
+    else
+      fetch https://get.docker.com -o /tmp/get-docker.sh
+      sh /tmp/get-docker.sh >/tmp/get-docker.log 2>&1 || die "Docker install failed; see /tmp/get-docker.log"
+    fi
   fi
   systemctl enable --now docker >/dev/null 2>&1
   ok "$(docker --version)"
@@ -451,6 +486,8 @@ routes="https://$APIHOST:8444,https://$NEBULA_DOMAIN:8445"
 [ -n "$WEB" ] || routes="https://$APIHOST,https://$NEBULA_DOMAIN,$routes"
 setenv NEBULA_API_ROUTES "$routes"
 setenv NEBULA_EMAIL_FROM "$NEBULA_EMAIL_FROM"
+# The resolver image the bundle loaded, by the name it was saved under.
+[ -z "$BUNDLE" ] || setenv NEBULA_DNS_IMAGE adguard/adguardhome:nebula-bundle
 # The tunnels' DNS address, which each server's agent redirects to its own
 # resolver; the API hands it out only where that resolver answers. A value
 # already here (even empty) is kept.
@@ -489,12 +526,17 @@ build() {
     ${NEBULA_INSTALL_PROXY:+--build-arg HTTP_PROXY=$NEBULA_INSTALL_PROXY --build-arg HTTPS_PROXY=$NEBULA_INSTALL_PROXY} \
     "$@" "$context" >/tmp/nebula-build.log 2>&1 || { tail -n 30 /tmp/nebula-build.log; die "building $tag failed"; }
 }
-build $PROJECT-api "$REPO/services/api"
+if [ -n "$BUNDLE" ]; then
+  # Built by the release, with every third-party image the stack runs.
+  docker load -q -i $PAYLOAD/images.tar >/dev/null || die "loading the bundle's images failed"
+else
+  build $PROJECT-api "$REPO/services/api"
+  build $PROJECT-worker "$REPO/services/worker"
+  build $PROJECT-admin "$REPO/apps/admin" --build-arg NEBULA_API_INTERNAL_URL=http://api:8000 \
+    --build-arg NEBULA_ADMIN_ORIGIN="https://$PANEL$WEB"
+fi
 for alias in migrate usage prune; do docker tag $PROJECT-api $PROJECT-$alias; done
-build $PROJECT-worker "$REPO/services/worker"
-build $PROJECT-admin "$REPO/apps/admin" --build-arg NEBULA_API_INTERNAL_URL=http://api:8000 \
-  --build-arg NEBULA_ADMIN_ORIGIN="https://$PANEL$WEB"
-ok "images built"
+ok "images ${BUNDLE:+loaded}${BUNDLE:-built}"
 
 keygen() { docker run --rm --user 0 --entrypoint nebula-api -v $SECRETS:/out $PROJECT-api "$@" >/dev/null; }
 [ -f $SECRETS/jwt_private_key ] || keygen generate-jwt-signing-key --private-key-out /out/jwt_private_key --public-key-out /out/jwt_public_key
@@ -656,14 +698,14 @@ XRAY_HAVE=$(/usr/local/bin/xray version 2>/dev/null | awk 'NR==1{print $2}' || t
 if [ -z "$XRAY_HAVE" ] ||
   [ "$(printf '%s\n' "$XRAY_HAVE" "$XRAY_VERSION" | sort -V | head -1)" != "$XRAY_VERSION" ]; then
   zip=$([ $ARCH = amd64 ] && echo Xray-linux-64.zip || echo Xray-linux-arm64-v8a.zip)
-  fetch -o /tmp/xray.zip "https://github.com/XTLS/Xray-core/releases/download/v$XRAY_VERSION/$zip"
+  get /tmp/xray.zip "https://github.com/XTLS/Xray-core/releases/download/v$XRAY_VERSION/$zip"
   echo "${XRAY_SHA[$ARCH]}  /tmp/xray.zip" | sha256sum -c --quiet || die "Xray download failed its checksum"
   rm -rf /tmp/xray-new; unzip -oq /tmp/xray.zip xray -d /tmp/xray-new
   install -m 0755 /tmp/xray-new/xray /usr/local/bin/xray
   ! systemctl is-active -q nebula-xray || systemctl restart nebula-xray
 fi
 if [ ! -x /usr/local/bin/hysteria ]; then
-  fetch -o /tmp/hysteria "https://github.com/apernet/hysteria/releases/download/app/v$HYSTERIA_VERSION/hysteria-linux-$ARCH"
+  get /tmp/hysteria "https://github.com/apernet/hysteria/releases/download/app/v$HYSTERIA_VERSION/hysteria-linux-$ARCH"
   echo "${HYSTERIA_SHA[$ARCH]}  /tmp/hysteria" | sha256sum -c --quiet || die "Hysteria2 download failed its checksum"
   install -m 0755 /tmp/hysteria /usr/local/bin/hysteria
 fi
@@ -692,7 +734,7 @@ systemctl enable --now wg-quick@wg0 >/dev/null 2>&1
 # name up first in plain DNS can be forged inside Iran. No query log.
 if [ -n "$JOIN_URL" ]; then
   if ! /usr/local/bin/dnsproxy --version 2>/dev/null | grep -q "$DNSPROXY_VERSION"; then
-    fetch -o /tmp/dnsproxy.tgz \
+    get /tmp/dnsproxy.tgz \
       "https://github.com/AdguardTeam/dnsproxy/releases/download/v$DNSPROXY_VERSION/dnsproxy-linux-$ARCH-v$DNSPROXY_VERSION.tar.gz"
     echo "${DNSPROXY_SHA[$ARCH]}  /tmp/dnsproxy.tgz" | sha256sum -c --quiet || die "dnsproxy download failed its checksum"
     # Its entries start with "./", so the whole archive rather than one name.
@@ -813,9 +855,9 @@ if [ ! -x /opt/nebula-vpn-agent/.venv/bin/nebula-agent-serve ]; then
 fi
 # Dependencies only as pinned and hashed in requirements.lock; the agent
 # itself is built from the checkout with the build backend from that lock.
-{ HTTPS_PROXY=${NEBULA_INSTALL_PROXY:-} /opt/nebula-vpn-agent/.venv/bin/pip install -q --require-hashes \
+{ HTTPS_PROXY=${NEBULA_INSTALL_PROXY:-} /opt/nebula-vpn-agent/.venv/bin/pip install -q --require-hashes ${PAYLOAD:+--no-index --find-links $PAYLOAD/wheels} \
     -r "$REPO/services/vpn-agent/requirements.lock" \
-  && /opt/nebula-vpn-agent/.venv/bin/pip install -q --no-deps --no-build-isolation "$REPO/services/vpn-agent"; } \
+  && /opt/nebula-vpn-agent/.venv/bin/pip install -q --no-deps --no-build-isolation ${PAYLOAD:+--no-index} "$REPO/services/vpn-agent"; } \
   >/tmp/nebula-agent-pip.log 2>&1 || { tail -n 20 /tmp/nebula-agent-pip.log; die "installing the agent failed"; }
 if [ ! -f $ETC/agent.env ]; then
   umask 027

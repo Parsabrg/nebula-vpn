@@ -471,7 +471,8 @@ services:
     # Home, no filtering, nothing logged, upstream over DNS-over-HTTPS. Xray
     # on the host redirects the clients' DNS address to 127.0.0.1:5354; see
     # infrastructure/adguard/README.md. Pinned by digest (v0.107.79).
-    image: adguard/adguardhome@sha256:aba9e3bf0613be3ba3755e1fc311b126e2c24bec25e18b6483894a88283074f0
+    # A bundle install (plan 6) loads this image and names it in NEBULA_DNS_IMAGE.
+    image: ${NEBULA_DNS_IMAGE:-adguard/adguardhome@sha256:aba9e3bf0613be3ba3755e1fc311b126e2c24bec25e18b6483894a88283074f0}
     ports:
       # Loopback only: Xray on the host is the one client. Its page is not
       # published at all -- the configuration has no users to log in with.

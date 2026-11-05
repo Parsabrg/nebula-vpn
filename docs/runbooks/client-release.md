@@ -72,7 +72,7 @@ Download the draft's files into a folder of their own:
 
 ```sh
 mkdir -p build/release-X && cd build/release-X
-gh release download vX -R Parsabrg/vpn
+gh release download vX -R Parsabrg/vpn   # every file, the server bundle too
 ```
 
 **Check each came from the workflow and the tag.** This fails for a file

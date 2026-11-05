@@ -30,6 +30,11 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   ask for the code. Needs a current browser.
 
 ### Servers
+- An offline server bundle for each release (`nebula-vpn-vX-server-linux-amd64.tar.gz`):
+  the source, every image, the pinned Xray, Hysteria2 and dnsproxy, and the agent's
+  wheels, signed with the other release files. `install.sh --bundle <file>` checks the
+  signature and installs without Docker Hub, GitHub or PyPI
+  (`docs/runbooks/offline-bundle.md`).
 - Hysteria2 clients use the server's resolver too (their lookups had left the server in
   plain text, forged in Iran): the API hands them the DNS address, Hysteria2 lets it
   through, and the host sends it to the resolver.
