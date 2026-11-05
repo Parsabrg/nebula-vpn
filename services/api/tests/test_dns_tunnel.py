@@ -35,7 +35,7 @@ def test_signed_in_apps_get_the_name_key_and_server(tmp_path: Path) -> None:
     assert response.status_code == 200
     assert response.json() == {
         "domains": ["nt.example.org", "t.backup.eu.org"],
-        "key": "0123456789abcdef0123456789abcdef",
+        "key": "0123456789abcdef0123456789abcdef",  # gitleaks:allow (test value)
         "encryption_method": 5,
         "server_code": "de-1",
     }
