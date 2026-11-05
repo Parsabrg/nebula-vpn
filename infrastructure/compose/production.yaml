@@ -171,6 +171,11 @@ services:
       # Relays listed as servers of their own (JSON); empty is none. See
       # docs/runbooks/relay.md.
       NEBULA_RELAYS: ${NEBULA_RELAYS:-}
+      # The DNS tunnel (plan 10): its delegated names (comma-separated) and the server whose VLESS
+      # Encryption inbound it forwards to; the key is read from
+      # /etc/nebula/secrets/cottendns_key. Empty: none. docs/runbooks/dns-tunnel.md.
+      NEBULA_DNS_TUNNEL_DOMAINS: ${NEBULA_DNS_TUNNEL_DOMAINS:-}
+      NEBULA_DNS_TUNNEL_SERVER: ${NEBULA_DNS_TUNNEL_SERVER:-}
       # The newest promoted client version, offered to signed-in apps while
       # the repository's GitHub releases are private. See
       # services/api/src/nebula_api/client_release.py.

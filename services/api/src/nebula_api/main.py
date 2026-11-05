@@ -40,6 +40,7 @@ from nebula_api.db.engine import create_database_engine, create_session_factory
 from nebula_api.db.schema import schema_is_current
 from nebula_api.devices.routes import router as devices_router
 from nebula_api.dns_profiles import ResolverHealth
+from nebula_api.dns_tunnel import router as dns_tunnel_router
 from nebula_api.email_deliveries.routes import router as email_delivery_router
 from nebula_api.email_deliveries.service import EmailDeliveryService
 from nebula_api.enrollment.routes import admin_router as enrollment_admin_router
@@ -339,6 +340,7 @@ def create_app(
     application.include_router(devices_router)
     application.include_router(server_discovery_router)
     application.include_router(api_routes_router)
+    application.include_router(dns_tunnel_router)
     application.include_router(pairing_router)
     application.include_router(client_release_router)
     application.include_router(account_router)

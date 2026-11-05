@@ -21,6 +21,10 @@ regexes = [
   # counted up in hex, the right length and alphabet for a generated
   # password and plainly not one. An exact literal, like the keys above.
   '''00112233445566778899aabbccddeeff''',
+  # The DNS tunnel key in services/api/tests/test_dns_tunnel.py: the hex
+  # digits counted up twice, the right length for an AES-256-GCM key text
+  # and plainly not one. An exact literal, like the others.
+  '''0123456789abcdef0123456789abcdef''',
   # The key of a self-signed www.gstatic.com certificate made for the tunnel
   # probe's test (apps/mobile/test/core/xray/answers_through_socks_test.dart):
   # it signs nothing but the test's own loopback TLS server. Its first line,

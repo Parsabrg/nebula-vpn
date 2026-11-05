@@ -18,10 +18,11 @@ cd "$root"
 project=nebula-production
 compose=infrastructure/compose/production.yaml
 
-eval "$(grep -E '^(XRAY_VERSION|HYSTERIA_VERSION|DNSPROXY_VERSION)=' install.sh)"
+eval "$(grep -E '^(XRAY_VERSION|HYSTERIA_VERSION|DNSPROXY_VERSION|COTTENDNS_VERSION)=' install.sh)"
 xray_sha=$(sed -n '/^declare -A XRAY_SHA=(/,/^)/s/^  \[amd64\]=//p' install.sh)
 hysteria_sha=$(sed -n '/^declare -A HYSTERIA_SHA=(/,/^)/s/^  \[amd64\]=//p' install.sh)
 dnsproxy_sha=$(sed -n '/^declare -A DNSPROXY_SHA=(/,/^)/s/^  \[amd64\]=//p' install.sh)
+cottendns_sha=$(sed -n '/^declare -A COTTENDNS_SHA=(/,/^)/s/^  \[amd64\]=//p' install.sh)
 images=$(sed -n 's/^ *image: //p' "$compose")
 dns_image=$(sed -n 's/^ *image: \${NEBULA_DNS_IMAGE:-\(.*\)}$/\1/p' "$compose")
 [ -n "$dns_image" ] || { echo "the dns service's image is not in the form the bundle expects"; exit 1; }
@@ -61,6 +62,8 @@ dnsproxy=dnsproxy-linux-amd64-v$DNSPROXY_VERSION.tar.gz
 curl -fsSL --retry 3 -o "$payload/$dnsproxy" \
   "https://github.com/AdguardTeam/dnsproxy/releases/download/v$DNSPROXY_VERSION/$dnsproxy"
 echo "$dnsproxy_sha  $payload/$dnsproxy" | sha256sum -c --quiet
+curl -fsSL --retry 3 -o "$payload/CottenDns_Server_Linux_AMD64.tar.gz"   "https://github.com/WhiteDNS/CottenDNS/releases/download/v$COTTENDNS_VERSION/CottenDns_Server_Linux_AMD64.tar.gz"
+echo "$cottendns_sha  $payload/CottenDns_Server_Linux_AMD64.tar.gz" | sha256sum -c --quiet
 
 echo "== agent wheels (Python 3.12, as on Ubuntu 24.04)"
 python3 -m pip download -q --require-hashes --no-deps --only-binary=:all: \
@@ -71,7 +74,7 @@ python3 -m pip download -q --require-hashes --no-deps --only-binary=:all: \
 {
   echo "version=$version"
   echo "commit=$(git rev-parse HEAD)"
-  echo "xray=$XRAY_VERSION hysteria=$HYSTERIA_VERSION dnsproxy=$DNSPROXY_VERSION"
+  echo "xray=$XRAY_VERSION hysteria=$HYSTERIA_VERSION dnsproxy=$DNSPROXY_VERSION cottendns=$COTTENDNS_VERSION"
   echo "images=$project-api $project-worker $project-admin ${third[*]}"
 } > "$payload/manifest.txt"
 

@@ -1,0 +1,49 @@
+[Unit]
+Description=Nebula VPN DNS tunnel server (CottenDNS, behind the port-53 router)
+Documentation=https://github.com/Parsabrg/vpn/blob/main/docs/runbooks/dns-tunnel.md
+After=network-online.target
+Wants=network-online.target
+# Rendered by nebula-agent on its first start; until then there is nothing to run.
+ConditionPathExists=/etc/nebula/cottendns/server_config.toml
+StartLimitIntervalSec=60
+StartLimitBurst=20
+OnFailure=nebula-alert@%n.service
+
+[Service]
+Type=simple
+# Loopback only (127.0.0.1:5310): the router in front owns port 53. It forwards
+# every connection to the VLESS Encryption inbound and nowhere else.
+ExecStart=/usr/local/bin/cottendns-server -config /etc/nebula/cottendns/server_config.toml
+User=nebula-cottendns
+Group=nebula-cottendns
+# The key: /etc/nebula/secrets/cottendns_key, root:nebula-secrets 0640.
+SupplementaryGroups=nebula-secrets
+StateDirectory=nebula-cottendns
+WorkingDirectory=/var/lib/nebula-cottendns
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryMax=512M
+TasksMax=512
+
+[Install]
+WantedBy=multi-user.target
