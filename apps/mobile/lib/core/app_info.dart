@@ -8,7 +8,7 @@ import 'auth/auth_repository.dart';
 /// to the API the whole time. No
 /// `package_info_plus` dependency this phase -- see Phase 1.7a's plan doc
 /// for the dependency-discipline rationale.
-const String kClientVersion = '0.1.34';
+const String kClientVersion = '0.1.35';
 
 /// `dart:io`'s `Platform.operatingSystem` is sufficient to answer this
 /// API's `platform` enum without a plugin -- this app has no other target
