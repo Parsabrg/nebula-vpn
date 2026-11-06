@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/services.dart';
-
 import '../servers/server_repository.dart';
 import 'dns_tunnel_sync.dart';
 
@@ -83,7 +81,11 @@ String withDnsTunnelConfig(
 ///
 /// TCP mode: every connection to [port] on loopback reaches the server's
 /// VLESS Encryption inbound, which Xray's outbound then dials.
-String renderDnsTunnelConfig(DnsTunnelDetails details, int port) {
+String renderDnsTunnelConfig(
+  DnsTunnelDetails details,
+  int port, {
+  int? scanParallelism,
+}) {
   String quote(String value) =>
       '"${value.replaceAll(r'\', r'\\').replaceAll('"', r'\"')}"';
   String list(Iterable<String> values) => '[${values.map(quote).join(', ')}]';
@@ -103,25 +105,13 @@ String renderDnsTunnelConfig(DnsTunnelDetails details, int port) {
     'FAST_CONNECT = true',
     'LOG_TO_FILE = false',
     'LOG_LEVEL = "INFO"',
+    // A resolver test: one try per size and a short timeout (defaults 3
+    // tries, 2 s; 4 resolvers took 80 s, MCI 2026-11-06).
+    if (scanParallelism != null) ...<String>[
+      'MTU_TEST_RETRIES_RESOLVERS = 1',
+      'MTU_TEST_TIMEOUT_RESOLVERS = 1.5',
+      'MTU_TEST_PARALLELISM_RESOLVERS = $scanParallelism',
+    ],
     '',
   ].join('\n');
-}
-
-/// Asks the engine which of [resolvers] (one address per line) carry a
-/// test through the tunnel. Android only; the scan uses the real network
-/// even while connected, since the app is outside its own VPN.
-Future<List<String>> scanDnsTunnelResolvers(
-  DnsTunnelDetails details,
-  String resolvers, {
-  MethodChannel channel = const MethodChannel('org.nebulavpn/wireguard_tunnel'),
-}) async {
-  final List<Object?>? valid = await channel.invokeMethod<List<Object?>>(
-    'dnsTunnelScan',
-    <String, String>{
-      // The scan opens no listener; any valid port will do.
-      'config': renderDnsTunnelConfig(details, 1),
-      'resolvers': resolvers,
-    },
-  );
-  return (valid ?? const <Object?>[]).whereType<String>().toList();
 }

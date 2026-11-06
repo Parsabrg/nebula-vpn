@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_info.dart';
+import '../../core/network/dns_tunnel_resolvers.dart';
 import '../../core/routing/route_paths.dart';
 import '../../core/settings/advanced_settings_controller.dart';
 import '../../core/settings/locale_controller.dart';
@@ -211,9 +212,30 @@ class SettingsScreen extends ConsumerWidget {
               meta:
                   ref.watch(advancedSettingsControllerProvider).cleanIp ??
                   text.cleanIpAutomatic,
-              isLast: true,
+              isLast: defaultTargetPlatform != TargetPlatform.android,
               onTap: () => context.push(RoutePaths.homeCleanIp),
             ),
+            // The DNS tunnel runs on Android only.
+            if (defaultTargetPlatform == TargetPlatform.android)
+              ListenableBuilder(
+                listenable: ref.watch(dnsTunnelResolversProvider),
+                builder: (BuildContext context, _) {
+                  final DnsTunnelResolvers resolvers = ref.read(
+                    dnsTunnelResolversProvider,
+                  );
+                  final String? network = resolvers.network;
+                  return PanelExternalRow(
+                    title: text.dnsTunnelResolvers,
+                    meta: text.dnsTunnelResolversSetMeta(
+                      resolvers.active ?? text.dnsTunnelResolversBuiltIn,
+                      network == null ? 0 : resolvers.workingOn(network).length,
+                    ),
+                    isLast: true,
+                    onTap: () =>
+                        context.push(RoutePaths.homeDnsTunnelResolvers),
+                  );
+                },
+              ),
 
             const SizedBox(height: 28),
             SectionHeader(text.sectionAbout),

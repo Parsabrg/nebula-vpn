@@ -19,6 +19,7 @@ import '../../features/settings/bypass_domains_screen.dart';
 import '../../features/settings/clean_ip_screen.dart';
 import '../../features/settings/connection_log_screen.dart';
 import '../../features/settings/diagnostics_screen.dart';
+import '../../features/settings/dns_tunnel_resolvers_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/settings/split_tunnel_screen.dart';
 import '../../features/splash/splash_screen.dart';
@@ -207,6 +208,11 @@ final routerProvider = Provider<GoRouter>((Ref ref) {
         path: RoutePaths.homeBypassDomains,
         pageBuilder: (BuildContext context, GoRouterState state) =>
             buildNebulaPage(context, state, const BypassDomainsScreen()),
+      ),
+      GoRoute(
+        path: RoutePaths.homeDnsTunnelResolvers,
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            buildNebulaPage(context, state, const DnsTunnelResolversScreen()),
       ),
       GoRoute(
         path: RoutePaths.homeCleanIp,

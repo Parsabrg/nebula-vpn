@@ -14,7 +14,6 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import com.wireguard.android.backend.Backend
-import dev.amirzr.flutter_v2ray_client.v2ray.core.V2rayCoreManager
 import com.wireguard.android.backend.GoBackend
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.config.Config
@@ -103,10 +102,32 @@ class MainActivity : FlutterActivity() {
                     )
                     "installApk" -> installApk(call.argument("path"), result)
                     "installedApps" -> installedApps(result)
-                    "onWifi" -> result.success(onWifi())
-                    "dnsTunnelScan" -> dnsTunnelScan(
-                        call.argument("config"), call.argument("resolvers"), result,
-                    )
+                    "onWifi" -> result.success(DnsTunnelNative.onWifi(this))
+                    "networkKey" -> result.success(DnsTunnelNative.networkKey(this))
+                    "dnsTunnelActive" -> result.success(DnsTunnelNative.active(this))
+                    "dnsTunnelScanStart" -> try {
+                        DnsTunnelNative.start(
+                            this,
+                            call.argument<String>("config")!!,
+                            call.argument<String>("resolvers")!!,
+                            call.argument<Int>("stopAfter") ?: Int.MAX_VALUE,
+                        )
+                        result.success(null)
+                    } catch (e: Exception) {
+                        result.error("scan_failed", e.message, null)
+                    }
+                    "dnsTunnelScanProgress" -> result.success(DnsTunnelNative.progress())
+                    "dnsTunnelScanStop" -> {
+                        DnsTunnelNative.stop()
+                        result.success(null)
+                    }
+                    "inIran" -> {
+                        val addresses = call.argument<List<String>>("addresses").orEmpty()
+                        Thread {
+                            val answer = DnsTunnelNative.inIran(this, addresses)
+                            runOnUiThread { result.success(answer) }
+                        }.start()
+                    }
                     // Kept across reinstalls (per signing key and user); the
                     // Dart side hashes it before it leaves the phone.
                     "hardwareId" -> result.success(
@@ -401,56 +422,6 @@ class MainActivity : FlutterActivity() {
      * credentials the tunnel is built from -- and offering it as a choice
      * suggests a decision that is not actually available.
      */
-    /**
-     * Runs the DNS tunnel client with -scan-only and answers with the
-     * resolvers that carried a test through the tunnel (WD_SCAN valid lines).
-     * The app is outside its own VPN, so the scan uses the real network even
-     * while connected.
-     */
-    /** Whether a Wi-Fi network is up, VPN or not (the DNS tunnel's weekly scan). */
-    private fun onWifi(): Boolean {
-        val manager = getSystemService(android.net.ConnectivityManager::class.java) ?: return false
-        @Suppress("DEPRECATION")
-        return manager.allNetworks.any { network ->
-            manager.getNetworkCapabilities(network)?.let {
-                it.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) &&
-                    it.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            } ?: false
-        }
-    }
-
-    private fun dnsTunnelScan(config: String?, resolvers: String?, result: MethodChannel.Result) {
-        if (config == null || resolvers == null) {
-            result.error("bad_args", "config and resolvers are required", null)
-            return
-        }
-        Thread({
-            val valid = mutableListOf<String>()
-            var error: String? = null
-            try {
-                val process = V2rayCoreManager.startCottenDns(this, config, resolvers, true)
-                if (process == null) {
-                    error = "engine missing"
-                } else {
-                    // ponytail: no cancel; the scan is bounded by the engine's own timeouts.
-                    process.inputStream.bufferedReader().forEachLine { line ->
-                        val marker = "WD_SCAN event=valid resolver="
-                        val at = line.indexOf(marker)
-                        if (at >= 0) {
-                            valid += line.substring(at + marker.length).trim().split(" ")[0]
-                        }
-                    }
-                    process.waitFor()
-                }
-            } catch (e: Exception) {
-                error = e.message ?: "scan failed"
-            }
-            runOnUiThread {
-                if (error != null) result.error("scan_failed", error, null) else result.success(valid)
-            }
-        }, "CottenDNS_Scan").start()
-    }
-
     private fun installedApps(result: MethodChannel.Result) {
         val manager: PackageManager = packageManager
         val launchable: Set<String> =

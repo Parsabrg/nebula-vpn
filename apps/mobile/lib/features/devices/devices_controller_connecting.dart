@@ -559,6 +559,9 @@ mixin _Connecting on _DevicesCore {
     if (details == null) {
       throw StateError('No DNS tunnel details on this device');
     }
+    // This network's tested list, retested first when it is a week old.
+    final DnsTunnelResolvers resolvers = ref.read(dnsTunnelResolversProvider);
+    final String network = await resolvers.ensureFresh(details);
     final ServerSocket probe = await ServerSocket.bind(
       InternetAddress.loopbackIPv4,
       0,
@@ -569,7 +572,7 @@ mixin _Connecting on _DevicesCore {
       config,
       details,
       port: port,
-      resolvers: await ref.read(dnsTunnelResolversProvider).current(),
+      resolvers: await resolvers.current(network),
     );
   }
 
