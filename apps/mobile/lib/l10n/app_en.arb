@@ -545,6 +545,7 @@
   "freeSubscriptions": "Subscriptions",
   "freeSubscriptionsIntro": "Add the address of a subscription list you trust. Its connections are used here and refreshed a few times a day. Nebula comes with none, and cannot vouch for who runs the servers a list names.",
   "freeSubscriptionsRefresh": "Refresh",
+  "serversRefreshSubscriptions": "Refresh subscriptions",
   "freeSubscriptionInvalid": "Use an https:// address.",
   "freeSubscriptionCount": "{count, plural, =1{1 connection} other{{count} connections}}",
   "@freeSubscriptionCount": {"placeholders": {"count": {"type": "int"}}},

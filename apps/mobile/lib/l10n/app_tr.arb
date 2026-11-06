@@ -417,6 +417,7 @@
   "freeSubscriptions": "Abonelikler",
   "freeSubscriptionsIntro": "Güvendiğiniz bir abonelik listesinin adresini ekleyin. Bağlantıları burada kullanılır ve günde birkaç kez yenilenir. Nebula hiçbir abonelikle gelmez ve listedeki sunucuları kimin işlettiğine kefil olamaz.",
   "freeSubscriptionsRefresh": "Yenile",
+  "serversRefreshSubscriptions": "Abonelikleri yenile",
   "freeSubscriptionInvalid": "https:// adresi kullanın.",
   "freeSubscriptionCount": "{count} bağlantı",
   "freeSubscriptionUpdated": "{when} güncellendi",

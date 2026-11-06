@@ -417,6 +417,7 @@
   "freeSubscriptions": "Abonnementen",
   "freeSubscriptionsIntro": "Voeg het adres toe van een abonnementslijst die je vertrouwt. De verbindingen worden hier gebruikt en een paar keer per dag ververst. Nebula levert er geen mee en kan niet instaan voor wie de servers in een lijst beheert.",
   "freeSubscriptionsRefresh": "Verversen",
+  "serversRefreshSubscriptions": "Abonnementen vernieuwen",
   "freeSubscriptionInvalid": "Gebruik een https://-adres.",
   "freeSubscriptionCount": "{count, plural, =1{1 verbinding} other{{count} verbindingen}}",
   "freeSubscriptionUpdated": "bijgewerkt {when}",

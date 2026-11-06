@@ -417,6 +417,7 @@
   "freeSubscriptions": "订阅",
   "freeSubscriptionsIntro": "添加你信任的订阅列表地址。其中的连接将在此使用，并每天刷新几次。Nebula 不自带任何订阅，也无法担保列表中服务器的运营者。",
   "freeSubscriptionsRefresh": "刷新",
+  "serversRefreshSubscriptions": "刷新订阅",
   "freeSubscriptionInvalid": "请使用 https:// 地址。",
   "freeSubscriptionCount": "{count} 个连接",
   "freeSubscriptionUpdated": "更新于 {when}",

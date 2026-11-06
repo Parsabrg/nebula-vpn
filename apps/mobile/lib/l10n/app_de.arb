@@ -417,6 +417,7 @@
   "freeSubscriptions": "Abonnements",
   "freeSubscriptionsIntro": "Fügen Sie die Adresse einer Abonnementliste hinzu, der Sie vertrauen. Ihre Verbindungen werden hier verwendet und einige Male am Tag aktualisiert. Nebula bringt keine mit und kann nicht dafür bürgen, wer die genannten Server betreibt.",
   "freeSubscriptionsRefresh": "Aktualisieren",
+  "serversRefreshSubscriptions": "Abonnements aktualisieren",
   "freeSubscriptionInvalid": "Verwenden Sie eine https://-Adresse.",
   "freeSubscriptionCount": "{count, plural, =1{1 Verbindung} other{{count} Verbindungen}}",
   "freeSubscriptionUpdated": "aktualisiert {when}",
