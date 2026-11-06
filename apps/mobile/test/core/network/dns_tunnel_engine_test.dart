@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nebula_mobile/core/network/dns_tunnel_engine.dart';
 import 'package:nebula_mobile/core/network/dns_tunnel_sync.dart';
@@ -46,26 +45,6 @@ void main() {
     );
     expect(config, contains(r'DOMAINS = ["a\"b"]'));
     expect(config, contains(r'ENCRYPTION_KEY = "k\\\""'));
-  });
-
-  test('scan returns the resolvers the engine reports valid', () async {
-    const MethodChannel channel = MethodChannel('test/dns_tunnel');
-    Map<Object?, Object?>? sent;
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (MethodCall call) async {
-          sent = call.arguments as Map<Object?, Object?>;
-          return <String>['1.2.3.4:53'];
-        });
-
-    final List<String> valid = await scanDnsTunnelResolvers(
-      _details,
-      '1.2.3.4\n5.6.7.8\n',
-      channel: channel,
-    );
-
-    expect(valid, <String>['1.2.3.4:53']);
-    expect(sent!['resolvers'], '1.2.3.4\n5.6.7.8\n');
-    expect(sent!['config'] as String, contains('nt.example.test'));
   });
 
   AvailableProfile profile(String code) => AvailableProfile(

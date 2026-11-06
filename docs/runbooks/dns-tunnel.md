@@ -98,9 +98,29 @@ from CottenDNS's Iran list (`assets/dns_tunnel/resolvers_ir.txt`) and are
 narrowed by the engine's `-scan-only` run.
 
 People see it as "DNS tunnel (slow, last resort)" under the server it reaches,
-last in the list. Automatic and the protocol test leave it out. A scan of the
-bundled list runs at most weekly, only on Wi-Fi; until then the bundled list is
-used as is (MCI, 2026-11-06: 32 of 262 usable, connected in 18 s, ~27 KB/s).
+last in the list. Automatic and the protocol test leave it out. While it is
+connected, the "DNS resolvers" row shows how many resolvers the engine is using
+and, on a tap, which.
+
+### Resolvers (Settings > DNS tunnel resolvers)
+
+- **Sets.** "Built-in (Iran)" is CottenDNS's list. People paste their own
+  lists and save them as named sets; choosing another set keeps the others,
+  and only "Delete this set" removes one.
+- **One working list per network:** each mobile carrier (MCC/MNC, no
+  permission needed) and Wi-Fi as one (telling Wi-Fi networks apart needs the
+  location permission, which the app does not ask for).
+- **Test and use** stops at 10 working resolvers, then tests the rest slowly
+  in the background until 30 work with at least 10 inside Iran (Iran's ranges
+  from Xray's own `geoip.dat`); short of Iranian ones, it also tests the
+  built-in list. Progress and Stop are shown.
+- **Test the whole list** only on Wi-Fi, never on mobile data.
+- A network's list older than a week is retested on connect (at most 30 s),
+  and on Wi-Fi when the app opens.
+
+Phone, 2026-11-06: a 7,629-resolver list on MCI found 10 in 21 s and 30 in
+3 min; on Wi-Fi the tunnel connected in 25 s (18 s on reconnect), 70 KB/s,
+Google, Telegram, GitHub and YouTube loading.
 
 ## Checking
 

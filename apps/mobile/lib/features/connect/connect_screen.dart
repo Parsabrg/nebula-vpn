@@ -6,6 +6,8 @@ import '../../core/auth/auth_notifier.dart';
 import '../../core/auth/auth_state.dart';
 import '../../core/format/bytes.dart';
 import '../../core/free/free_mode.dart';
+import '../../core/network/dns_tunnel_engine.dart';
+import '../../core/network/dns_tunnel_resolvers.dart';
 import '../../core/storage/storage_providers.dart';
 import '../../core/theme/color_tokens.dart';
 import '../../core/theme/type_scale.dart';
@@ -83,6 +85,9 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
                 state: state,
                 traffic: traffic,
                 freeMode: ref.watch(freeModeProvider),
+                dnsResolvers: state.activeProfileCode == kDnsTunnelProfileCode
+                    ? ref.watch(dnsTunnelActiveResolversProvider).value
+                    : null,
               );
               final Widget messages = ConnectMessages(
                 state: state,
@@ -179,9 +184,14 @@ class ConnectStateBlock extends StatelessWidget {
     super.key,
     this.traffic,
     this.freeMode = false,
+    this.dnsResolvers,
   });
 
   final ConnectView view;
+
+  /// Over the DNS tunnel: the resolvers it uses now, shown where another
+  /// protocol shows the server's address. Null on any other protocol.
+  final List<String>? dnsResolvers;
   final DevicesState state;
 
   /// No account and no server of one's own: there is no peer to register,
@@ -323,6 +333,31 @@ class ConnectStateBlock extends StatelessWidget {
     );
   }
 
+  static void _showResolvers(BuildContext context, List<String> resolvers) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext context) => SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          children: <Widget>[
+            Text(
+              AppText.of(context).rowDnsResolvers,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            for (final String resolver in resolvers)
+              Text(
+                resolver,
+                textDirection: TextDirection.ltr,
+                style: const TextStyle(fontFamily: 'monospace', height: 1.6),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _rows(BuildContext context) {
     final AppText text = AppText.of(context);
     final NebulaPalette palette = context.palette;
@@ -412,15 +447,30 @@ class ConnectStateBlock extends StatelessWidget {
         );
 
       case ConnectView.protected:
+        final List<String>? resolvers = dnsResolvers;
         return PanelRowGroup(
           rows: <PanelRow>[
-            PanelRow(
-              label: text.rowAddress,
-              value:
-                  state.xrayClient?.serverAddress ??
-                  state.selectedServer?.publicHost ??
-                  '—',
-            ),
+            if (resolvers != null)
+              PanelRow(
+                label: text.rowDnsResolvers,
+                value: resolvers.isEmpty
+                    ? '—'
+                    : text.dnsResolversInUse(
+                        resolvers.length,
+                        resolvers.take(2).join(', '),
+                      ),
+                onTap: resolvers.isEmpty
+                    ? null
+                    : () => _showResolvers(context, resolvers),
+              )
+            else
+              PanelRow(
+                label: text.rowAddress,
+                value:
+                    state.xrayClient?.serverAddress ??
+                    state.selectedServer?.publicHost ??
+                    '—',
+              ),
             PanelRow(
               label: text.rowProtocol,
               value: state.activeProfileCode != null

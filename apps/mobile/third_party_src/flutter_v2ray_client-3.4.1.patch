@@ -358,7 +358,7 @@ index 14830fd..3b5c5be 100644
  
      public static AppConfigs.V2RAY_CONNECTION_MODES getConnectionMode() {
 diff --git a/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/core/V2rayCoreManager.java b/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/core/V2rayCoreManager.java
-index 98a666e..156d5c2 100644
+index 98a666e..5e1305f 100644
 --- a/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/core/V2rayCoreManager.java
 +++ b/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/core/V2rayCoreManager.java
 @@ -13,6 +13,7 @@ import android.content.Context;
@@ -634,7 +634,7 @@ index 98a666e..156d5c2 100644
              coreController.startLoop(v2rayConfig.V2RAY_FULL_JSON_CONFIG, 0);
              V2RAY_STATE = AppConfigs.V2RAY_STATES.V2RAY_CONNECTED;
              if (isV2rayCoreRunning()) {
-@@ -217,7 +347,233 @@ public final class V2rayCoreManager {
+@@ -217,7 +347,249 @@ public final class V2rayCoreManager {
          return true;
      }
  
@@ -731,8 +731,19 @@ index 98a666e..156d5c2 100644
 +                try (java.io.BufferedReader reader = new java.io.BufferedReader(
 +                        new java.io.InputStreamReader(started.getInputStream()))) {
 +                    String line;
++                    final File active = new File(folder, "active.txt");
 +                    while ((line = reader.readLine()) != null) {
 +                        Log.i("CottenDNS", line);
++                        // The resolvers in use now, for the app to show.
++                        final int at = line.indexOf("WD_RESOLVERS active=");
++                        if (at >= 0) {
++                            final String list = line.substring(at + 20).split(" ")[0];
++                            try (FileOutputStream out = new FileOutputStream(active)) {
++                                out.write(list.getBytes(StandardCharsets.UTF_8));
++                            } catch (Exception ignored) {
++                                // only a display
++                            }
++                        }
 +                    }
 +                } catch (Exception ignored) {
 +                    // stream closed on shutdown
@@ -747,6 +758,11 @@ index 98a666e..156d5c2 100644
 +        dnsTunnelProcess = null;
 +        if (process != null) {
 +            process.destroy();
++            final Service service = v2rayServicesListener == null ? null
++                    : v2rayServicesListener.getService();
++            if (service != null) {
++                new File(new File(service.getFilesDir(), "cottendns"), "active.txt").delete();
++            }
 +        }
 +    }
 +
@@ -868,7 +884,7 @@ index 98a666e..156d5c2 100644
          try {
              // Safely cancel notification - handle cases where service might be null
              if (v2rayServicesListener != null && v2rayServicesListener.getService() != null) {
-@@ -232,14 +588,18 @@ public final class V2rayCoreManager {
+@@ -232,14 +604,18 @@ public final class V2rayCoreManager {
          }
  
          try {
@@ -892,7 +908,7 @@ index 98a666e..156d5c2 100644
              }
              sendDisconnectedBroadCast();
          } catch (Exception e) {
-@@ -307,6 +667,63 @@ public final class V2rayCoreManager {
+@@ -307,6 +683,63 @@ public final class V2rayCoreManager {
          return "";
      }
  
@@ -956,7 +972,7 @@ index 98a666e..156d5c2 100644
      private void showNotification(final V2rayConfig v2rayConfig) {
          Service context = v2rayServicesListener.getService();
          if (context == null) {
-@@ -321,20 +738,46 @@ public final class V2rayCoreManager {
+@@ -321,20 +754,46 @@ public final class V2rayCoreManager {
              }
          }
  
@@ -1010,7 +1026,7 @@ index 98a666e..156d5c2 100644
  
          String notificationChannelID = createNotificationChannelID(v2rayConfig.APPLICATION_NAME);
  
-@@ -357,7 +800,7 @@ public final class V2rayCoreManager {
+@@ -357,7 +816,7 @@ public final class V2rayCoreManager {
                      notificationChannelID)
                      .setSmallIcon(v2rayConfig.APPLICATION_ICON)
                      .setContentTitle(v2rayConfig.REMARK)
@@ -1019,7 +1035,7 @@ index 98a666e..156d5c2 100644
                      .setPriority(NotificationCompat.PRIORITY_MIN)
                      .setShowWhen(false)
                      .setOnlyAlertOnce(true)
-@@ -366,6 +809,10 @@ public final class V2rayCoreManager {
+@@ -366,6 +825,10 @@ public final class V2rayCoreManager {
                      .setOngoing(true);
  
              context.startForeground(NOTIFICATION_ID, notificationBuilder.build());
@@ -1030,7 +1046,7 @@ index 98a666e..156d5c2 100644
          } catch (Exception e) {
              Log.w("V2rayCoreManager", "Failed to show notification, continuing without notification", e);
              // VPN/Proxy continues to work even if notification fails
-@@ -373,6 +820,14 @@ public final class V2rayCoreManager {
+@@ -373,6 +836,14 @@ public final class V2rayCoreManager {
      }
  
      public boolean isV2rayCoreRunning() {
@@ -1045,7 +1061,7 @@ index 98a666e..156d5c2 100644
          if (coreController != null) {
              return coreController.getIsRunning();
          }
-@@ -389,7 +844,11 @@ public final class V2rayCoreManager {
+@@ -389,7 +860,11 @@ public final class V2rayCoreManager {
          }
      }
  
@@ -1058,7 +1074,7 @@ index 98a666e..156d5c2 100644
          try {
              try {
                  JSONObject config_json = new JSONObject(config);
-@@ -408,4 +867,93 @@ public final class V2rayCoreManager {
+@@ -408,4 +883,93 @@ public final class V2rayCoreManager {
          }
      }
  

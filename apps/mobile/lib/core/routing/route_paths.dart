@@ -25,6 +25,8 @@ abstract final class RoutePaths {
   static const String homeSplitTunnel = '/home/settings/split-tunnel';
   static const String homeBypassDomains = '/home/settings/bypass-domains';
   static const String homeCleanIp = '/home/settings/clean-ip';
+  static const String homeDnsTunnelResolvers =
+      '/home/settings/dns-tunnel-resolvers';
 
   /// Pushed from Settings. Somewhere you go when a connection is not working.
   static const String homeConnectionLog = '/home/settings/log';
