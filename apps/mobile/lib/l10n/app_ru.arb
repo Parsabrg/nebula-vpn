@@ -417,6 +417,7 @@
   "freeSubscriptions": "Подписки",
   "freeSubscriptionsIntro": "Добавьте адрес списка подписки, которому вы доверяете. Его подключения используются здесь и обновляются несколько раз в день. Nebula не содержит подписок и не может ручаться за тех, кто держит серверы из списка.",
   "freeSubscriptionsRefresh": "Обновить",
+  "serversRefreshSubscriptions": "Обновить подписки",
   "freeSubscriptionInvalid": "Используйте адрес https://.",
   "freeSubscriptionCount": "Подключений: {count}",
   "freeSubscriptionUpdated": "обновлено {when}",

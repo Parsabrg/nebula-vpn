@@ -417,6 +417,7 @@
   "freeSubscriptions": "الاشتراكات",
   "freeSubscriptionsIntro": "أضف عنوان قائمة اشتراك تثق بها. تُستخدم اتصالاتها هنا وتُحدَّث بضع مرات يوميًا. لا يأتي Nebula بأي اشتراك، ولا يمكنه ضمان من يشغّل الخوادم التي تذكرها القائمة.",
   "freeSubscriptionsRefresh": "تحديث",
+  "serversRefreshSubscriptions": "تحديث الاشتراكات",
   "freeSubscriptionInvalid": "استخدم عنوانًا يبدأ بـ https://.",
   "freeSubscriptionCount": "{count} اتصال",
   "freeSubscriptionUpdated": "حُدِّث {when}",

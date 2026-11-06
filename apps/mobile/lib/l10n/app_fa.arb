@@ -421,6 +421,7 @@
   "freeSubscriptions": "اشتراک‌ها",
   "freeSubscriptionsIntro": "نشانی فهرست اشتراکی را که به آن اعتماد دارید اضافه کنید. اتصال‌های آن اینجا استفاده می‌شوند و چند بار در روز به‌روز می‌شوند. نبولا هیچ اشتراکی همراه ندارد و نمی‌تواند گردانندگان سرورهای یک فهرست را تضمین کند.",
   "freeSubscriptionsRefresh": "به‌روزرسانی",
+  "serversRefreshSubscriptions": "به‌روزرسانی اشتراک‌ها",
   "freeSubscriptionInvalid": "از نشانی https:// استفاده کنید.",
   "freeSubscriptionCount": "{count} اتصال",
   "freeSubscriptionUpdated": "به‌روزشده {when}",

@@ -34,6 +34,23 @@ class ServersScreen extends ConsumerStatefulWidget {
 class _ServersScreenState extends ConsumerState<ServersScreen> {
   String? _serverCode;
   String? _profileCode;
+  bool _refreshing = false;
+
+  /// Fetches every subscription again, now, and reloads the list -- here,
+  /// where their servers are picked, not only under Your links.
+  Future<void> _refreshSubscriptions() async {
+    setState(() => _refreshing = true);
+    try {
+      await ref.read(subscriptionsProvider.notifier).refresh(force: true);
+      await ref.read(devicesControllerProvider.notifier).load();
+    } catch (_) {
+      // A list that could not be refreshed keeps its last good copy.
+    } finally {
+      if (mounted) {
+        setState(() => _refreshing = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +77,21 @@ class _ServersScreenState extends ConsumerState<ServersScreen> {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(AppText.of(context).serversTitle),
+        actions: <Widget>[
+          if ((ref.watch(subscriptionsProvider).value ?? const <Object>[])
+              .isNotEmpty)
+            IconButton(
+              tooltip: AppText.of(context).serversRefreshSubscriptions,
+              onPressed: _refreshing ? null : _refreshSubscriptions,
+              icon: _refreshing
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh),
+            ),
+        ],
       ),
       body: SafeArea(
         child: Padding(

@@ -417,6 +417,7 @@
   "freeSubscriptions": "Suscripciones",
   "freeSubscriptionsIntro": "Añade la dirección de una lista de suscripción en la que confíes. Sus conexiones se usan aquí y se actualizan varias veces al día. Nebula no incluye ninguna y no puede responder por quién opera los servidores de una lista.",
   "freeSubscriptionsRefresh": "Actualizar",
+  "serversRefreshSubscriptions": "Actualizar suscripciones",
   "freeSubscriptionInvalid": "Usa una dirección https://.",
   "freeSubscriptionCount": "{count, plural, =1{1 conexión} other{{count} conexiones}}",
   "freeSubscriptionUpdated": "actualizado {when}",
