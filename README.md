@@ -6,9 +6,6 @@ VPN; the apps for Android, Windows and Linux connect to it with whichever
 protocol the network lets through (VLESS REALITY, XHTTP, Hysteria2, WireGuard,
 a DNS tunnel), and keep working when the server's own address is blocked.
 
-نبولا وی‌پی‌ان (Nebula VPN): فیلترشکن رایگان و متن‌باز برای اینترنت فیلترشده
-ایران، با برنامهٔ اندروید، ویندوز و لینوکس.
-
 Website: [parsabrg.github.io/nebula-vpn](https://parsabrg.github.io/nebula-vpn/).
 
 Releases are on the [releases page](https://github.com/Parsabrg/nebula-vpn/releases).
