@@ -357,7 +357,7 @@
   "errorServerNameNotFound": "Esta red no puede encontrar la dirección del servidor. Inténtalo de nuevo o elige otro servidor.",
   "errorServerUnreachable": "Esta red no llega al servidor. Puede que lo esté bloqueando. Elige otro protocolo u otro servidor.",
   "errorServerCertificate": "No se aceptó el certificado del servidor. Puede que esta red esté interceptando la conexión. Elige otro protocolo.",
-  "errorTunnelStopped": "La conexión dejó de transmitir tráfico, así que se desactivó. Reconectando…",
+  "errorTunnelStopped": "La conexión dejó de transmitir tráfico, así que se desactivó. Vuelve a conectar o elige otro protocolo.",
   "rowUpdate": "Actualización",
   "updateAvailable": "{version} disponible",
   "updateInstallTitle": "Actualizar a {version}",

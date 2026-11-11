@@ -357,7 +357,7 @@
   "errorServerNameNotFound": "此网络无法查询服务器地址。请重试，或选择其他服务器。",
   "errorServerUnreachable": "此网络无法连接到服务器，可能已将其屏蔽。请选择其他协议或服务器。",
   "errorServerCertificate": "服务器证书未被接受。此网络可能在拦截连接。请选择其他协议。",
-  "errorTunnelStopped": "连接已不再传输流量，因此已关闭。正在重新连接…",
+  "errorTunnelStopped": "连接已不再传输流量，因此已关闭。请重新连接，或选择其他协议。",
   "rowUpdate": "更新",
   "updateAvailable": "{version} 可用",
   "updateInstallTitle": "更新到 {version}",

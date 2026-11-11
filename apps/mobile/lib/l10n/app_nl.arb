@@ -357,7 +357,7 @@
   "errorServerNameNotFound": "Dit netwerk kan het adres van de server niet opzoeken. Probeer het opnieuw of kies een andere server.",
   "errorServerUnreachable": "Dit netwerk bereikt de server niet. Het blokkeert hem misschien. Kies een ander protocol of een andere server.",
   "errorServerCertificate": "Het certificaat van de server is niet geaccepteerd. Dit netwerk onderschept de verbinding misschien. Kies een ander protocol.",
-  "errorTunnelStopped": "De verbinding droeg geen verkeer meer en is daarom uitgeschakeld. Opnieuw verbinden…",
+  "errorTunnelStopped": "De verbinding droeg geen verkeer meer en is daarom uitgeschakeld. Maak opnieuw verbinding of kies een ander protocol.",
   "rowUpdate": "Update",
   "updateAvailable": "{version} beschikbaar",
   "updateInstallTitle": "Bijwerken naar {version}",

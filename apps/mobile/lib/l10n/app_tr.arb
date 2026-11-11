@@ -357,7 +357,7 @@
   "errorServerNameNotFound": "Bu ağ sunucunun adresini bulamıyor. Yeniden deneyin veya başka bir sunucu seçin.",
   "errorServerUnreachable": "Bu ağ sunucuya ulaşamıyor. Sunucuyu engelliyor olabilir. Başka bir protokol veya sunucu seçin.",
   "errorServerCertificate": "Sunucunun sertifikası kabul edilmedi. Bu ağ bağlantıyı yakalıyor olabilir. Başka bir protokol seçin.",
-  "errorTunnelStopped": "Bağlantı trafik taşımayı bıraktı, bu yüzden kapatıldı. Yeniden bağlanılıyor…",
+  "errorTunnelStopped": "Bağlantı trafik taşımayı bıraktı, bu yüzden kapatıldı. Yeniden bağlanın veya başka bir protokol seçin.",
   "rowUpdate": "Güncelleme",
   "updateAvailable": "{version} mevcut",
   "updateInstallTitle": "{version} sürümüne güncelle",

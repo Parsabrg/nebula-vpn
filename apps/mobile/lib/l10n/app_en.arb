@@ -469,9 +469,9 @@
   "errorServerUnreachable": "This network can't reach the server. It may be blocking it. Choose another protocol or server.",
   "errorServerCertificate": "The server's certificate wasn't accepted. This network may be intercepting the connection. Choose another protocol.",
   "@errorTunnelNoTraffic": {"description": "Shown when an Xray or Hysteria2 tunnel came up but no request got through it, so it was turned off again."},
-  "errorTunnelStopped": "The connection stopped carrying traffic, so it was turned off. Reconnecting…",
+  "errorTunnelStopped": "The connection stopped carrying traffic, so it was turned off. Connect again, or choose another protocol.",
   "@errorTunnelStopped": {
-    "description": "Shown when a connected tunnel's engine died or its server stopped answering; the app turned it off and is trying once to reconnect."
+    "description": "Shown when a connected tunnel's engine died or it stopped carrying traffic; the app turned it off and does not reconnect on its own."
   },
   "rowUpdate": "Update",
   "updateAvailable": "{version} available",
