@@ -7,6 +7,11 @@ import { deleteUser, reissueActivation } from "@/lib/users-actions";
 import { LocalTime } from "./local-time";
 import { MutationButton } from "./mutation-button";
 
+/** An account deleted already: kept under a placeholder address. */
+function isDeletedAccount(email: string): boolean {
+  return email.toLowerCase().endsWith("@deleted.invalid");
+}
+
 /** Send the activation link again, and delete the account. */
 export function UserAccountActions({
   userId,
@@ -19,6 +24,17 @@ export function UserAccountActions({
 }) {
   const router = useRouter();
   const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
+
+  // Deleted already: the row is kept, under a placeholder address, for its
+  // audit entries and traffic totals. The API refuses a second deletion, and
+  // offering one showed "Something went wrong".
+  if (isDeletedAccount(email)) {
+    return (
+      <p className="section-note">
+        Deleted account. Only its audit entries and traffic totals remain.
+      </p>
+    );
+  }
 
   return (
     <div className="button-row">

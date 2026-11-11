@@ -448,5 +448,8 @@
   "subscriptionMake": "Bağlantı oluştur",
   "subscriptionCopy": "Kopyala",
   "subscriptionCopied": "Bağlantı kopyalandı",
-  "close": "Kapat"
+  "close": "Kapat",
+  "removeFailed": "Başarısız {count} tanesini kaldır",
+  "removeFailedTitle": "{count} bağlantı kaldırılsın mı?",
+  "removeFailedBody": "Bu bağlantılar az önce testi geçemedi. Bu cihazdan kaldırılırlar; istediğiniz zaman yeniden ekleyebilirsiniz."
 }

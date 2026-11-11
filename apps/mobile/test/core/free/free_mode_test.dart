@@ -194,6 +194,28 @@ void main() {
   });
 
   group('adding a relay', () {
+    test(
+      'links that failed a test are removed by code, the rest kept',
+      () async {
+        final InMemoryFreeLinkStore store = InMemoryFreeLinkStore(<String>[
+          _other,
+          ' $_mine ',
+        ]);
+        final ProviderContainer container = await _container(store: store);
+        addTearDown(container.dispose);
+        final List<FreeProfile> listed = await container.read(
+          freeProfilesProvider.future,
+        );
+        final String mineCode = listed.firstWhere((p) => p.name == 'Mine').code;
+
+        await container.read(freeProfilesProvider.notifier).removeCodes(
+          <String>{mineCode, 'free-00000000'},
+        );
+
+        expect(await store.read(), <String>[_other]);
+      },
+    );
+
     test('a link is kept; one that cannot be used is refused', () async {
       final InMemoryFreeLinkStore store = InMemoryFreeLinkStore();
       final ProviderContainer container = await _container(store: store);

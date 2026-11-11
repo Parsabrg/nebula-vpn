@@ -448,5 +448,8 @@
   "subscriptionMake": "إنشاء رابط",
   "subscriptionCopy": "نسخ",
   "subscriptionCopied": "تم نسخ الرابط",
-  "close": "إغلاق"
+  "close": "إغلاق",
+  "removeFailed": "إزالة {count} فشلت",
+  "removeFailedTitle": "إزالة {count} من الروابط؟",
+  "removeFailedBody": "فشلت هذه الروابط في الاختبار للتو. ستُزال من هذا الجهاز؛ يمكنك إضافتها مجددًا في أي وقت."
 }

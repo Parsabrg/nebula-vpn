@@ -448,5 +448,8 @@
   "subscriptionMake": "Crear enlace",
   "subscriptionCopy": "Copiar",
   "subscriptionCopied": "Enlace copiado",
-  "close": "Cerrar"
+  "close": "Cerrar",
+  "removeFailed": "Quitar {count} que fallaron",
+  "removeFailedTitle": "¿Quitar {count} enlaces?",
+  "removeFailedBody": "Estos enlaces fallaron la prueba ahora mismo. Se quitan de este dispositivo; puedes volver a añadirlos cuando quieras."
 }
