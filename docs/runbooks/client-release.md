@@ -10,7 +10,7 @@ their own machine, where the signing key lives (see
 key is ever stored on GitHub.
 
 **Public releases carry no addresses.** No `API_BASE_URL`, no
-`API_BACKUP_URL`, no `FREE_LINKS`: one generic app for every installation,
+`API_BACKUP_URL`: one generic app for every installation,
 connected on first launch with the address or pairing link its operator
 gives (the app then learns the deployment's other routes from `/v1/routes`).
 A build with a deployment's addresses compiled in is a private build for
@@ -62,7 +62,7 @@ A pull request that changes the workflow runs it as a dry run: the same
 builds, kept as workflow artifacts, with no draft and no attestations.
 
 Public releases carry no addresses, so the workflow passes no defines. A
-private build with a deployment's addresses (`API_BASE_URL`, `FREE_LINKS`)
+private build with a deployment's addresses (`API_BASE_URL`, `API_BACKUP_URL`)
 is still made by hand on the maintainer's machine, as before, and never
 published.
 

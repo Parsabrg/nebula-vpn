@@ -23,10 +23,10 @@ record of what is done and how it was tested; the full target is in
   stalled request down the next route, and learns new routes from the
   server without a new build. Tunnels cross the CDN when one is configured;
   a scan finds the cleanest Cloudflare address from the device.
-- **Free mode:** without a server or an account, the app connects through a
-  Cloudflare Worker relay ([`services/edge-relay`](services/edge-relay)), or
-  through links and subscriptions the person adds (VLESS, REALITY, Trojan,
-  Shadowsocks, Hysteria2).
+- **Free mode:** without a server or an account, the app starts with the
+  [free_sub](https://github.com/Parsabrg/free_sub) subscription (public
+  configurations verified through Xray), plus any links and subscriptions the
+  person adds (VLESS, REALITY, VMess, Trojan, Shadowsocks, Hysteria2).
 - **Routing:** sanctioned services (sites that block Iran) through the VPN
   and everything else direct, Iranian sites direct, local network direct.
   Switches apply to a live connection at once.
@@ -69,7 +69,6 @@ services/
   api/            FastAPI control plane (also the migrate, usage and prune jobs)
   worker/         Mail delivery from the API's outbox
   vpn-agent/      Root-side agent that drives WireGuard, Xray and Hysteria2
-  edge-relay/     Cloudflare Worker relay for free mode
 infrastructure/
   compose/        Development and production Compose files
   nginx/          Reverse proxy, TLS and the CDN route

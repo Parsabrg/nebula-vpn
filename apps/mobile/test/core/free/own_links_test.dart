@@ -9,9 +9,6 @@ const String _mine =
     'vless://11111111-1111-4111-8111-111111111111@104.16.1.1:8443'
     '?security=tls&type=ws&sni=mine.example.workers.dev&path=%2Fws#Mine';
 
-const String _relay =
-    'vless://0f1e2d3c-4b5a-4978-8a6b-5c4d3e2f1a0b@188.114.97.6:443'
-    '?security=tls&type=ws&sni=relay.example.workers.dev&path=%2F#Nebula%20relay';
 const String _fromSub1 =
     'vless://22222222-2222-4222-8222-222222222222@104.16.2.2:2053'
     '?security=tls&type=ws&sni=relay.example.org&path=%2Fa#WS-CF-auto';
@@ -43,7 +40,6 @@ void main() {
     final CombinedServerRepository combined = CombinedServerRepository(
       server: server,
       own: LocalServerRepository(
-        builtIn: const <String>[],
         store: store,
         subscriptions: InMemorySubscriptionStore(<Subscription>[
           const Subscription(
@@ -104,40 +100,34 @@ void main() {
     expect(server.requestXrayClientCalls, 1);
   });
 
-  test(
-    'free mode groups too: the shared relays, yours, a subscription',
-    () async {
-      final InMemoryFreeLinkStore store = InMemoryFreeLinkStore();
-      await store.write(<String>[_mine]);
-      final LocalServerRepository free = LocalServerRepository(
-        builtIn: const <String>[_relay],
-        store: store,
-        subscriptions: InMemorySubscriptionStore(<Subscription>[
-          const Subscription(
-            url: 'https://relay.example.org/sub',
-            links: <String>[_fromSub1, _fromSub2],
-          ),
-        ]),
-        importedName: () => 'Imported',
-        builtInName: () => 'Shared relays',
-      );
+  test('free mode groups too: yours, then each subscription', () async {
+    final InMemoryFreeLinkStore store = InMemoryFreeLinkStore();
+    await store.write(<String>[_mine]);
+    final LocalServerRepository free = LocalServerRepository(
+      store: store,
+      subscriptions: InMemorySubscriptionStore(<Subscription>[
+        const Subscription(
+          url: 'https://relay.example.org/sub',
+          links: <String>[_fromSub1, _fromSub2],
+        ),
+      ]),
+      importedName: () => 'Imported',
+    );
 
-      final List<AvailableServer> listed = await free.listAvailableServers();
+    final List<AvailableServer> listed = await free.listAvailableServers();
 
-      expect(listed.map((AvailableServer s) => s.displayName).take(2), <String>[
-        'Shared relays',
-        'Imported',
-      ]);
-      expect(listed, hasLength(3));
-      expect(listed[2].profiles, hasLength(2));
-      final XrayClientResult relay = await free.requestXrayClient(
-        deviceId: 'd',
-        serverCode: listed[0].code,
-        protocolProfileCode: listed[0].profiles.single.code,
-      );
-      expect(relay.sni, 'relay.example.workers.dev');
-    },
-  );
+    expect(listed.map((AvailableServer s) => s.displayName), <String>[
+      'Imported',
+      'relay.example.org',
+    ]);
+    expect(listed[1].profiles, hasLength(2));
+    final XrayClientResult mine = await free.requestXrayClient(
+      deviceId: 'd',
+      serverCode: listed[0].code,
+      protocolProfileCode: listed[0].profiles.single.code,
+    );
+    expect(mine.serverAddress, isNotEmpty);
+  });
 
   test('a named subscription keeps its place when renamed', () async {
     // The entry is found by its address: renaming it does not lose the
@@ -151,7 +141,6 @@ void main() {
       ],
     );
     LocalServerRepository repository() => LocalServerRepository(
-      builtIn: const <String>[],
       store: InMemoryFreeLinkStore(),
       subscriptions: subscriptions,
       importedName: () => 'Imported',

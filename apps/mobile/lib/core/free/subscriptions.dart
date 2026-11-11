@@ -404,9 +404,20 @@ class SubscriptionFetcher {
 
 /// The subscriptions and their last good lists. Secure storage: a list's
 /// links carry the credentials that admit to their servers.
+/// Every free-mode user starts with this subscription: links collected from
+/// public lists and verified through Xray by the owner's free_sub project
+/// (github.com/Parsabrg/free_sub), so somebody with nothing of their own
+/// still has something to connect with. Added once; removing it is final.
+const String defaultSubscriptionUrl =
+    'https://parsabrg.github.io/free_sub/sub.b64';
+
 abstract interface class SubscriptionStore {
   Future<List<Subscription>> read();
   Future<void> write(List<Subscription> subscriptions);
+
+  /// True the first time it is asked on this device, false ever after: the
+  /// default subscription is offered once, and stays removed if removed.
+  Future<bool> firstDefaultOffer();
 }
 
 /// Bumped by every write of the links or the subscriptions, so a reader
@@ -418,6 +429,7 @@ class FlutterSecureSubscriptionStore implements SubscriptionStore {
     : _storage = storage ?? const FlutterSecureStorage();
 
   static const String _key = 'nebula.free_subscriptions';
+  static const String _offeredKey = 'nebula.free_subscriptions.default_offered';
 
   final FlutterSecureStorage _storage;
 
@@ -449,6 +461,20 @@ class FlutterSecureSubscriptionStore implements SubscriptionStore {
     // After: a read between the two would keep the old list.
     linksVersion++;
   }
+
+  @override
+  Future<bool> firstDefaultOffer() async {
+    try {
+      if (await _storage.read(key: _offeredKey) != null) {
+        return false;
+      }
+      await _storage.write(key: _offeredKey, value: '1');
+      return true;
+    } on Object {
+      // Unreadable storage: not offered, rather than offered on every read.
+      return false;
+    }
+  }
 }
 
 class InMemorySubscriptionStore implements SubscriptionStore {
@@ -464,5 +490,15 @@ class InMemorySubscriptionStore implements SubscriptionStore {
   Future<void> write(List<Subscription> subscriptions) async {
     linksVersion++;
     _subscriptions = <Subscription>[...subscriptions];
+  }
+
+  /// Tests start with it already offered unless they say otherwise.
+  bool defaultOffered = true;
+
+  @override
+  Future<bool> firstDefaultOffer() async {
+    final bool first = !defaultOffered;
+    defaultOffered = true;
+    return first;
   }
 }

@@ -2124,11 +2124,10 @@ void main() {
       final harness = _harness(
         freeMode: true,
         servers: LocalServerRepository(
-          builtIn: const <String>[
+          store: InMemoryFreeLinkStore(<String>[
             'vless://0f1e2d3c-4b5a-4978-8a6b-5c4d3e2f1a0b@188.114.97.6:443'
                 '?security=tls&type=ws&sni=relay.example.workers.dev#Relay',
-          ],
-          store: InMemoryFreeLinkStore(),
+          ]),
         ),
       );
       addTearDown(harness.container.dispose);
@@ -2910,11 +2909,10 @@ void _connectOnLaunchTests() {
     final harness = _harness(
       freeMode: true,
       servers: LocalServerRepository(
-        builtIn: const <String>[
+        store: InMemoryFreeLinkStore(<String>[
           'vless://0f1e2d3c-4b5a-4978-8a6b-5c4d3e2f1a0b@188.114.97.6:443'
               '?security=tls&type=ws&sni=relay.example.workers.dev#Relay',
-        ],
-        store: InMemoryFreeLinkStore(),
+        ]),
       ),
     );
     addTearDown(harness.container.dispose);
