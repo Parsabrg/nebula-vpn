@@ -520,7 +520,19 @@ mixin _HealthChecks on _DevicesCore {
           onTimeout: () => false,
         );
         _mark('traffic confirm: ${confirmed ? 'answered' : 'no answer'}');
-        return confirmed;
+        if (!confirmed || slow) {
+          // The DNS tunnel moves 10-100 KB/s: 128 KB is its whole budget.
+          return confirmed;
+        }
+        // And real data: a route can answer two tiny requests and stall
+        // anything bigger -- XHTTP through the CDN read "Protected" with
+        // 0 B downloaded (owner, 2026-11-10) until the watch gave up ~50 s
+        // later. Found here, the connect moves on to the next route instead.
+        final bool moves = await ref.read(tunnelMovesDataProvider)(
+          viaProxy ? _tunnelProxy : null,
+        );
+        _mark('traffic data: ${moves ? 'moved' : 'stalled'}');
+        return moves;
       }
     }
     return false;
