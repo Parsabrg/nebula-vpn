@@ -112,3 +112,46 @@ docker exec nebula-production-usage-1 nebula-api collect-usage   # on the contro
 
 The relay's source `relay` must not be among the failed sources. On a phone,
 pick the relay and test each protocol.
+
+## The relay reports in
+
+The exit's control plane also learns that a relay is up from the relay
+itself: its server posts to the exit's API every 30 seconds, and a report
+keeps the relay listed for 90. This is the direction the relay's traffic
+takes, so it keeps working when TLS *into* the relay's country is filtered:
+on 2026-11-11 Iran blocked TLS from abroad into the Tehran server from 16:00
+UTC, the control plane's poll of the relay's agent failed, and "Germany via
+Tehran" read Under maintenance while it carried traffic.
+
+On the control plane, a random token in `/etc/nebula/compose.env`, then
+recreate the API container:
+
+```sh
+echo "NEBULA_RELAY_REPORT_TOKEN=$(openssl rand -hex 32)" | sudo tee -a /etc/nebula/compose.env
+```
+
+On the relay's server, the same token in a root-only file and a timer:
+
+```sh
+sudo install -m 600 /dev/stdin /etc/nebula/relay-report-token <<< '<the token>'
+sudo tee /etc/systemd/system/nebula-relay-report.service >/dev/null <<'UNIT'
+[Unit]
+Description=Tell the exit's control plane this relay reaches it
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'curl -fsS -m 15 -X POST -H "Authorization: Bearer $(cat /etc/nebula/relay-report-token)" https://<exit API host>/v1/relays/<relay code>/up'
+UNIT
+sudo tee /etc/systemd/system/nebula-relay-report.timer >/dev/null <<'UNIT'
+[Unit]
+Description=Report the relay every 30 seconds
+[Timer]
+OnBootSec=30
+OnUnitActiveSec=30
+AccuracySec=5
+[Install]
+WantedBy=timers.target
+UNIT
+sudo systemctl daemon-reload && sudo systemctl enable --now nebula-relay-report.timer
+```
+
+A wrong token or relay code gets 404 and records nothing.

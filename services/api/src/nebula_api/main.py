@@ -52,6 +52,7 @@ from nebula_api.pairing import router as pairing_router
 from nebula_api.provisioning.reconciliation import ReconciliationSummary, reconcile_now
 from nebula_api.provisioning.service import ProvisioningService
 from nebula_api.relays import RelayHealth
+from nebula_api.relays import router as relay_report_router
 from nebula_api.request_limits import RequestBodyLimitMiddleware
 from nebula_api.security_status import SecurityStatusService
 from nebula_api.servers.routes import router as server_discovery_router
@@ -346,6 +347,7 @@ def create_app(
     application.include_router(client_release_router)
     application.include_router(account_router)
     application.include_router(subscription_router)
+    application.include_router(relay_report_router)
     application.include_router(enrollment_router)
     application.include_router(enrollment_admin_router)
 
