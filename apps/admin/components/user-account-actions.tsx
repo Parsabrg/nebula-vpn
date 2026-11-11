@@ -2,10 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { isDeletedAccount, type UserState } from "@/lib/users";
+import type { UserState } from "@/lib/users";
 import { deleteUser, reissueActivation } from "@/lib/users-actions";
 import { LocalTime } from "./local-time";
 import { MutationButton } from "./mutation-button";
+
+/** An account deleted already: kept under a placeholder address. */
+function isDeletedAccount(email: string): boolean {
+  return email.toLowerCase().endsWith("@deleted.invalid");
+}
 
 /** Send the activation link again, and delete the account. */
 export function UserAccountActions({
