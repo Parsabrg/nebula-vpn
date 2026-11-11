@@ -21,7 +21,7 @@ class _FakeReleases implements ReleaseSource {
 Map<String, dynamic> _release(String tag, {bool prerelease = false}) {
   return <String, dynamic>{
     'tag_name': tag,
-    'html_url': 'https://github.com/Parsabrg/vpn/releases/tag/$tag',
+    'html_url': 'https://github.com/Parsabrg/nebula-vpn/releases/tag/$tag',
     'draft': false,
     'prerelease': prerelease,
   };
@@ -103,7 +103,7 @@ void main() {
       expect(
         updateFromRelease(
           _release('v0.2.0')
-            ..['html_url'] = 'http://github.com/Parsabrg/vpn/releases',
+            ..['html_url'] = 'http://github.com/Parsabrg/nebula-vpn/releases',
           '0.1.6',
         ),
         isNull,
