@@ -579,5 +579,10 @@
   "subscriptionMake": "Make link",
   "subscriptionCopy": "Copy",
   "subscriptionCopied": "Link copied",
-  "close": "Close"
+  "close": "Close",
+  "removeFailed": "Remove {count} that failed",
+  "removeFailedTitle": "Remove {count} links?",
+  "removeFailedBody": "These links failed the test just now. They are removed from this device; add them again any time.",
+  "@removeFailed": {"placeholders": {"count": {"type": "int"}}},
+  "@removeFailedTitle": {"placeholders": {"count": {"type": "int"}}}
 }

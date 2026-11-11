@@ -448,5 +448,8 @@
   "subscriptionMake": "Link maken",
   "subscriptionCopy": "Kopiëren",
   "subscriptionCopied": "Link gekopieerd",
-  "close": "Sluiten"
+  "close": "Sluiten",
+  "removeFailed": "{count} mislukte verwijderen",
+  "removeFailedTitle": "{count} links verwijderen?",
+  "removeFailedBody": "Deze links zijn net niet door de test gekomen. Ze worden van dit apparaat verwijderd; voeg ze op elk moment opnieuw toe."
 }

@@ -35,6 +35,9 @@ class _StubDevicesController extends DevicesController {
   Future<void> rememberTrafficBaseline(TunnelTraffic reading) async {
     remembered.add(reading);
   }
+
+  /// A change the figures have nothing to do with.
+  void unrelatedChange() => state = state.copyWith(pinging: !state.pinging);
 }
 
 ProviderContainer _container({
@@ -143,6 +146,45 @@ void main() {
   });
 
   group('figures belong to the session, not to the counter', () {
+    test('a change elsewhere in the state does not restart them', () async {
+      // A subscription refreshing or its tests running changed the state
+      // every few seconds, and each change restarted the figures at "-"
+      // (owner's video, 2026-11-10).
+      final FakeXrayTunnelController xray = FakeXrayTunnelController();
+      final _StubDevicesController controller = _StubDevicesController(
+        _state(tunnel: true, protocol: 'vless-xhttp-tls'),
+      );
+      final ProviderContainer container = _container(
+        state: _state(tunnel: true, protocol: 'vless-xhttp-tls'),
+        wireguard: FakeTunnelController(),
+        xray: xray,
+        controller: controller,
+      );
+
+      final List<TunnelTraffic?> seen = _collect(container);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      xray.trafficController.add(
+        const TunnelTraffic(rxBytes: 1000, txBytes: 10),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      xray.trafficController.add(
+        const TunnelTraffic(rxBytes: 5000, txBytes: 50),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      final int before = seen.length;
+
+      controller.unrelatedChange();
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      xray.trafficController.add(
+        const TunnelTraffic(rxBytes: 9000, txBytes: 90),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      final List<TunnelTraffic?> after = seen.sublist(before);
+      expect(after, isNot(contains(null)));
+      expect(after.last?.rxBytes, 8000);
+    });
+
     test('a counter that never resets still reports from zero', () async {
       // The Xray plugin's manager is a process-lifetime singleton: its totals
       // survive a disconnect, so without a baseline a new session opens

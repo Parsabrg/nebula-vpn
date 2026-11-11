@@ -235,3 +235,8 @@ export async function getUserDetail(
     return null;
   }
 }
+
+/** An account deleted already: kept under a placeholder address. */
+export function isDeletedAccount(email: string): boolean {
+  return email.toLowerCase().endsWith("@deleted.invalid");
+}

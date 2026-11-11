@@ -448,5 +448,8 @@
   "subscriptionMake": "Link erstellen",
   "subscriptionCopy": "Kopieren",
   "subscriptionCopied": "Link kopiert",
-  "close": "Schließen"
+  "close": "Schließen",
+  "removeFailed": "{count} fehlgeschlagene entfernen",
+  "removeFailedTitle": "{count} Links entfernen?",
+  "removeFailedBody": "Diese Links sind gerade im Test durchgefallen. Sie werden von diesem Gerät entfernt; du kannst sie jederzeit wieder hinzufügen."
 }

@@ -244,6 +244,21 @@ class FreeProfilesNotifier extends AsyncNotifier<List<FreeProfile>> {
 
   /// Removes a link added by hand. One from a subscription comes back with
   /// its next refresh; the subscription is what is removed instead.
+  /// Removes the links added by hand with these codes (as listed).
+  Future<void> removeCodes(Set<String> codes) async {
+    final Set<String> links = <String>{
+      for (final FreeProfile p in await future)
+        if (codes.contains(p.code) && p.sources.isEmpty) p.link,
+    };
+    final FreeLinkStore store = ref.read(freeLinkStoreProvider);
+    await store.write(<String>[
+      for (final String kept in await store.read())
+        if (!links.contains(kept.trim())) kept,
+    ]);
+    ref.invalidateSelf();
+    await future;
+  }
+
   Future<void> remove(String link) async {
     final FreeLinkStore store = ref.read(freeLinkStoreProvider);
     await store.write(<String>[

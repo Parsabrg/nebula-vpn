@@ -448,5 +448,8 @@
   "subscriptionMake": "Создать ссылку",
   "subscriptionCopy": "Копировать",
   "subscriptionCopied": "Ссылка скопирована",
-  "close": "Закрыть"
+  "close": "Закрыть",
+  "removeFailed": "Удалить неудачные: {count}",
+  "removeFailedTitle": "Удалить ссылки: {count}?",
+  "removeFailedBody": "Эти ссылки только что не прошли проверку. Они будут удалены с этого устройства; их можно добавить снова в любой момент."
 }

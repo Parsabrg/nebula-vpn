@@ -452,5 +452,8 @@
   "subscriptionMake": "ساخت لینک",
   "subscriptionCopy": "کپی",
   "subscriptionCopied": "لینک کپی شد",
-  "close": "بستن"
+  "close": "بستن",
+  "removeFailed": "حذف {count} مورد ناموفق",
+  "removeFailedTitle": "{count} لینک حذف شود؟",
+  "removeFailedBody": "این لینک‌ها در تست همین الان ناموفق بودند. از این دستگاه حذف می‌شوند؛ هر وقت خواستید دوباره اضافه‌شان کنید."
 }

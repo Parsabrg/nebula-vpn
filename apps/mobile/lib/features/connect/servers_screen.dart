@@ -205,6 +205,16 @@ class _ServersScreenState extends ConsumerState<ServersScreen> {
                             ),
                         ],
                       ),
+                      if (server.code == LocalServerRepository.importedCode &&
+                          !state.pinging)
+                        _RemoveFailed(
+                          failed: <String>{
+                            for (final MapEntry<String, ProtocolDelay> entry
+                                in state.delaysFor(server.code).entries)
+                              if (entry.value.outcome == DelayOutcome.failed)
+                                entry.key,
+                          },
+                        ),
                     ],
                     const SizedBox(height: 24),
                   ],
@@ -398,6 +408,53 @@ class _LatencyHeader extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// After a test of the links added by hand: removes those that failed it,
+/// once confirmed. Subscriptions' links come back with their next refresh, so
+/// only these.
+class _RemoveFailed extends ConsumerWidget {
+  const _RemoveFailed({required this.failed});
+
+  final Set<String> failed;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (failed.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final AppText text = AppText.of(context);
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: TextButton(
+        onPressed: () async {
+          final bool? sure = await showDialog<bool>(
+            context: context,
+            builder: (BuildContext context) => AlertDialog(
+              title: Text(text.removeFailedTitle(failed.length)),
+              content: Text(text.removeFailedBody),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text(text.cancel),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: Text(text.freeRemove),
+                ),
+              ],
+            ),
+          );
+          if (sure != true) {
+            return;
+          }
+          await ref.read(freeProfilesProvider.notifier).removeCodes(failed);
+          await ref.read(devicesControllerProvider.notifier).load();
+        },
+        child: Text(text.removeFailed(failed.length)),
+      ),
     );
   }
 }

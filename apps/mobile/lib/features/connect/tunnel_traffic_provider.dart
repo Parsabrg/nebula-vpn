@@ -35,7 +35,28 @@ const String hysteriaTransport = 'hysteria';
 final tunnelTrafficProvider = StreamProvider.autoDispose<TunnelTraffic?>((
   Ref ref,
 ) {
-  final DevicesState state = ref.watch(devicesControllerProvider);
+  // Only what makes a session: rebuilt on every change of the controller's
+  // state, the figures restarted from a new baseline and showed "-" -- with a
+  // subscription's list refreshing and its tests running, for good (owner's
+  // video, 2026-11-10).
+  final ({
+    bool tunnelEstablished,
+    String? activeProtocolCode,
+    String? transport,
+    DateTime? tunnelEstablishedAt,
+    TunnelTraffic? trafficBaseline,
+  })
+  state = ref.watch(
+    devicesControllerProvider.select(
+      (DevicesState s) => (
+        tunnelEstablished: s.tunnelEstablished,
+        activeProtocolCode: s.activeProtocolCode,
+        transport: s.xrayClient?.transport,
+        tunnelEstablishedAt: s.tunnelEstablishedAt,
+        trafficBaseline: s.trafficBaseline,
+      ),
+    ),
+  );
   if (!state.tunnelEstablished) {
     return Stream<TunnelTraffic?>.value(null);
   }
@@ -43,7 +64,7 @@ final tunnelTrafficProvider = StreamProvider.autoDispose<TunnelTraffic?>((
   final Stream<TunnelTraffic> readings;
   if (state.activeProtocolCode == wireguardProtocolCode) {
     readings = _poll(ref.watch(tunnelControllerProvider).readTraffic);
-  } else if (state.xrayClient?.transport == hysteriaTransport) {
+  } else if (state.transport == hysteriaTransport) {
     // The Xray core that would hold counters is never started on this path,
     // so there is nothing to ask it for. The kernel counts every packet
     // crossing the tunnel interface instead -- as payload rather than wire

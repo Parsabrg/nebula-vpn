@@ -35,6 +35,18 @@ describe("UserAccountActions", () => {
     ).toBeInTheDocument();
   });
 
+  it("offers no second deletion of an account deleted already", () => {
+    render(
+      <UserAccountActions
+        userId="u"
+        email="deleted-0bf1946a9b72@deleted.invalid"
+        state="disabled"
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Delete user" })).toBeNull();
+    expect(screen.getByText(/Deleted account/)).toBeInTheDocument();
+  });
+
   it("deletes after confirming, then returns to the user list", async () => {
     actions.deleteUser.mockResolvedValue({ ok: true, data: null });
     const user = userEvent.setup();

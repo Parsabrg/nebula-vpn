@@ -448,5 +448,8 @@
   "subscriptionMake": "Créer le lien",
   "subscriptionCopy": "Copier",
   "subscriptionCopied": "Lien copié",
-  "close": "Fermer"
+  "close": "Fermer",
+  "removeFailed": "Retirer les {count} en échec",
+  "removeFailedTitle": "Retirer {count} liens ?",
+  "removeFailedBody": "Ces liens viennent d'échouer au test. Ils sont retirés de cet appareil ; vous pouvez les rajouter à tout moment."
 }
