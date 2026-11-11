@@ -75,6 +75,17 @@ class FakeAccountRepository implements AccountRepository {
     }
   }
 
+  String subscriptionLink = 'https://api.example.org/v1/sub/secret';
+
+  @override
+  Future<String> newSubscriptionLink() async {
+    final Object? error = securityError;
+    if (error != null) {
+      throw error;
+    }
+    return subscriptionLink;
+  }
+
   @override
   Future<void> deleteAccount(String password) async {
     securityCalls.add('delete:$password');

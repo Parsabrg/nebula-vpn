@@ -573,5 +573,13 @@
   "deleteAccountKept": "Usage totals and the security log are kept under a random number that is not linked to you. Backups keep the old data for up to 30 days.",
   "deleteAccountAction": "Delete my account",
   "deletingAccount": "Deleting",
-  "accountDeleted": "Your account was deleted."
+  "accountDeleted": "Your account was deleted.",
+  "rowSubscriptionLink": "iPhone & iPad",
+  "subscriptionTitle": "Link for other apps",
+  "subscriptionIntro": "Nebula has no iPhone or iPad app yet. Make a subscription link and add it in Streisand, V2Box, Hiddify or FoXray: they get your servers and keep them up to date. The link counts as one of your devices, and making a new one stops the old one.",
+  "subscriptionReady": "Copy this link and add it as a subscription in the other app. Keep it private: anyone with it can use your account.",
+  "subscriptionMake": "Make link",
+  "subscriptionCopy": "Copy",
+  "subscriptionCopied": "Link copied",
+  "close": "Close"
 }

@@ -24,7 +24,11 @@ from sqlalchemy import text
 
 from nebula_api.auth.key_material import AuthKeyMaterial
 from nebula_api.auth.redis_state import RedisAuthState, RedisClient
-from nebula_api.auth.user_service import UserAuthService
+from nebula_api.auth.user_service import (
+    AuthenticationRejected,
+    DeviceLimitReached,
+    UserAuthService,
+)
 from nebula_api.db.engine import create_database_engine, create_session_factory
 from nebula_api.models.types import DevicePlatform
 from nebula_api.passwords import hash_password
@@ -124,3 +128,79 @@ def test_login_persists_session_and_refresh_token_against_real_postgres() -> Non
     database_url = os.environ[_DATABASE_URL_ENV]
     redis_url = os.environ[_REDIS_URL_ENV]
     asyncio.run(exercise_real_login(database_url, redis_url))
+
+
+async def exercise_subscription(database_url: str, redis_url: str) -> None:
+    engine = create_database_engine(database_url)
+    session_factory = create_session_factory(engine)
+    redis_client = Redis.from_url(redis_url)
+    private_key = Ed25519PrivateKey.generate()
+    key_material = AuthKeyMaterial(
+        private_key,
+        {"v1": private_key.public_key()},
+        {1: b"p" * 32},
+        {1: b"m" * 32},
+        {1: b"x" * 32},
+    )
+    redis_state = RedisAuthState(
+        cast(RedisClient, redis_client),
+        key_ring={1: b"integration-test-pepper-value-01"},
+        current_key_version=1,
+        prefix=f"nebula:test:subscription:{uuid4().hex}",
+    )
+    service = UserAuthService(session_factory, redis_state, key_material, Settings(env="test"))
+    user_id = uuid4()
+    async with engine.begin() as connection:
+        await connection.execute(
+            text(
+                "INSERT INTO users "
+                "(id, email, email_normalized, password_hash, state, device_limit, "
+                "activated_at) VALUES "
+                "(:id, :email, :email, 'x', 'active', 1, now())"
+            ),
+            {"id": user_id, "email": f"sub-{uuid4().hex[:12]}@example.com"},
+        )
+    try:
+        first = await service.new_subscription(user_id=user_id, request_id=uuid4())
+        owner = await service.subscription_owner(first)
+        assert owner is not None and owner[0] == user_id
+        # A new link replaces the old one, within a device limit of one.
+        second = await service.new_subscription(user_id=user_id, request_id=uuid4())
+        assert await service.subscription_owner(first) is None
+        assert (await service.subscription_owner(second) or (None,))[0] == user_id
+        assert await service.subscription_owner("short") is None
+        # A real device at the limit leaves no room for a link.
+        async with engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "UPDATE devices SET state = 'revoked', revoked_at = now() WHERE user_id = :id"
+                ),
+                {"id": user_id},
+            )
+            await connection.execute(
+                text(
+                    "INSERT INTO devices (id, user_id, name, platform, client_version, state) "
+                    "VALUES (:id, :user, 'phone', 'android', '1', 'active')"
+                ),
+                {"id": uuid4(), "user": user_id},
+            )
+        with pytest.raises(DeviceLimitReached):
+            await service.new_subscription(user_id=user_id, request_id=uuid4())
+        with pytest.raises(AuthenticationRejected):
+            await service.new_subscription(user_id=uuid4(), request_id=uuid4())
+    finally:
+        async with engine.begin() as connection:
+            await connection.execute(
+                text("DELETE FROM devices WHERE user_id = :id"), {"id": user_id}
+            )
+            await connection.execute(text("DELETE FROM users WHERE id = :id"), {"id": user_id})
+        await redis_client.aclose()
+        await engine.dispose()
+
+
+@pytest.mark.skipif(
+    _DATABASE_URL_ENV not in os.environ or _REDIS_URL_ENV not in os.environ,
+    reason="real PostgreSQL and Redis integration is enabled in CI",
+)
+def test_subscription_link_against_real_postgres() -> None:
+    asyncio.run(exercise_subscription(os.environ[_DATABASE_URL_ENV], os.environ[_REDIS_URL_ENV]))

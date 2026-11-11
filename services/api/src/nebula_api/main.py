@@ -57,6 +57,7 @@ from nebula_api.security_status import SecurityStatusService
 from nebula_api.servers.routes import router as server_discovery_router
 from nebula_api.servers.service import ServerDiscoveryService
 from nebula_api.settings import Settings, get_settings
+from nebula_api.subscription import router as subscription_router
 from nebula_api.topology_admin.routes import router as topology_admin_router
 from nebula_api.topology_admin.service import TopologyAdminService
 from nebula_api.usage.counters import CounterKeepingAgentClient
@@ -344,6 +345,7 @@ def create_app(
     application.include_router(pairing_router)
     application.include_router(client_release_router)
     application.include_router(account_router)
+    application.include_router(subscription_router)
     application.include_router(enrollment_router)
     application.include_router(enrollment_admin_router)
 

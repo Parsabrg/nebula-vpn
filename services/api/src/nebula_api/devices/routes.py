@@ -216,36 +216,58 @@ async def request_xray_client(
     principal: Annotated[AuthenticatedUser, Depends(require_user_session)],
 ) -> XrayClientResponse:
     require_json_request(request)
-    settings = request.app.state.settings
-    relays = settings.relay_list()
-    relay = find_relay(relays, payload.server_code)
-    relay_port = relay.port_for(payload.protocol_profile_code) if relay else None
     try:
-        if relay is not None:
-            if relay_port is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="This protocol is not offered through this server",
-                )
-            if relay.code not in await relays_up(request, relays):
-                raise ServerUnderMaintenance("This server is under maintenance. Try again later.")
-        result = await _service(request).request_xray_client(
+        answer = await xray_client_for(
+            request,
             user_id=principal.user_id,
             device_id=device_id,
-            # A relay hands out the device's credential on its exit.
-            server_code=relay.exit if relay else payload.server_code,
+            server_code=payload.server_code,
             protocol_profile_code=payload.protocol_profile_code,
-            request_id=uuid4(),
-            network_prefix=client_network_prefix(request),
         )
     except (ProvisioningError, AuthStateUnavailable) as error:
         _raise_provisioning_error(error)
     apply_auth_response_headers(response)
-    profile = await _service(request).dns_profile_for(
-        user_id=principal.user_id, device_id=device_id
+    return answer
+
+
+async def xray_client_for(
+    request: Request,
+    *,
+    user_id: UUID,
+    device_id: UUID,
+    server_code: str,
+    protocol_profile_code: str,
+) -> XrayClientResponse:
+    """A device's credential for one profile, as the app is sent it.
+
+    Also what a subscription link lists (nebula_api/subscription.py). Raises
+    ProvisioningError and AuthStateUnavailable for the caller to word.
+    """
+
+    settings = request.app.state.settings
+    relays = settings.relay_list()
+    relay = find_relay(relays, server_code)
+    relay_port = relay.port_for(protocol_profile_code) if relay else None
+    if relay is not None:
+        if relay_port is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="This protocol is not offered through this server",
+            )
+        if relay.code not in await relays_up(request, relays):
+            raise ServerUnderMaintenance("This server is under maintenance. Try again later.")
+    result = await _service(request).request_xray_client(
+        user_id=user_id,
+        device_id=device_id,
+        # A relay hands out the device's credential on its exit.
+        server_code=relay.exit if relay else server_code,
+        protocol_profile_code=protocol_profile_code,
+        request_id=uuid4(),
+        network_prefix=client_network_prefix(request),
     )
+    profile = await _service(request).dns_profile_for(user_id=user_id, device_id=device_id)
     # The exit's resolver: a relay forwards to it.
-    own_dns = await deployment_dns_for(request, relay.exit if relay else payload.server_code)
+    own_dns = await deployment_dns_for(request, relay.exit if relay else server_code)
     if relay is not None and relay_port is not None:
         # Through the relay: its address and port; TLS still names the exit,
         # and hopping is the exit's own port range, not forwarded.
@@ -254,7 +276,7 @@ async def request_xray_client(
         )
     return _to_xray_response(
         result,
-        cdn_route_for(request) if settings.behind_cdn(payload.server_code) else None,
+        cdn_route_for(request) if settings.behind_cdn(server_code) else None,
         resolvers_for(profile, own_dns),
     )
 
