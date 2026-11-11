@@ -32,6 +32,7 @@ mixin _HealthChecks on _DevicesCore {
     // request through and stalls seconds later (Cloudflare from Iran,
     // 2026-10-29): asked again soon, not a minute on.
     _checkTrafficSoon();
+    _watchStall();
     _stopResumeWatch = ref.read(appResumedProvider)(() {
       unawaited(_checkTunnel());
       unawaited(_checkTrafficOnResume());
@@ -52,8 +53,53 @@ mixin _HealthChecks on _DevicesCore {
     _trafficSoon = null;
     _trafficWatch = null;
     _trafficFailedReadings = 0;
+    _stallReadings?.cancel();
+    _stallReadings = null;
+    _stallPoll?.cancel();
+    _stallPoll = null;
+    _lastReceived = null;
     _stopResumeWatch?.call();
     _stopResumeWatch = null;
+  }
+
+  /// Reads the tunnel's byte counters between the minute checks; apps
+  /// sending with nothing coming back runs the real-data check at once, so
+  /// a connection that stopped working is turned off within seconds, not
+  /// minutes. Xray pushes its counters; WireGuard and Hysteria2 are asked.
+  void _watchStall() {
+    void read(TunnelTraffic? reading) {
+      if (reading == null || !ref.mounted) {
+        return;
+      }
+      final DateTime now = DateTime.now();
+      final TrafficMark? last = _lastReceived;
+      if (last == null || reading.rxBytes > last.rx) {
+        _lastReceived = (rx: reading.rxBytes, tx: reading.txBytes, at: now);
+        return;
+      }
+      if (trafficStalled(reading, last, now) &&
+          now.difference(_lastStallCheck) >= const Duration(seconds: 15)) {
+        _lastStallCheck = now;
+        unawaited(_checkTraffic(data: true));
+      }
+    }
+
+    Future<TunnelTraffic?> Function()? poll;
+    if (state.activeProtocolCode == wireguardProtocolCode) {
+      poll = _tunnel.readTraffic;
+    } else if (state.xrayClient?.transport == 'hysteria') {
+      // No Xray core on this path: the interface's own counters.
+      poll = _tunnel.readTunTraffic;
+    }
+    if (poll != null) {
+      final Future<TunnelTraffic?> Function() ask = poll;
+      _stallPoll = Timer.periodic(
+        const Duration(seconds: 2),
+        (_) async => read(await ask()),
+      );
+    } else {
+      _stallReadings = _xrayTunnel.traffic.listen(read, onError: (_) {});
+    }
   }
 
   /// Ends the connection and shows [reason], if there is one.
@@ -323,34 +369,19 @@ mixin _HealthChecks on _DevicesCore {
 
   /// Takes down a tunnel that carries nothing, and tries once to bring it
   /// back.
+  /// The connection stopped carrying traffic: it is turned off, and the
+  /// person decides what next. Never reconnected or moved to another server,
+  /// protocol or route on their behalf (owner, 2026-11-11).
   Future<void> _endDeadTunnel() async {
-    final String? deviceId = _connectedDeviceId ?? _storedDeviceId();
     final String? deadServer = state.connectedServerCode;
     final String? deadProfile = state.activeProfileCode;
     if (deadServer != null && deadProfile != null) {
       await _recordProtocol(deadServer, deadProfile, ProtocolOutcome.drop);
     }
-    final DateTime now = DateTime.now();
-    final DateTime? last = _lastEngineRecovery;
-    final bool retry =
-        deviceId != null &&
-        (last == null || now.difference(last) >= _engineRecoveryInterval);
-    // Off, never "Protected": nothing is being carried. The server-side
-    // credential is kept, so a reconnect reuses it. "Reconnecting" only when
-    // one follows: once per interval, and the second stall said it anyway.
-    final AppText text = ref.read(appTextProvider);
     await _endTunnel(
-      reason: retry ? text.errorTunnelStopped : text.errorTunnelNoTraffic,
+      reason: ref.read(appTextProvider).errorTunnelStopped,
       revokeOnServer: false,
     );
-    if (!ref.mounted || !retry) {
-      return;
-    }
-    _lastEngineRecovery = now;
-    // Dead after carrying traffic is how a throttled address looks; the
-    // next route's tunnel may not be. See moveApiRouteProvider.
-    ref.read(moveApiRouteProvider)();
-    await connect(deviceId);
   }
 
   Future<void> _checkTunnel() async {

@@ -357,7 +357,7 @@
   "errorServerNameNotFound": "Dieses Netzwerk kann die Adresse des Servers nicht auflösen. Versuchen Sie es erneut oder wählen Sie einen anderen Server.",
   "errorServerUnreachable": "Dieses Netzwerk erreicht den Server nicht. Es blockiert ihn möglicherweise. Wählen Sie ein anderes Protokoll oder einen anderen Server.",
   "errorServerCertificate": "Das Zertifikat des Servers wurde nicht akzeptiert. Dieses Netzwerk fängt die Verbindung möglicherweise ab. Wählen Sie ein anderes Protokoll.",
-  "errorTunnelStopped": "Die Verbindung hat keinen Datenverkehr mehr übertragen und wurde deshalb getrennt. Neue Verbindung wird hergestellt…",
+  "errorTunnelStopped": "Die Verbindung hat keinen Datenverkehr mehr übertragen und wurde deshalb getrennt. Verbinde dich erneut oder wähle ein anderes Protokoll.",
   "rowUpdate": "Update",
   "updateAvailable": "{version} verfügbar",
   "updateInstallTitle": "Auf {version} aktualisieren",

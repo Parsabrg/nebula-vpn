@@ -357,7 +357,7 @@
   "errorServerNameNotFound": "Ce réseau ne trouve pas l'adresse du serveur. Réessayez, ou choisissez un autre serveur.",
   "errorServerUnreachable": "Ce réseau n'atteint pas le serveur. Il le bloque peut-être. Choisissez un autre protocole ou un autre serveur.",
   "errorServerCertificate": "Le certificat du serveur n'a pas été accepté. Ce réseau intercepte peut-être la connexion. Choisissez un autre protocole.",
-  "errorTunnelStopped": "La connexion ne transmettait plus de trafic, elle a donc été coupée. Reconnexion…",
+  "errorTunnelStopped": "La connexion ne transmettait plus de trafic, elle a donc été coupée. Reconnectez-vous ou choisissez un autre protocole.",
   "rowUpdate": "Mise à jour",
   "updateAvailable": "{version} disponible",
   "updateInstallTitle": "Mettre à jour vers {version}",

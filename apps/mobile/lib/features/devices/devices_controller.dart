@@ -66,8 +66,6 @@ const int _handshakeWaitSteps = 75;
 
 const WireGuardKeyGenerator _keyGenerator = WireGuardKeyGenerator();
 
-const Duration _engineRecoveryInterval = Duration(minutes: 2);
-
 String _inboundOf(String profileCode) => profileCode.endsWith('-adblock')
     ? profileCode.substring(0, profileCode.length - '-adblock'.length)
     : profileCode;
@@ -76,6 +74,22 @@ String _inboundOf(String profileCode) => profileCode.endsWith('-adblock')
 /// carries nothing is found out in about 20 s; a server offering twelve
 /// would otherwise keep somebody at Connecting for four minutes.
 const int _automaticTries = 4;
+
+/// The counters when this device last received anything over the tunnel.
+typedef TrafficMark = ({int rx, int tx, DateTime at});
+
+/// Whether apps are sending into the tunnel and getting nothing back: at
+/// least 4 KB sent since anything was last received, 15 s ago or more. How a
+/// route that throttles bigger transfers looks between the minute checks --
+/// direct to Germany from Iran answered small requests and then stalled
+/// pages and video (2026-11-11).
+bool trafficStalled(TunnelTraffic reading, TrafficMark? last, DateTime now) {
+  if (last == null || reading.rxBytes > last.rx) {
+    return false;
+  }
+  return reading.txBytes - last.tx >= 4096 &&
+      now.difference(last.at) >= const Duration(seconds: 15);
+}
 
 /// A failed probe this slow timed out rather than being refused.
 const Duration _probeGaveUp = Duration(seconds: 6);
@@ -137,6 +151,12 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
 
   Timer? _trafficSoon;
 
+  /// The tunnel's byte counters while connected. See _watchStall.
+  StreamSubscription<TunnelTraffic>? _stallReadings;
+  Timer? _stallPoll;
+  TrafficMark? _lastReceived;
+  DateTime _lastStallCheck = DateTime.fromMillisecondsSinceEpoch(0);
+
   bool _checkingTraffic = false;
 
   bool _checkingAccess = false;
@@ -163,11 +183,6 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
   /// Consecutive watch readings in which the interface was up but the engine
   /// behind it was dead. See _checkEngine.
   int _engineDeadReadings = 0;
-
-  /// When a dead engine last triggered an automatic reconnect. One attempt
-  /// per [_engineRecoveryInterval], so a server that is truly gone produces
-  /// "Off" and a message, not a loop.
-  DateTime? _lastEngineRecovery;
 
   /// Consecutive requests that did not come back through an Xray or
   /// Hysteria2 tunnel. See _checkTraffic.
@@ -747,28 +762,86 @@ final trafficCheckIntervalProvider = Provider<Duration>(
 /// DevicesController._tunnelAnswers. Cloudflare's speed endpoint answered
 /// from both an Iranian and a German exit (2026-10-30).
 const int dataProbeBytes = 131072;
+
+/// What the YouTube half of the data check must receive when it gets the page.
+const int _pageProbeBytes = 32768;
+
+/// Whether real data moves through the tunnel: 128 KB from Cloudflare *and*
+/// the YouTube home page, at once. Cloudflare alone was not enough: direct to
+/// Germany from Iran it kept downloading while YouTube failed to play and
+/// Google, Telegram and GitHub stalled, and the screen said Protected
+/// (2026-11-11). A redirect from YouTube (a consent page) still counts as an
+/// answer, so a working tunnel is never turned off over one.
 final tunnelMovesDataProvider =
     Provider<Future<bool> Function(LocalProxy? through)>(
       (Ref ref) => (LocalProxy? through) async {
-        const String path = '/__down?bytes=$dataProbeBytes';
-        if (through != null &&
-            defaultTargetPlatform == TargetPlatform.android) {
-          final ({int status, String body})? answer = await httpsThroughSocks(
+        final List<bool> both = await Future.wait(<Future<bool>>[
+          _fetches(
             through,
             host: 'speed.cloudflare.com',
-            path: path,
-            timeout: const Duration(seconds: 12),
-            // The headers come first; the default 64 KB would cut the
-            // download short and fail every working tunnel.
-            bodyLimit: dataProbeBytes + 4096,
-          );
-          return answer != null &&
-              answer.status == 200 &&
-              answer.body.length >= dataProbeBytes;
-        }
-        return _receives('https://speed.cloudflare.com$path', dataProbeBytes);
+            path: '/__down?bytes=$dataProbeBytes',
+            bytes: dataProbeBytes,
+          ),
+          _fetches(
+            through,
+            host: 'www.youtube.com',
+            path: '/',
+            bytes: _pageProbeBytes,
+            redirectAnswers: true,
+          ),
+        ]);
+        return both.every((bool ok) => ok);
       },
     );
+
+/// A GET of [host][path] through the tunnel: answered, and at least [bytes]
+/// of body when the answer is a 200.
+Future<bool> _fetches(
+  LocalProxy? through, {
+  required String host,
+  required String path,
+  required int bytes,
+  bool redirectAnswers = false,
+}) async {
+  bool good(int status, int length) =>
+      (status == 200 && length >= bytes) ||
+      (redirectAnswers && status >= 300 && status < 400);
+  if (through != null && defaultTargetPlatform == TargetPlatform.android) {
+    final ({int status, String body})? answer = await httpsThroughSocks(
+      through,
+      host: host,
+      path: path,
+      timeout: const Duration(seconds: 12),
+      // The headers come first and are counted too: YouTube's run past
+      // 4 KB (cookies, security policy), which failed every working tunnel.
+      bodyLimit: bytes + 32768,
+    );
+    return answer != null && good(answer.status, answer.body.length);
+  }
+  final HttpClient client = HttpClient()
+    ..connectionTimeout = const Duration(seconds: 5);
+  try {
+    return await () async {
+      final HttpClientRequest request = await client.getUrl(
+        Uri.parse('https://$host$path'),
+      );
+      request.followRedirects = false;
+      final HttpClientResponse response = await request.close();
+      int got = 0;
+      await for (final List<int> chunk in response) {
+        got += chunk.length;
+        if (got >= bytes) {
+          break;
+        }
+      }
+      return good(response.statusCode, got);
+    }().timeout(const Duration(seconds: 12));
+  } on Object {
+    return false;
+  } finally {
+    client.close(force: true);
+  }
+}
 
 /// Whether the sign-in is still good: false once the session expired or was
 /// signed out. See DevicesController._checkAccess.
@@ -882,27 +955,6 @@ Future<bool> _anyAnswers(List<String> urls) async {
     );
   }
   return answer.future;
-}
-
-Future<bool> _receives(String url, int bytes) async {
-  final HttpClient client = HttpClient()
-    ..connectionTimeout = const Duration(seconds: 5);
-  try {
-    return await () async {
-      final HttpClientResponse response = await (await client.getUrl(
-        Uri.parse(url),
-      )).close();
-      int got = 0;
-      await for (final List<int> chunk in response) {
-        got += chunk.length;
-      }
-      return response.statusCode == 200 && got >= bytes;
-    }().timeout(const Duration(seconds: 12));
-  } on Object {
-    return false;
-  } finally {
-    client.close(force: true);
-  }
 }
 
 Future<bool> _answers(String url) async {

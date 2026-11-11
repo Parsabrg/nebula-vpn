@@ -3197,15 +3197,13 @@ void _tunnelHonestyTests() {
       devicesControllerProvider,
     );
     expect(state.tunnelEstablished, isFalse);
-    // Not "Reconnecting": the one retry is spent.
     expect(
       state.actionErrorMessage,
-      harness.container.read(appTextProvider).errorTunnelNoTraffic,
+      harness.container.read(appTextProvider).errorTunnelStopped,
     );
-    // One automatic attempt to bring it back, and no more: the server is
-    // still not answering, so it ends Off rather than flapping.
-    expect(harness.tunnel.connectCalls, 2);
-    // Kept on the server, so the reconnect reused it.
+    // Turned off, never reconnected on the person's behalf.
+    expect(harness.tunnel.connectCalls, 1);
+    // Kept on the server, so connecting again reuses it.
     expect(harness.repository.revokePeerCalls, 0);
   });
 
@@ -3226,7 +3224,7 @@ void _tunnelHonestyTests() {
     expect(harness.tunnel.connectCalls, 1);
   });
 
-  test('an engine that died is restarted and Protected again', () async {
+  test('an engine that died is turned off, not restarted', () async {
     // xray.exe or hysteria.exe exiting leaves the adapter registered; the
     // interface check alone kept showing Protected over it.
     final harness = _harness(watchInterval: interval);
@@ -3245,9 +3243,12 @@ void _tunnelHonestyTests() {
     final DevicesState state = harness.container.read(
       devicesControllerProvider,
     );
-    expect(harness.xrayTunnel.connectCalls, 2);
-    expect(state.tunnelEstablished, isTrue);
-    expect(state.xrayClient, isNotNull);
+    expect(harness.xrayTunnel.connectCalls, 1);
+    expect(state.tunnelEstablished, isFalse);
+    expect(
+      state.actionErrorMessage,
+      harness.container.read(appTextProvider).errorTunnelStopped,
+    );
   });
 
   test('an engine this platform cannot see is never called dead', () async {
@@ -3270,21 +3271,15 @@ void _tunnelHonestyTests() {
     );
   });
 
-  test('an Xray tunnel that stops carrying traffic is brought back', () async {
+  test('an Xray tunnel that stops carrying traffic is turned off', () async {
     // The engine runs on when its server is blocked partway through a
     // session, and the process check sees nothing wrong.
     bool carries = true;
-    // The way is open again for the reconnect, as soon as it starts:
-    // flipping `carries` from the test raced an instant disconnect.
-    bool backForReconnect = false;
-    int Function() connects = () => 0;
     final harness = _harness(
       watchInterval: interval,
       trafficInterval: interval,
-      tunnelCarries: (_) async =>
-          carries || (backForReconnect && connects() >= 2),
+      tunnelCarries: (_) async => carries,
     );
-    connects = () => harness.xrayTunnel.connectCalls;
     addTearDown(harness.container.dispose);
     final DevicesController notifier = await xraySelected(
       harness.container,
@@ -3293,28 +3288,25 @@ void _tunnelHonestyTests() {
     harness.xrayTunnel.sharedVpn = harness.tunnel;
     await notifier.connect(_deviceId);
     carries = false;
-    backForReconnect = true;
 
     await Future<void>.delayed(interval * 2);
     // One or two unanswered requests are a blip, not a dead tunnel.
-    expect(harness.xrayTunnel.connectCalls, 1);
     expect(
       harness.container.read(devicesControllerProvider).tunnelEstablished,
       isTrue,
     );
 
-    // The third takes it down; the reconnect finds the way open again.
-    while (harness.xrayTunnel.connectCalls < 2) {
-      await Future<void>.delayed(interval);
-    }
-    carries = true;
-    await Future<void>.delayed(interval * 20);
-
+    await _untilOff(harness.container, interval);
     final DevicesState state = harness.container.read(
       devicesControllerProvider,
     );
-    expect(harness.xrayTunnel.connectCalls, 2);
-    expect(state.tunnelEstablished, isTrue);
+    expect(state.tunnelEstablished, isFalse);
+    expect(
+      state.actionErrorMessage,
+      harness.container.read(appTextProvider).errorTunnelStopped,
+    );
+    // Never reconnected on the person's behalf.
+    expect(harness.xrayTunnel.connectCalls, 1);
     expect(harness.repository.revokePeerCalls, 0);
   });
 
@@ -3339,13 +3331,12 @@ void _tunnelHonestyTests() {
       await notifier.connect(_deviceId);
       carries = false;
 
-      for (int waited = 0; waited < 200; waited++) {
-        if (harness.xrayTunnel.connectCalls >= 2) {
-          break;
-        }
-        await Future<void>.delayed(interval);
-      }
-      expect(harness.xrayTunnel.connectCalls, greaterThanOrEqualTo(2));
+      await _untilOff(harness.container, interval);
+      expect(
+        harness.container.read(devicesControllerProvider).tunnelEstablished,
+        isFalse,
+      );
+      expect(harness.xrayTunnel.connectCalls, 1);
     },
   );
 
@@ -3369,68 +3360,12 @@ void _tunnelHonestyTests() {
     await notifier.connect(_deviceId);
     moves = false;
 
-    for (int waited = 0; waited < 200; waited++) {
-      if (harness.xrayTunnel.connectCalls >= 2) {
-        break;
-      }
-      await Future<void>.delayed(interval);
-    }
-    expect(harness.xrayTunnel.connectCalls, greaterThanOrEqualTo(2));
-  });
-
-  test('a second stall soon after does not say Reconnecting', () async {
-    // One retry per interval: the second stall ends Off, and the screen must
-    // not promise a reconnect that is not coming.
-    bool carries = true;
-    // The way is open again for the reconnect, as soon as it starts:
-    // flipping `carries` from the test raced an instant disconnect.
-    bool backForReconnect = false;
-    int Function() connects = () => 0;
-    final harness = _harness(
-      watchInterval: interval,
-      trafficInterval: interval,
-      tunnelCarries: (_) async =>
-          carries || (backForReconnect && connects() >= 2),
-    );
-    connects = () => harness.xrayTunnel.connectCalls;
-    addTearDown(harness.container.dispose);
-    final DevicesController notifier = await xraySelected(
-      harness.container,
-      harness.repository,
-    );
-    harness.xrayTunnel.sharedVpn = harness.tunnel;
-    await notifier.connect(_deviceId);
-    carries = false;
-    backForReconnect = true;
-    while (harness.xrayTunnel.connectCalls < 2) {
-      await Future<void>.delayed(interval);
-    }
-    carries = true;
-    while (!harness.container
-        .read(devicesControllerProvider)
-        .tunnelEstablished) {
-      await Future<void>.delayed(interval);
-    }
-    carries = false;
-    backForReconnect = false;
-    for (int waited = 0; waited < 200; waited++) {
-      if (!harness.container
-          .read(devicesControllerProvider)
-          .tunnelEstablished) {
-        break;
-      }
-      await Future<void>.delayed(interval);
-    }
-
-    final DevicesState state = harness.container.read(
-      devicesControllerProvider,
-    );
-    expect(harness.xrayTunnel.connectCalls, 2);
-    expect(state.tunnelEstablished, isFalse);
+    await _untilOff(harness.container, interval);
     expect(
-      state.actionErrorMessage,
-      harness.container.read(appTextProvider).errorTunnelNoTraffic,
+      harness.container.read(devicesControllerProvider).tunnelEstablished,
+      isFalse,
     );
+    expect(harness.xrayTunnel.connectCalls, 1);
   });
 
   test('a tunnel that stays dead ends Off with the reason', () async {
@@ -3449,29 +3384,18 @@ void _tunnelHonestyTests() {
     await notifier.connect(_deviceId);
     carries = false;
 
-    // The reconnect waits between its own tries, in real time.
-    for (int waited = 0; waited < 100; waited++) {
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-      final DevicesState now = harness.container.read(
-        devicesControllerProvider,
-      );
-      if (harness.xrayTunnel.connectCalls == 2 &&
-          !now.isSubmitting &&
-          !now.tunnelEstablished) {
-        break;
-      }
-    }
+    await _untilOff(harness.container, interval);
     await Future<void>.delayed(interval * 20);
 
     final DevicesState state = harness.container.read(
       devicesControllerProvider,
     );
-    // One attempt to bring it back, and no more.
-    expect(harness.xrayTunnel.connectCalls, 2);
+    // Off, and stays off: no attempt to bring it back.
+    expect(harness.xrayTunnel.connectCalls, 1);
     expect(state.tunnelEstablished, isFalse);
     expect(
       state.actionErrorMessage,
-      harness.container.read(appTextProvider).errorTunnelNoTraffic,
+      harness.container.read(appTextProvider).errorTunnelStopped,
     );
   });
 
@@ -3524,16 +3448,22 @@ void _tunnelHonestyTests() {
       resumed();
     }
     for (int waited = 0; waited < 100; waited++) {
-      if (harness.xrayTunnel.connectCalls == 2) {
+      if (!harness.container
+          .read(devicesControllerProvider)
+          .tunnelEstablished) {
         break;
       }
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
 
-    expect(harness.xrayTunnel.connectCalls, 2);
+    expect(
+      harness.container.read(devicesControllerProvider).tunnelEstablished,
+      isFalse,
+    );
+    expect(harness.xrayTunnel.connectCalls, 1);
   });
 
-  test('a tunnel whose DNS stopped answering is brought back', () async {
+  test('a tunnel whose DNS stopped answering is turned off', () async {
     // Requests through the proxy still answered -- it looks names up
     // itself -- while no app could resolve one.
     bool resolves = true;
@@ -3555,9 +3485,11 @@ void _tunnelHonestyTests() {
     await notifier.connect(_deviceId);
     resolves = false;
 
-    while (harness.xrayTunnel.connectCalls < 2) {
-      await Future<void>.delayed(interval);
-    }
+    await _untilOff(harness.container, interval);
+    expect(
+      harness.container.read(devicesControllerProvider).tunnelEstablished,
+      isFalse,
+    );
 
     // The resolver the tunnel gives Android, not one of the check's own.
     expect(asked.first.address, '94.140.14.140');
@@ -5154,4 +5086,14 @@ void _hostileNetworkTests() {
       expect(history['vless-ws-tls']?.failures, 1);
     },
   );
+}
+
+/// Waits, a bounded while, for the connection to be turned off.
+Future<void> _untilOff(ProviderContainer container, Duration interval) async {
+  for (int waited = 0; waited < 400; waited++) {
+    if (!container.read(devicesControllerProvider).tunnelEstablished) {
+      return;
+    }
+    await Future<void>.delayed(interval);
+  }
 }
