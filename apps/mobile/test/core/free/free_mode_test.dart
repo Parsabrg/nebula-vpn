@@ -2,57 +2,53 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nebula_mobile/core/free/free_mode.dart';
+import 'package:nebula_mobile/core/free/subscriptions.dart';
 import 'package:nebula_mobile/core/servers/server_repository.dart';
 import 'package:nebula_mobile/core/settings/advanced_settings_controller.dart';
 import 'package:nebula_mobile/core/storage/storage_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const String _builtIn =
+const String _other =
     'vless://0f1e2d3c-4b5a-4978-8a6b-5c4d3e2f1a0b@188.114.97.6:443'
-    '?security=tls&type=ws&sni=relay.example.workers.dev&path=%2F#Nebula%20relay';
+    '?security=tls&type=ws&sni=other.example.org&path=%2F#Other';
 const String _mine =
     'vless://11111111-1111-4111-8111-111111111111@104.16.1.1:8443'
     '?security=tls&type=ws&sni=mine.example.workers.dev&path=%2Fws#Mine';
 
 Future<ProviderContainer> _container({
-  List<String> builtIn = const <String>[_builtIn],
   InMemoryFreeLinkStore? store,
   Map<String, Object> stored = const <String, Object>{},
+  List<Override> extra = const <Override>[],
 }) async {
   SharedPreferences.setMockInitialValues(stored);
   final SharedPreferences preferences = await SharedPreferences.getInstance();
   return ProviderContainer(
     overrides: <Override>[
       sharedPreferencesProvider.overrideWithValue(preferences),
-      builtInFreeLinksProvider.overrideWithValue(builtIn),
       freeLinkStoreProvider.overrideWithValue(store ?? InMemoryFreeLinkStore()),
+      ...extra,
     ],
   );
 }
 
 void main() {
   group('the list', () {
-    test('the build comes first, and each link once', () {
+    test('in the order added, and each link once', () {
       final List<FreeProfile> profiles = freeProfilesFrom(
-        builtIn: <String>[_builtIn],
-        added: <String>[_mine, _builtIn, 'vless://nonsense', '  $_mine '],
+        added: <String>[_other, _mine, _other, 'vless://nonsense', '  $_mine '],
       );
       expect(profiles.map((FreeProfile p) => p.name), <String>[
-        'Nebula relay',
+        'Other',
         'Mine',
       ]);
-      expect(profiles.first.builtIn, isTrue);
-      expect(profiles.last.builtIn, isFalse);
       expect(profiles.last.client.sni, 'mine.example.workers.dev');
     });
 
     test('a link keeps its code from one run to the next', () {
-      String codeOf(String link) => freeProfilesFrom(
-        builtIn: const <String>[],
-        added: <String>[link],
-      ).single.code;
+      String codeOf(String link) =>
+          freeProfilesFrom(added: <String>[link]).single.code;
       expect(codeOf(_mine), codeOf(' $_mine\n'));
-      expect(codeOf(_mine), isNot(codeOf(_builtIn)));
+      expect(codeOf(_mine), isNot(codeOf(_other)));
       expect(codeOf(_mine), matches(RegExp(r'^free-[0-9a-f]{8}$')));
     });
   });
@@ -61,8 +57,7 @@ void main() {
     late LocalServerRepository repository;
     setUp(() {
       repository = LocalServerRepository(
-        builtIn: const <String>[_builtIn],
-        store: InMemoryFreeLinkStore(<String>[_mine]),
+        store: InMemoryFreeLinkStore(<String>[_other, _mine]),
       );
     });
 
@@ -70,7 +65,7 @@ void main() {
       final List<AvailableServer> servers = await repository
           .listAvailableServers();
       expect(servers.map((AvailableServer s) => s.displayName), <String>[
-        'Nebula relay',
+        'Other',
         'Mine',
       ]);
       final AvailableProfile profile = servers.last.profiles.single;
@@ -108,6 +103,51 @@ void main() {
     );
   });
 
+  group('the free_sub subscription', () {
+    Future<ProviderContainer> withStore(
+      InMemorySubscriptionStore store, {
+      required bool free,
+    }) async {
+      return _container(
+        stored: <String, Object>{freeModeKey: free},
+        extra: <Override>[
+          storedFreeModeProvider.overrideWithValue(free),
+          subscriptionStoreProvider.overrideWithValue(store),
+        ],
+      );
+    }
+
+    test('every free user starts with it, once', () async {
+      final InMemorySubscriptionStore store = InMemorySubscriptionStore()
+        ..defaultOffered = false;
+      final ProviderContainer first = await withStore(store, free: true);
+      addTearDown(first.dispose);
+      expect(
+        (await first.read(
+          subscriptionsProvider.future,
+        )).map((Subscription s) => s.url),
+        <String>[defaultSubscriptionUrl],
+      );
+
+      // Removed, it stays removed.
+      await first
+          .read(subscriptionsProvider.notifier)
+          .remove(defaultSubscriptionUrl);
+      final ProviderContainer later = await withStore(store, free: true);
+      addTearDown(later.dispose);
+      expect(await later.read(subscriptionsProvider.future), isEmpty);
+    });
+
+    test('not added for somebody with a server', () async {
+      final InMemorySubscriptionStore store = InMemorySubscriptionStore()
+        ..defaultOffered = false;
+      final ProviderContainer container = await withStore(store, free: false);
+      addTearDown(container.dispose);
+      expect(await container.read(subscriptionsProvider.future), isEmpty);
+      expect(store.defaultOffered, isFalse);
+    });
+  });
+
   group('entering and leaving', () {
     test('entering is remembered, and gives the screens a device', () async {
       final ProviderContainer container = await _container();
@@ -122,8 +162,7 @@ void main() {
         isTrue,
       );
       expect(container.read(deviceIdStoreProvider).read(), freeDeviceId);
-      // A shared relay's requests are counted: what does not need it stays
-      // off it.
+      // Public servers are shared: what does not need them stays off them.
       expect(
         container.read(advancedSettingsControllerProvider).iranDirect,
         isTrue,
@@ -178,12 +217,12 @@ void main() {
             .read(freeProfilesProvider)
             .value!
             .map((FreeProfile p) => p.name),
-        <String>['Nebula relay', 'Mine'],
+        <String>['Mine'],
       );
 
       await notifier.remove(_mine);
       expect(await store.read(), isEmpty);
-      expect(container.read(freeProfilesProvider).value, hasLength(1));
+      expect(container.read(freeProfilesProvider).value, isEmpty);
     });
   });
 }

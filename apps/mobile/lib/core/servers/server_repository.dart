@@ -477,16 +477,13 @@ final serverRepositoryProvider = Provider<ServerRepository>((Ref ref) {
   // With no server, the list and the credentials are this device's own.
   if (ref.watch(freeModeProvider)) {
     return LocalServerRepository(
-      builtIn: ref.watch(builtInFreeLinksProvider),
       store: ref.watch(freeLinkStoreProvider),
       subscriptions: ref.watch(subscriptionStoreProvider),
       importedName: () => ref.read(appTextProvider).ownLinksImported,
-      builtInName: () => ref.read(appTextProvider).freeBuiltInGroup,
     );
   }
   // Signed in: the server's list, then the links and subscriptions added on
-  // this device. The build's shared relays are for using the app without a
-  // server, and stay out of it.
+  // this device.
   return CombinedServerRepository(
     server: DioServerRepository(
       ref.watch(dioProvider),
@@ -496,7 +493,6 @@ final serverRepositoryProvider = Provider<ServerRepository>((Ref ref) {
           : null,
     ),
     own: LocalServerRepository(
-      builtIn: const <String>[],
       store: ref.watch(freeLinkStoreProvider),
       subscriptions: ref.watch(subscriptionStoreProvider),
       // Asked when the list is built, in the language of the moment.

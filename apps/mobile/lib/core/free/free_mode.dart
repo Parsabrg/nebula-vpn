@@ -10,14 +10,10 @@ import '../storage/device_id_store.dart';
 import '../storage/storage_providers.dart';
 import 'subscriptions.dart';
 
-/// Using the app with no Nebula server: connections come from `vless://`
-/// links -- the build's own relay, and any the person adds -- and stay on
-/// this device. There is no account, and no server is told anything.
-
-/// The relays this build comes with, as links separated by whitespace
-/// (`--dart-define=FREE_LINKS=...`). A deployment's value, like the API
-/// address: never in source.
-const String _builtInLinks = String.fromEnvironment('FREE_LINKS');
+/// Using the app with no Nebula server: connections come from links and
+/// subscriptions -- the free_sub subscription every free user starts with,
+/// and any the person adds -- and stay on this device. There is no account,
+/// and no server is told anything.
 
 /// What the controller is given where a signed-in device has its id. Nothing
 /// answers to it.
@@ -27,11 +23,10 @@ typedef FreeProfile = ({
   String code,
   String name,
   String link,
-  bool builtIn,
   XrayClientResult client,
 
   /// The subscriptions it came from, by address -- not by name, which the
-  /// person can change; empty for one of the build's or one added by hand.
+  /// person can change; empty for one added by hand.
   List<String> sources,
 });
 
@@ -90,13 +85,6 @@ final freeLinkStoreProvider = Provider<FreeLinkStore>(
 );
 
 /// The build's own links. A provider so a test can name some.
-final builtInFreeLinksProvider = Provider<List<String>>(
-  (Ref ref) => _builtInLinks
-      .split(RegExp(r'\s+'))
-      .where((String link) => link.isNotEmpty)
-      .toList(),
-);
-
 /// Whether [serverCode] is one of this device's own links rather than a
 /// server's: those have no account behind them to ask about access.
 bool isOwnLinkCode(String? serverCode) =>
@@ -131,18 +119,16 @@ String _connectionKey(XrayClientResult c) => <Object?>[
   c.serviceName,
 ].join('|');
 
-/// Every usable profile: the build's first, then the person's own, then
-/// their subscriptions'. A link that no longer reads is left out rather than
+/// Every usable profile: the person's own, then their subscriptions'. A link that no longer reads is left out rather than
 /// offered and failed, and one already listed under another name only adds
 /// its subscription to the first one's sources.
 List<FreeProfile> freeProfilesFrom({
-  required List<String> builtIn,
   required List<String> added,
   List<Subscription> subscribed = const <Subscription>[],
 }) {
   final Map<String, int> byKey = <String, int>{};
   final List<FreeProfile> profiles = <FreeProfile>[];
-  void take(String raw, {required bool own, String? source}) {
+  void take(String raw, {String? source}) {
     final String link = raw.trim();
     final ImportedProfile? profile = parseLink(link);
     if (profile == null) {
@@ -157,7 +143,6 @@ List<FreeProfile> freeProfilesFrom({
           code: first.code,
           name: first.name,
           link: first.link,
-          builtIn: first.builtIn,
           client: first.client,
           sources: <String>[...first.sources, source],
         );
@@ -169,21 +154,17 @@ List<FreeProfile> freeProfilesFrom({
       code: _codeFor(key),
       name: profile.name,
       link: link,
-      builtIn: own,
       client: profile.client,
       sources: <String>[?source],
     ));
   }
 
-  for (final String link in builtIn) {
-    take(link, own: true);
-  }
   for (final String link in added) {
-    take(link, own: false);
+    take(link);
   }
   for (final Subscription subscription in subscribed) {
     for (final String link in subscription.links) {
-      take(link, own: false, source: subscription.url);
+      take(link, source: subscription.url);
     }
   }
   return profiles;
@@ -240,7 +221,6 @@ final freeProfilesProvider =
 class FreeProfilesNotifier extends AsyncNotifier<List<FreeProfile>> {
   @override
   Future<List<FreeProfile>> build() async => freeProfilesFrom(
-    builtIn: ref.watch(builtInFreeLinksProvider),
     added: await ref.watch(freeLinkStoreProvider).read(),
     subscribed: await ref.watch(subscriptionsProvider.future),
   );
@@ -279,27 +259,19 @@ class FreeProfilesNotifier extends AsyncNotifier<List<FreeProfile>> {
 /// server: each link is a "server" with the one profile it describes.
 class LocalServerRepository implements ServerRepository {
   LocalServerRepository({
-    required this.builtIn,
     required this.store,
     SubscriptionStore? subscriptions,
     this.importedName,
-    this.builtInName,
   }) : subscriptions = subscriptions ?? InMemorySubscriptionStore();
 
-  final List<String> builtIn;
   final FreeLinkStore store;
   final SubscriptionStore subscriptions;
 
-  /// When set, the links are listed as groups -- the build's relays (named
-  /// [builtInName]), the links added by hand (named this), and one per
-  /// subscription -- each with its links as its choices, rather than a
-  /// server per link: a subscription of 122 links buried everything else.
-  /// Null only where a test wants a server per link.
+  /// When set, the links are listed as groups -- the links added by hand
+  /// (named this), and one per subscription -- each with its links as its
+  /// choices, rather than a server per link: a subscription of 122 links
+  /// buried everything else. Null only where a test wants a server per link.
   final String Function()? importedName;
-  final String Function()? builtInName;
-
-  /// The code of the group holding the build's relays.
-  static const String builtInCode = 'free-builtin';
 
   /// The code of the group holding the links added by hand.
   static const String importedCode = 'free-imported';
@@ -326,11 +298,7 @@ class LocalServerRepository implements ServerRepository {
     _names = <String, String>{
       for (final Subscription s in subscribed) s.url: s.name,
     };
-    return freeProfilesFrom(
-      builtIn: builtIn,
-      added: await store.read(),
-      subscribed: subscribed,
-    );
+    return freeProfilesFrom(added: await store.read(), subscribed: subscribed);
   }
 
   /// Each subscription's name now, by address.
@@ -383,13 +351,9 @@ class LocalServerRepository implements ServerRepository {
       adBlock: false,
       requiredPort: profile.client.port,
     );
-    final List<FreeProfile> shipped = <FreeProfile>[
-      for (final FreeProfile p in profiles)
-        if (p.builtIn) p,
-    ];
     final List<FreeProfile> byHand = <FreeProfile>[
       for (final FreeProfile p in profiles)
-        if (p.sources.isEmpty && !p.builtIn) p,
+        if (p.sources.isEmpty) p,
     ];
     final Map<String, List<FreeProfile>> bySubscription =
         <String, List<FreeProfile>>{};
@@ -399,15 +363,6 @@ class LocalServerRepository implements ServerRepository {
       }
     }
     return <AvailableServer>[
-      if (shipped.isNotEmpty)
-        AvailableServer(
-          code: builtInCode,
-          displayName: builtInName?.call() ?? imported,
-          publicHost: '',
-          profiles: <AvailableProfile>[
-            for (final FreeProfile p in shipped) choice(p),
-          ],
-        ),
       if (byHand.isNotEmpty)
         AvailableServer(
           code: importedCode,
@@ -575,8 +530,32 @@ class SubscriptionsNotifier extends AsyncNotifier<List<Subscription>> {
   Future<void>? _running;
 
   @override
-  Future<List<Subscription>> build() =>
-      ref.watch(subscriptionStoreProvider).read();
+  Future<List<Subscription>> build() async {
+    final SubscriptionStore store = ref.watch(subscriptionStoreProvider);
+    final List<Subscription> current = await store.read();
+    // Free mode only -- somebody with a server of their own did not ask for
+    // it -- and once: removed, it stays removed.
+    if (!ref.watch(freeModeProvider) ||
+        current.any((Subscription s) => s.url == defaultSubscriptionUrl) ||
+        !await store.firstDefaultOffer()) {
+      return current;
+    }
+    final List<Subscription> withDefault = <Subscription>[
+      ...current,
+      const Subscription(url: defaultSubscriptionUrl),
+    ];
+    await store.write(withDefault);
+    // Its connections are fetched once this build is done; build itself
+    // does not wait on the network.
+    Future<void>(() async {
+      try {
+        await refresh(only: defaultSubscriptionUrl);
+      } on Object {
+        // Kept, empty, until the next refresh reaches it.
+      }
+    });
+    return withDefault;
+  }
 
   /// Adds and fetches it. False for an address that is not HTTPS; one
   /// already added is left as it was.

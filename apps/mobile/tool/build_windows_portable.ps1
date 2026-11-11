@@ -11,8 +11,6 @@ param(
     [string]$ApiBackupUrl,
 
     # A JSON file of further build-time values, for --dart-define-from-file.
-    # Where FREE_LINKS goes: a link's "&" ends the command when it is passed
-    # on flutter.bat's own command line.
     [string]$DefinesFile,
 
     [string]$OutputDirectory = "dist",

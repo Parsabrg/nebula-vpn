@@ -289,7 +289,6 @@ void main() {
   group('in free mode', () {
     test('the same connection twice is listed once, with both sources', () {
       final List<FreeProfile> profiles = freeProfilesFrom(
-        builtIn: const <String>[],
         added: const <String>[],
         subscribed: <Subscription>[
           const Subscription(
@@ -313,7 +312,6 @@ void main() {
 
     test('one added by hand stays its own, not a subscription\'s', () {
       final List<FreeProfile> profiles = freeProfilesFrom(
-        builtIn: const <String>[],
         added: const <String>[_a],
         subscribed: <Subscription>[
           const Subscription(

@@ -213,13 +213,10 @@ class _FreeModeScreenState extends ConsumerState<FreeModeScreen> {
     final NebulaTypography type = context.type;
     final AppText text = AppText.of(context);
     // A subscription's connections are summed up in its own row below; the
-    // list here is the build's and the person's own.
+    // list here is the person's own.
     final List<FreeProfile> profiles =
         (ref.watch(freeProfilesProvider).value ?? const <FreeProfile>[])
-            .where(
-              (FreeProfile p) =>
-                  p.sources.isEmpty && !(widget.ownLinks && p.builtIn),
-            )
+            .where((FreeProfile p) => p.sources.isEmpty)
             .toList();
     final List<Subscription> subscriptions =
         ref.watch(subscriptionsProvider).value ?? const <Subscription>[];
@@ -278,20 +275,14 @@ class _FreeModeScreenState extends ConsumerState<FreeModeScreen> {
                             style: TextStyle(color: palette.textPrimary),
                           ),
                           subtitle: Text(
-                            profile.builtIn
-                                ? text.freeRelayBuiltIn
-                                : text.freeRelayYours,
+                            text.freeRelayYours,
                             style: TextStyle(color: palette.textMuted),
                           ),
-                          // The build's own cannot be removed: it comes back
-                          // at the next launch.
-                          trailing: profile.builtIn
-                              ? null
-                              : IconButton(
-                                  tooltip: text.freeRemove,
-                                  icon: const Icon(Icons.close),
-                                  onPressed: () => _remove(profile),
-                                ),
+                          trailing: IconButton(
+                            tooltip: text.freeRemove,
+                            icon: const Icon(Icons.close),
+                            onPressed: () => _remove(profile),
+                          ),
                         ),
                       ),
                     const SizedBox(height: 24),
