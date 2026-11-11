@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="google-site-verification" content="q9O2IGXPfmHMiGnCKN3QvY1-Nh2_bhHjhr3msBdaQSc">
+<title>Nebula VPN – free, open-source VPN for Iran and censored networks</title>
+<meta name="description" content="Nebula VPN is a free, open-source, self-hosted VPN for people behind censorship, Iran first. Android, Windows and Linux apps with VLESS REALITY, XHTTP, Hysteria2, WireGuard and a DNS tunnel. نبولا وی‌پی‌ان، فیلترشکن متن‌باز.">
+<link rel="canonical" href="https://parsabrg.github.io/nebula-vpn/">
+<link rel="alternate" hreflang="en" href="https://parsabrg.github.io/nebula-vpn/">
+<link rel="alternate" hreflang="fa" href="https://parsabrg.github.io/nebula-vpn/#fa">
+<link rel="icon" type="image/png" href="favicon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Nebula VPN">
+<meta property="og:title" content="Nebula VPN – open-source VPN for censored networks">
+<meta property="og:description" content="Self-hosted VPN with Android, Windows and Linux apps that keep working when networks block and throttle. Built for Iran.">
+<meta property="og:url" content="https://parsabrg.github.io/nebula-vpn/">
+<meta property="og:image" content="https://parsabrg.github.io/nebula-vpn/icon.png">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Nebula VPN",
+  "alternateName": ["نبولا وی‌پی‌ان", "Nebula VPN for Iran"],
+  "applicationCategory": "SecurityApplication",
+  "operatingSystem": "Android, Windows, Linux",
+  "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
+  "license": "https://github.com/Parsabrg/nebula-vpn/blob/main/LICENSE",
+  "url": "https://parsabrg.github.io/nebula-vpn/",
+  "downloadUrl": "https://github.com/Parsabrg/nebula-vpn/releases/latest",
+  "codeRepository": "https://github.com/Parsabrg/nebula-vpn",
+  "image": "https://parsabrg.github.io/nebula-vpn/icon.png",
+  "description": "Free, open-source, self-hosted VPN for people behind censorship, Iran first."
+}
+</script>
+<style>
+  :root { --bg: #f7f7fa; --fg: #15151c; --muted: #5b5b6b; --card: #ffffff; --line: #e3e3ea; --accent: #4f63e7; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0b0b10; --fg: #f1f1f5; --muted: #a0a0b2; --card: #15151d; --line: #26263a; --accent: #8193ff; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 48px 16px 64px; }
+  header { display: flex; align-items: center; gap: 16px; }
+  header img { width: 64px; height: 64px; border-radius: 14px; }
+  h1 { font-size: clamp(32px, 6vw, 48px); margin: 0; letter-spacing: -0.02em; }
+  .lede { font-size: 20px; color: var(--muted); margin: 20px 0 28px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  a.button { display: inline-block; padding: 12px 22px; border-radius: 12px; text-decoration: none; font-weight: 600; }
+  a.primary { background: var(--accent); color: #fff; }
+  a.secondary { border: 1px solid var(--line); color: var(--fg); }
+  h2 { margin: 48px 0 12px; font-size: 24px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  .card h3 { margin: 0 0 6px; font-size: 17px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  ol, ul { padding-inline-start: 22px; }
+  li { margin: 6px 0; }
+  a { color: var(--accent); }
+  section[lang="fa"] { direction: rtl; text-align: right; font-family: Vazirmatn, Tahoma, system-ui, sans-serif; border-top: 1px solid var(--line); margin-top: 56px; }
+  footer { margin-top: 56px; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="icon.png" alt="Nebula VPN icon" width="64" height="64">
+    <h1>Nebula VPN</h1>
+  </header>
+  <p class="lede">A free, open-source VPN for networks that filter and throttle, Iran first. Run your own server; the apps for Android, Windows and Linux find the protocol your network lets through and keep working when addresses are blocked.</p>
+  <div class="actions">
+    <a class="button primary" href="https://github.com/Parsabrg/nebula-vpn/releases/latest">Download</a>
+    <a class="button secondary" href="https://github.com/Parsabrg/nebula-vpn">Source code on GitHub</a>
+  </div>
+
+  <h2>What it does</h2>
+  <div class="grid">
+    <div class="card"><h3>Many protocols</h3><p>VLESS with REALITY, XHTTP, gRPC and WebSocket, VMess, Shadowsocks-2022, Hysteria2 and WireGuard. Automatic tests them on your network and picks one that carries data.</p></div>
+    <div class="card"><h3>Gets past blocks</h3><p>Reaches its server directly, through a Cloudflare route with ECH, or through a relay server, and learns new routes without an update.</p></div>
+    <div class="card"><h3>DNS tunnel</h3><p>A last resort when only DNS gets through: slow, but enough for messages. Works with your own lists of resolvers.</p></div>
+    <div class="card"><h3>Free mode</h3><p>No server? Add vless://, vmess://, trojan://, ss:// or hysteria2:// links and subscriptions you trust, and test them all.</p></div>
+    <div class="card"><h3>iPhone and iPad</h3><p>A subscription link for Streisand, V2Box, Hiddify or FoXray gives an account's servers to iOS apps.</p></div>
+    <div class="card"><h3>Private by design</h3><p>No connection logs, no IP addresses kept, no public sign-up. Signed releases with build attestations.</p></div>
+  </div>
+
+  <h2>Get started</h2>
+  <ol>
+    <li>Download the app for Android, Windows or Linux from the <a href="https://github.com/Parsabrg/nebula-vpn/releases/latest">latest release</a>.</li>
+    <li>Pair it with your server's link, or use Free mode with links you trust.</li>
+    <li>Tap Connect. To run your own server, follow the <a href="https://github.com/Parsabrg/nebula-vpn#readme">install guide</a>.</li>
+  </ol>
+
+  <section lang="fa" id="fa">
+    <h2>نبولا وی‌پی‌ان (Nebula VPN)</h2>
+    <p>نبولا یک فیلترشکن و وی‌پی‌ان رایگان و متن‌باز برای اینترنتِ فیلترشده، به‌ویژه در ایران است. سرور خودتان را راه بیندازید؛ برنامه‌های اندروید، ویندوز و لینوکس پروتکلی را پیدا می‌کنند که شبکهٔ شما از آن عبور می‌دهد و وقتی آدرس‌ها مسدود می‌شوند هم کار می‌کنند.</p>
+    <ul>
+      <li>پروتکل‌ها: VLESS با REALITY، XHTTP، gRPC و WebSocket، VMess، Shadowsocks-2022، Hysteria2 و WireGuard.</li>
+      <li>تونل DNS برای وقتی که فقط DNS باز است.</li>
+      <li>حالت رایگان: لینک‌ها و اشتراک‌های خودتان را اضافه و تست کنید.</li>
+      <li>آیفون و آیپد: لینک اشتراک برای Streisand، V2Box، Hiddify یا FoXray.</li>
+      <li>بدون ثبت اتصال و بدون نگه‌داشتن آدرس IP.</li>
+    </ul>
+    <p><a href="https://github.com/Parsabrg/nebula-vpn/releases/latest">دانلود آخرین نسخه</a> · <a href="https://github.com/Parsabrg/nebula-vpn">کد منبع</a></p>
+  </section>
+
+  <footer>Nebula VPN is open source. Not affiliated with Slack's or Defined Networking's Nebula overlay network.</footer>
+</main>
+</body>
+</html>

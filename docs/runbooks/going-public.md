@@ -16,10 +16,10 @@ Checked before publishing:
 - **Release signing:** the keys were never in the repository; see
   `release-signing-key.md`.
 
-## Why the name stayed `Parsabrg/vpn`
+## Why the name stayed `Parsabrg/nebula-vpn`
 
 Installed apps check for updates at
-`api.github.com/repos/Parsabrg/vpn/releases/latest`
+`api.github.com/repos/Parsabrg/nebula-vpn/releases/latest`
 (`apps/mobile/lib/core/updates/update_check.dart`). Releases are published
 here from 0.1.33 on, so every installed app finds them.
 

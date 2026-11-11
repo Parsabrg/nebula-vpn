@@ -1,6 +1,6 @@
 [Unit]
 Description=Nebula VPN resolver for tunnelled clients (dnsproxy, DNS over HTTPS)
-Documentation=https://github.com/Parsabrg/vpn/blob/main/infrastructure/adguard/README.md
+Documentation=https://github.com/Parsabrg/nebula-vpn/blob/main/infrastructure/adguard/README.md
 After=network-online.target wg-quick@wg0.service
 Wants=network-online.target
 

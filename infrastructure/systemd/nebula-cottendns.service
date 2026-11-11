@@ -1,6 +1,6 @@
 [Unit]
 Description=Nebula VPN DNS tunnel server (CottenDNS, behind the port-53 router)
-Documentation=https://github.com/Parsabrg/vpn/blob/main/docs/runbooks/dns-tunnel.md
+Documentation=https://github.com/Parsabrg/nebula-vpn/blob/main/docs/runbooks/dns-tunnel.md
 After=network-online.target
 Wants=network-online.target
 # Rendered by nebula-agent on its first start; until then there is nothing to run.

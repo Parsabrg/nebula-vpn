@@ -72,14 +72,14 @@ Download the draft's files into a folder of their own:
 
 ```sh
 mkdir -p build/release-X && cd build/release-X
-gh release download vX -R Parsabrg/vpn   # every file, the server bundle too
+gh release download vX -R Parsabrg/nebula-vpn   # every file, the server bundle too
 ```
 
 **Check each came from the workflow and the tag.** This fails for a file
 anyone swapped into the draft:
 
 ```sh
-for f in nebula-vpn-vX-*; do gh attestation verify "$f" -R Parsabrg/vpn || echo "NOT VERIFIED: $f"; done
+for f in nebula-vpn-vX-*; do gh attestation verify "$f" -R Parsabrg/nebula-vpn || echo "NOT VERIFIED: $f"; done
 ```
 
 **Sign the APKs** with the release key
@@ -113,7 +113,7 @@ Anyone can then check a download with `sha256sum -c SHA256SUMS.txt
 SHA256` (Windows), and the manifest's signature with the second
 `ssh-keygen` command against `docs/release-signers` (OpenSSH 8.1 or newer).
 The attestations are a second, independent check of the Windows and Linux
-files: `gh attestation verify <file> -R Parsabrg/vpn`.
+files: `gh attestation verify <file> -R Parsabrg/nebula-vpn`.
 
 ## 4. Publish
 
@@ -121,10 +121,10 @@ Replace the `-tosign` APKs in the draft with the signed ones, add the
 manifest and its signature, write the notes, then publish as a pre-release:
 
 ```sh
-for abi in arm64 arm x64 universal; do gh release delete-asset vX nebula-vpn-vX-android-$abi-tosign.apk -R Parsabrg/vpn -y; done
-gh release upload vX nebula-vpn-vX-android-*.apk SHA256SUMS.txt SHA256SUMS.txt.sig -R Parsabrg/vpn --clobber
-gh release edit vX --notes-file notes.md -R Parsabrg/vpn
-gh release edit vX --draft=false --prerelease -R Parsabrg/vpn
+for abi in arm64 arm x64 universal; do gh release delete-asset vX nebula-vpn-vX-android-$abi-tosign.apk -R Parsabrg/nebula-vpn -y; done
+gh release upload vX nebula-vpn-vX-android-*.apk SHA256SUMS.txt SHA256SUMS.txt.sig -R Parsabrg/nebula-vpn --clobber
+gh release edit vX --notes-file notes.md -R Parsabrg/nebula-vpn
+gh release edit vX --draft=false --prerelease -R Parsabrg/nebula-vpn
 ```
 
 Large uploads can drop through the Cloudflare route; upload the files one

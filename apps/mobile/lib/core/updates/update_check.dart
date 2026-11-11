@@ -13,7 +13,7 @@ import '../wireguard/native_tunnel_channel.dart';
 /// "not found" and the check finds nothing, which is the intended outcome.
 const String releasesRepository = String.fromEnvironment(
   'UPDATE_REPOSITORY',
-  defaultValue: 'Parsabrg/vpn',
+  defaultValue: 'Parsabrg/nebula-vpn',
 );
 
 /// A newer release than the one installed.

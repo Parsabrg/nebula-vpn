@@ -1,11 +1,17 @@
 # Nebula VPN
 
-Nebula VPN is a self-hosted VPN built for networks that filter and throttle,
-Iran's first. One server runs the control plane and the VPN; the apps for
-Android, Windows and Linux connect to it with whichever protocol the network
-lets through, and keep working when the server's own address is blocked.
+**Nebula VPN** is a free, open-source, self-hosted VPN built for networks that
+filter and throttle, Iran's first. One server runs the control plane and the
+VPN; the apps for Android, Windows and Linux connect to it with whichever
+protocol the network lets through (VLESS REALITY, XHTTP, Hysteria2, WireGuard,
+a DNS tunnel), and keep working when the server's own address is blocked.
 
-Releases are on the [releases page](https://github.com/Parsabrg/vpn/releases).
+نبولا وی‌پی‌ان (Nebula VPN): فیلترشکن رایگان و متن‌باز برای اینترنت فیلترشده
+ایران، با برنامهٔ اندروید، ویندوز و لینوکس.
+
+Website: [parsabrg.github.io/nebula-vpn](https://parsabrg.github.io/nebula-vpn/).
+
+Releases are on the [releases page](https://github.com/Parsabrg/nebula-vpn/releases).
 [`docs/ROADMAP.md`](docs/ROADMAP.md) says what comes next, and its status table is the
 record of what is done and how it was tested; the full target is in
 [`docs/roadmap-sections.md`](docs/roadmap-sections.md).
@@ -45,8 +51,10 @@ record of what is done and how it was tested; the full target is in
 
 - No unrestricted public registration.
 - Client WireGuard private keys never leave the device.
-- Xray credentials are unique per device and never exposed through public
-  subscription URLs, logs, analytics or error reports.
+- Xray credentials are unique per device and never exposed through logs,
+  analytics or error reports. A subscription link (for iOS apps) exists only
+  when the account holder makes one; it holds credentials of its own, counts
+  as a device, and is revoked like one.
 - No connection logs and no IP addresses kept; see
   [`docs/privacy.md`](docs/privacy.md).
 - The public API never gets root or a shell. VPN changes go through narrow
