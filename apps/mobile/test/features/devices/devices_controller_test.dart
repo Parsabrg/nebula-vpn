@@ -1025,6 +1025,30 @@ void main() {
       expect(state.actionErrorMessage, contains('blocking'));
     });
 
+    test('a tunnel that answers but moves no data is undone', () async {
+      // XHTTP through the CDN: two tiny requests answered, 0 B downloaded,
+      // and "Protected" on the screen (owner, 2026-11-10).
+      final harness = _harness(tunnelMovesData: (_) async => false);
+      addTearDown(harness.container.dispose);
+      harness.repository.servers = <AvailableServer>[_wireGuardOnlyServer];
+      await harness.container.read(devicesControllerProvider.notifier).load();
+      final DevicesController notifier = harness.container.read(
+        devicesControllerProvider.notifier,
+      );
+      notifier.selectServer('ams-1');
+      notifier.selectProfile('wg-default');
+      harness.repository.requestPeerResult = _peerResult();
+      harness.tunnel.handshake = true;
+
+      await notifier.connect(_deviceId);
+
+      final DevicesState state = harness.container.read(
+        devicesControllerProvider,
+      );
+      expect(state.tunnelEstablished, isFalse);
+      expect(harness.tunnel.disconnectCalls, 1);
+    });
+
     test(
       'a server under maintenance is not connected to, and says why',
       () async {
