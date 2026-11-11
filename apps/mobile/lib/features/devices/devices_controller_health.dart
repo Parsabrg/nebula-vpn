@@ -475,6 +475,7 @@ mixin _HealthChecks on _DevicesCore {
   Future<bool> _tunnelCarriesTraffic(
     int attempt, {
     bool viaProxy = true,
+    bool slow = false,
   }) async {
     final Future<bool> Function(LocalProxy?) carries = ref.read(
       tunnelCarriesTrafficProvider,
@@ -496,7 +497,10 @@ mixin _HealthChecks on _DevicesCore {
         'traffic probe ${tried + 1}: ${answered ? 'answered' : 'no answer'} '
         'in ${took.elapsedMilliseconds} ms',
       );
-      if (!answered && took.elapsed >= _probeGaveUp) {
+      // Not over the DNS tunnel: its first request takes 7-9 s while the
+      // session warms up, so one timeout says nothing (2 of 3 reconnects
+      // failed on 0.1.35, 2026-11-11).
+      if (!answered && !slow && took.elapsed >= _probeGaveUp) {
         // It waited out its whole deadline: nothing is there. Trying twice
         // more only adds the same wait again (a dead server sat at
         // Connecting for 79 s). A quick failure -- the engine still coming
@@ -512,7 +516,7 @@ mixin _HealthChecks on _DevicesCore {
         // (on the phone, 2026-10-17) -- "Protected" over a tunnel that slow
         // is the screen saying connected while nothing loads.
         final bool confirmed = await second.timeout(
-          _confirmWithin,
+          slow ? _probeTimeout : _confirmWithin,
           onTimeout: () => false,
         );
         _mark('traffic confirm: ${confirmed ? 'answered' : 'no answer'}');
