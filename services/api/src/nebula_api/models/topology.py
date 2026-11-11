@@ -15,7 +15,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import CIDR, INET
+from sqlalchemy.dialects.postgresql import CIDR, INET, JSONB
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -465,3 +465,39 @@ class UserServerAssignment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             f"id={self.id!r}, user_id={self.user_id!r}, "
             f"server_id={self.vpn_server_id!r}, state={self.state!r})"
         )
+
+
+class RelayRoute(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A relay added in the admin panel: a joined server (via) forwarding some
+    of its ports to another (exit). Listed to the app beside the relays in
+    NEBULA_RELAYS; see nebula_api/relays.py and docs/runbooks/relay.md."""
+
+    __tablename__ = "relay_routes"
+    __table_args__ = (
+        CheckConstraint("length(code) BETWEEN 1 AND 64", name="code_length"),
+        CheckConstraint("length(display_name) BETWEEN 1 AND 96", name="display_name_length"),
+        CheckConstraint(
+            "length(host) BETWEEN 1 AND 253 AND host !~ '[/@[:space:]]'",
+            name="host_format",
+        ),
+        CheckConstraint("exit_server_id <> via_server_id", name="exit_is_not_via"),
+        UniqueConstraint("code", name="uq_relay_routes_code"),
+    )
+
+    code: Mapped[str] = mapped_column(String(64), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(96), nullable=False)
+    exit_server_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("vpn_servers.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    via_server_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("vpn_servers.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    # The relay's address the app dials.
+    host: Mapped[str] = mapped_column(String(253), nullable=False)
+    # The relay's port for each of the exit's profiles (codes without
+    # "-adblock"), in the order the app lists them.
+    ports: Mapped[dict[str, int]] = mapped_column(JSONB, nullable=False)

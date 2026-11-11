@@ -956,6 +956,39 @@ fi
 # A relay's agent checks the forwarded TCP ports answer from here.
 if [ -n "$RELAY_CHECK" ]; then agentset NEBULA_RELAY_CHECK_TARGETS "$RELAY_CHECK"
 else sed -i '/^NEBULA_RELAY_CHECK_TARGETS=/d' $ETC/agent.env; fi
+# A relay also reports in itself, outward, every 30 seconds: TLS into Iran
+# from abroad is filtered at times, and the poll above then fails while the
+# relay works (docs/runbooks/relay.md, "The relay reports in").
+RELAY_REPORT_URL=$(relayget NEBULA_RELAY_REPORT_URL) RELAY_REPORT_TOKEN=$(relayget NEBULA_RELAY_REPORT_TOKEN)
+if [ -n "$RELAY_PORTS" ] && [ -n "$RELAY_REPORT_URL" ] && [ -n "$RELAY_REPORT_TOKEN" ]; then
+  [[ $RELAY_REPORT_URL =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?/v1/relays/[a-z0-9_-]+/up$ ]] \
+    || die "NEBULA_RELAY_REPORT_URL in $ETC/relay.env must look like https://<control plane>/v1/relays/<code>/up"
+  [[ $RELAY_REPORT_TOKEN =~ ^[A-Za-z0-9_-]{16,}$ ]] \
+    || die "NEBULA_RELAY_REPORT_TOKEN in $ETC/relay.env must be the control plane's token"
+  install -m 600 /dev/null $ETC/relay-report-token
+  printf '%s' "$RELAY_REPORT_TOKEN" > $ETC/relay-report-token
+  cat > /etc/systemd/system/nebula-relay-report.service <<UNIT
+[Unit]
+Description=Tell the exit's control plane this relay reaches it
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'curl -fsS -m 15 -o /dev/null -X POST -H "Authorization: Bearer \$(cat $ETC/relay-report-token)" $RELAY_REPORT_URL'
+UNIT
+  cat > /etc/systemd/system/nebula-relay-report.timer <<'UNIT'
+[Unit]
+Description=Report the relay every 30 seconds
+[Timer]
+OnBootSec=30
+OnUnitActiveSec=30
+AccuracySec=5
+[Install]
+WantedBy=timers.target
+UNIT
+  systemctl daemon-reload; systemctl enable --now nebula-relay-report.timer >/dev/null 2>&1
+else
+  systemctl disable --now nebula-relay-report.timer >/dev/null 2>&1 || true
+  rm -f /etc/systemd/system/nebula-relay-report.{service,timer} $ETC/relay-report-token
+fi
 # name | enable key | port key | default port | proto | profile codes
 PROTOCOLS=(
   "gRPC|NEBULA_XRAY_GRPC_ENABLED|NEBULA_XRAY_GRPC_PORT|8447|tcp|vless-grpc-tls"

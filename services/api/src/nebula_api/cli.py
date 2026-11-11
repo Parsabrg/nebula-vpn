@@ -60,7 +60,7 @@ from nebula_api.provisioning.reconciliation import (
     run_xray_reconciliation,
 )
 from nebula_api.provisioning.revocation import credentials_awaiting_removal
-from nebula_api.relays import RelayHealth
+from nebula_api.relays import RelayHealth, load_panel_relays
 from nebula_api.retention import PruneSummary, RetentionPolicy, prune_history
 from nebula_api.seed_admin import SeedAdminStatus, seed_initial_admin
 from nebula_api.settings import Settings
@@ -1150,15 +1150,20 @@ async def _collect_usage_once(
     settings: Settings, keys: AuthKeyMaterial, engine: AsyncEngine
 ) -> _UsagePass:
     usage = UsageService(create_session_factory(engine), keys)
+    # The settings' relays and those added in the admin panel.
+    async with create_session_factory(engine)() as session:
+        panel = await load_panel_relays(session)
+    configured = settings.relay_list()
+    taken = {relay.code for relay in configured}
+    relays = configured + tuple(r for r in panel if r.code not in taken)
     summary = await run_usage_poll(
         create_session_factory(engine),
         lambda agent_host, agent_port: AgentClient(
             agent_host=agent_host, agent_port=agent_port, settings=settings
         ),
         usage,
-        relay_vias=frozenset(relay.via for relay in settings.relay_list()),
+        relay_vias=frozenset(relay.via for relay in relays),
     )
-    relays = settings.relay_list()
     if relays or settings.xray_client_dns:
         redis_client = Redis.from_url(settings.redis_url.get_secret_value())
         try:

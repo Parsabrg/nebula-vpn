@@ -25,6 +25,20 @@ kernel does it, with no VPN software in the path) and never logs them.
 Turning a server into a relay changes what it runs and opens ports on it, so
 it needs the owner's OK; the owner chooses the ports.
 
+## From the admin panel
+
+**Server health > Relays** lists every relay (those below in `NEBULA_RELAYS`
+and those added there), whether it is up, and the commands for its server.
+**Add relay** takes a name, the exit, the relay's server (it must have joined
+first, from Add server), the address people dial, and the relay's port for
+each protocol to offer. It is listed at once, as under maintenance until its
+server reports in. The commands write `relay.env` with
+`NEBULA_RELAY_REPORT_URL` and `NEBULA_RELAY_REPORT_TOKEN` too, so
+`install.sh` also sets up the 30-second report below; the token is the
+control plane's `NEBULA_RELAY_REPORT_TOKEN`, which the panel never shows.
+A relay added in the panel is removed there; one in `NEBULA_RELAYS` is changed
+in that file.
+
 ## On the relay
 
 Write `/etc/nebula/relay.env`, then rerun the installer:

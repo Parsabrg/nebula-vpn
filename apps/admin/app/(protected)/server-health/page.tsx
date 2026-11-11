@@ -134,6 +134,9 @@ export default async function ServerHealthPage({
         <p>
           <Link className="button button--primary" href="/server-health/add">
             Add server
+          </Link>{" "}
+          <Link className="button" href="/server-health/relays">
+            Relays
           </Link>
         </p>
       </section>
