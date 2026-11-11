@@ -64,8 +64,9 @@ void main() {
       expect(store.read(), ProtectionPreferences.defaults);
       expect(ProtectionPreferences.defaults.connectOnLaunch, isTrue);
       expect(ProtectionPreferences.defaults.notificationSpeed, isTrue);
-      // Only ever restores a connection somebody left on.
-      expect(ProtectionPreferences.defaults.reconnectAfterRestart, isTrue);
+      // A tunnel restored before the app runs is checked by nothing: only
+      // as somebody's choice.
+      expect(ProtectionPreferences.defaults.reconnectAfterRestart, isFalse);
     });
 
     testWidgets('toggling writes through to the store', (

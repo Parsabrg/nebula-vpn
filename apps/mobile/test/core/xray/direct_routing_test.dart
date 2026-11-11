@@ -92,8 +92,9 @@ void main() {
     );
     final Map<String, dynamic> routing =
         config['routing'] as Map<String, dynamic>;
-    // An address rule needs an address: names no rule matches are looked up.
-    expect(routing['domainStrategy'], 'IPIfNonMatch');
+    // No lookup of every new name before routing it: it slowed every new
+    // site down on a slow route (2026-11-10).
+    expect(routing.containsKey('domainStrategy'), isFalse);
     final List<Map<String, dynamic>> rules = _rules(config);
     // The ad block still comes first.
     expect(rules.first['outboundTag'], 'ad-block');

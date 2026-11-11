@@ -235,12 +235,11 @@ String renderXrayClientConfigJson(
     ],
     if (result.adBlock || routesAnythingDirect(result, settings))
       'routing': <String, dynamic>{
-        // An Iranian address can only be matched once there is one: with
-        // sniffing the destination is a name, so a name no rule matches is
-        // looked up (through the tunnel's resolver) and its address checked.
-        // One cached lookup per new name, paid only with the toggle on.
-        if (routesIranDirect(result, settings))
-          'domainStrategy': 'IPIfNonMatch',
+        // No 'IPIfNonMatch': it looked every new name up through the tunnel
+        // before routing it, a round trip per site that on a slow route
+        // made pages and apps start late and unevenly (owner, 2026-11-10).
+        // Iranian sites are matched by name (.ir and the known list) and
+        // Iranian addresses when an app connects to one directly.
         'rules': <Map<String, dynamic>>[
           // First, so no direct rule below can claim the app's own API.
           if (routesAnythingDirect(result, settings) && apiHosts.isNotEmpty)

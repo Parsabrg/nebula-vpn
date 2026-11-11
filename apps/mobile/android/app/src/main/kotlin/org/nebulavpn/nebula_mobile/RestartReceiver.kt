@@ -29,7 +29,8 @@ class RestartReceiver : BroadcastReceiver() {
         }
         // The Flutter shared_preferences file; the setting is written by Dart.
         val preferences = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-        if (!preferences.getBoolean("flutter.nebula.reconnect_after_restart", true)) {
+        // Off unless chosen: the same default as the Dart side.
+        if (!preferences.getBoolean("flutter.nebula.reconnect_after_restart", false)) {
             return
         }
         // This app's own VPN is no reason to stay down: right after an update

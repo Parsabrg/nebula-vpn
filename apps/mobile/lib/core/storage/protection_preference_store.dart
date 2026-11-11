@@ -11,7 +11,7 @@ class ProtectionPreferences {
     required this.connectOnLaunch,
     required this.notificationSpeed,
     required this.bypassLocalNetwork,
-    this.reconnectAfterRestart = true,
+    this.reconnectAfterRestart = false,
     this.blockWhenVpnDrops = false,
   });
 
@@ -40,7 +40,10 @@ class ProtectionPreferences {
   /// updated. Read by the Android side as well as here (RestartReceiver), so
   /// the stored key is part of that contract.
   ///
-  /// On by default: it only ever restores a connection somebody left on.
+  /// Off by default: the restored tunnel starts before the app does, with
+  /// the config it had, and nothing checks it carries traffic -- on a route
+  /// that had stopped working it read connected and carried nothing
+  /// (owner, 2026-11-10). On only as somebody's choice.
   final bool reconnectAfterRestart;
 
   /// Windows and Linux: while connected, nothing leaves except through the
