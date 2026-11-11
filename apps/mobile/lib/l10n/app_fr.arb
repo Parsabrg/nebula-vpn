@@ -442,5 +442,13 @@
   "deleteAccountKept": "Les totaux d'utilisation et le journal de sécurité sont conservés sous un numéro aléatoire qui n'est pas lié à vous. Les sauvegardes gardent les anciennes données jusqu'à 30 jours.",
   "deleteAccountAction": "Supprimer mon compte",
   "deletingAccount": "Suppression",
-  "accountDeleted": "Votre compte a été supprimé."
+  "accountDeleted": "Votre compte a été supprimé.",
+  "rowSubscriptionLink": "iPhone et iPad",
+  "subscriptionTitle": "Lien pour d'autres apps",
+  "subscriptionIntro": "Nebula n'a pas encore d'app pour iPhone ou iPad. Créez un lien d'abonnement et ajoutez-le dans Streisand, V2Box, Hiddify ou FoXray : ils reçoivent vos serveurs et les tiennent à jour. Le lien compte comme l'un de vos appareils, et en créer un nouveau désactive l'ancien.",
+  "subscriptionReady": "Copiez ce lien et ajoutez-le comme abonnement dans l'autre app. Gardez-le privé : quiconque l'a peut utiliser votre compte.",
+  "subscriptionMake": "Créer le lien",
+  "subscriptionCopy": "Copier",
+  "subscriptionCopied": "Lien copié",
+  "close": "Fermer"
 }

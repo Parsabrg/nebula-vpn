@@ -22,6 +22,7 @@ import '../../core/widgets/refresh_while_visible.dart';
 import '../../l10n/app_localizations.dart';
 import '../devices/devices_controller.dart';
 import 'account_controller.dart';
+import 'subscription_dialog.dart';
 import 'update_dialog.dart';
 
 /// The account: who you are, what you have used, until when, and the way out.
@@ -213,6 +214,11 @@ class _Details extends ConsumerWidget {
                 valueColor: palette.blueText,
                 onTap: () => offerUpdate(context, ref, update),
               ),
+            PanelRow(
+              label: text.rowSubscriptionLink,
+              value: text.open,
+              onTap: () => showSubscriptionLink(context, ref),
+            ),
             PanelRow(
               label: text.rowPassword,
               value: text.change,

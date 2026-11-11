@@ -442,5 +442,13 @@
   "deleteAccountKept": "Kullanım toplamları ve güvenlik kaydı, sizinle bağlantısı olmayan rastgele bir numarayla saklanır. Yedekler eski verileri 30 güne kadar tutar.",
   "deleteAccountAction": "Hesabımı sil",
   "deletingAccount": "Siliniyor",
-  "accountDeleted": "Hesabınız silindi."
+  "accountDeleted": "Hesabınız silindi.",
+  "rowSubscriptionLink": "iPhone ve iPad",
+  "subscriptionTitle": "Diğer uygulamalar için bağlantı",
+  "subscriptionIntro": "Nebula'nın henüz iPhone veya iPad uygulaması yok. Bir abonelik bağlantısı oluşturun ve Streisand, V2Box, Hiddify veya FoXray'e ekleyin: sunucularınızı alır ve güncel tutarlar. Bağlantı cihazlarınızdan biri sayılır ve yenisini oluşturmak eskisini devre dışı bırakır.",
+  "subscriptionReady": "Bu bağlantıyı kopyalayın ve diğer uygulamaya abonelik olarak ekleyin. Gizli tutun: ona sahip olan herkes hesabınızı kullanabilir.",
+  "subscriptionMake": "Bağlantı oluştur",
+  "subscriptionCopy": "Kopyala",
+  "subscriptionCopied": "Bağlantı kopyalandı",
+  "close": "Kapat"
 }

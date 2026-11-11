@@ -116,6 +116,10 @@ abstract interface class AccountRepository {
 
   /// Deletes the account for good. The password is asked for again.
   Future<void> deleteAccount(String password);
+
+  /// A new subscription link for other apps (iPhone, iPad); the account's
+  /// previous one stops working.
+  Future<String> newSubscriptionLink();
 }
 
 class DioAccountRepository implements AccountRepository {
@@ -206,6 +210,22 @@ class DioAccountRepository implements AccountRepository {
         '/v1/account/delete',
         data: <String, String>{'password': password},
       );
+    } on DioException catch (error) {
+      throw translateDioException(error);
+    }
+  }
+
+  @override
+  Future<String> newSubscriptionLink() async {
+    try {
+      final Response<dynamic> response = await _dio.post<dynamic>(
+        '/v1/account/subscription',
+      );
+      final String path =
+          (response.data as Map<String, dynamic>)['path'] as String;
+      // On the address that just answered: a fallback route when the main
+      // one is blocked, which is what the other app will need too.
+      return response.requestOptions.uri.resolve(path).toString();
     } on DioException catch (error) {
       throw translateDioException(error);
     }

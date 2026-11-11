@@ -50,6 +50,13 @@ AUTHORIZATION_PRIMITIVES = frozenset({"principal", "validate_and_rotate_csrf"})
 # reason. Anything not listed must authorize. Keep this list short and make
 # adding to it uncomfortable: every entry is public attack surface.
 PUBLIC_ROUTES = {
+    (
+        "/v1/sub/{secret}",
+        "GET",
+    ): (
+        "a subscription link: the 256-bit secret in the path is the credential, "
+        "checked against its HMAC; unknown secrets get 404"
+    ),
     ("/healthz", "GET"): "liveness probe; reports status and version only",
     ("/readyz", "GET"): "readiness probe; reports status and version only",
     ("/metrics", "GET"): "Prometheus counters by route template; nginx answers it with 404 "

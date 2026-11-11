@@ -442,5 +442,13 @@
   "deleteAccountKept": "Verbruikstotalen en het beveiligingslog blijven bewaard onder een willekeurig nummer dat niet aan jou gekoppeld is. Back-ups bewaren de oude gegevens tot 30 dagen.",
   "deleteAccountAction": "Mijn account verwijderen",
   "deletingAccount": "Bezig met verwijderen",
-  "accountDeleted": "Je account is verwijderd."
+  "accountDeleted": "Je account is verwijderd.",
+  "rowSubscriptionLink": "iPhone & iPad",
+  "subscriptionTitle": "Link voor andere apps",
+  "subscriptionIntro": "Nebula heeft nog geen app voor iPhone of iPad. Maak een abonnementslink en voeg die toe in Streisand, V2Box, Hiddify of FoXray: ze krijgen je servers en houden ze actueel. De link telt als een van je apparaten, en een nieuwe link maakt de oude ongeldig.",
+  "subscriptionReady": "Kopieer deze link en voeg hem toe als abonnement in de andere app. Houd hem privé: iedereen met de link kan je account gebruiken.",
+  "subscriptionMake": "Link maken",
+  "subscriptionCopy": "Kopiëren",
+  "subscriptionCopied": "Link gekopieerd",
+  "close": "Sluiten"
 }

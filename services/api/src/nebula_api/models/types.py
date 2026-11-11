@@ -24,6 +24,8 @@ class AdminRole(StrEnum):
 class DevicePlatform(StrEnum):
     ANDROID = "android"
     WINDOWS = "windows"
+    # A subscription link (nebula_api/subscription.py), used from iOS apps.
+    IOS = "ios"
 
 
 class LifecycleState(StrEnum):

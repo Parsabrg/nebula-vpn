@@ -1,5 +1,6 @@
 """Transactional user authentication, refresh rotation, and password recovery."""
 
+import secrets
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -53,6 +54,11 @@ class AuthenticationRateLimited(AuthenticationRejected):
     def __init__(self, retry_after_seconds: int) -> None:
         super().__init__("Authentication was not accepted")
         self.retry_after_seconds = retry_after_seconds
+
+
+SUBSCRIPTION_DEVICE_NAME = "Subscription link"
+# Keeps a link's secret from ever matching a real device's hardware id.
+_SUBSCRIPTION_NAMESPACE = "subscription:"
 
 
 class DeviceLimitReached(AuthenticationRejected):
@@ -867,6 +873,98 @@ class UserAuthService:
         )
         session.add(device)
         return device
+
+    async def new_subscription(self, *, user_id: UUID, request_id: UUID) -> str:
+        """A new subscription link's secret, replacing the account's last one.
+
+        The link is a device of its own (platform "ios"): it counts against
+        the device limit, holds its own credentials, and is revoked like any
+        device. Only an HMAC of the secret is kept, in the hardware-hash
+        column, so the database cannot give the link back out.
+        """
+
+        secret = secrets.token_urlsafe(32)
+        version, digest = hash_hardware_id(
+            _SUBSCRIPTION_NAMESPACE + secret,
+            self._keys.token_peppers,
+            key_version=self._settings.token_key_version,
+        )
+        now = datetime.now(UTC)
+        async with self._session_factory() as session:
+            user = await session.scalar(select(User).where(User.id == user_id).with_for_update())
+            if user is None or user.state != AccountState.ACTIVE:
+                raise AuthenticationRejected
+            earlier = await session.scalars(
+                select(Device).where(
+                    Device.user_id == user_id,
+                    Device.platform == DevicePlatform.IOS,
+                    Device.state == LifecycleState.ACTIVE,
+                )
+            )
+            for device in earlier:
+                device.state = LifecycleState.REVOKED
+                device.revoked_at = now
+                device.updated_at = now
+                await revoke_device_credentials(session, device.id, now)
+            await session.flush()
+            active = await session.scalar(
+                select(func.count())
+                .select_from(Device)
+                .where(Device.user_id == user_id, Device.state == LifecycleState.ACTIVE)
+            )
+            if active is None or active >= user.device_limit:
+                await session.rollback()
+                raise DeviceLimitReached
+            device = Device(
+                id=uuid4(),
+                user_id=user_id,
+                name=SUBSCRIPTION_DEVICE_NAME,
+                platform=DevicePlatform.IOS,
+                client_version="subscription",
+                state=LifecycleState.ACTIVE,
+                revoked_at=None,
+                hardware_key_version=version,
+                hardware_hash=digest,
+            )
+            session.add(device)
+            _add_audit(
+                session,
+                actor_kind="user",
+                actor_id=user_id,
+                target_kind="device",
+                target_id=device.id,
+                event_code="device_state_changed",
+                outcome="succeeded",
+                request_id=request_id,
+                reason_code="subscription_created",
+            )
+            await session.commit()
+        return secret
+
+    async def subscription_owner(self, secret: str) -> tuple[UUID, UUID] | None:
+        """(user id, device id) for a live subscription link, else None."""
+
+        if not 20 <= len(secret) <= 64:
+            return None
+        _, digest = hash_hardware_id(
+            _SUBSCRIPTION_NAMESPACE + secret,
+            self._keys.token_peppers,
+            key_version=self._settings.token_key_version,
+        )
+        async with self._session_factory() as session:
+            row = (
+                await session.execute(
+                    select(Device.user_id, Device.id)
+                    .join(User, User.id == Device.user_id)
+                    .where(
+                        Device.hardware_hash == digest,
+                        Device.platform == DevicePlatform.IOS,
+                        Device.state == LifecycleState.ACTIVE,
+                        User.state == AccountState.ACTIVE,
+                    )
+                )
+            ).first()
+        return (row[0], row[1]) if row else None
 
     async def _backfill_hardware(
         self, session: AsyncSession, *, user: User, device: Device, hardware_id: str

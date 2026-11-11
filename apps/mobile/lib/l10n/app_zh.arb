@@ -442,5 +442,13 @@
   "deleteAccountKept": "流量统计和安全日志会以一个与你无关的随机编号保留。备份中的旧数据最多保留 30 天。",
   "deleteAccountAction": "删除我的账户",
   "deletingAccount": "正在删除",
-  "accountDeleted": "你的账户已删除。"
+  "accountDeleted": "你的账户已删除。",
+  "rowSubscriptionLink": "iPhone 和 iPad",
+  "subscriptionTitle": "供其他应用使用的链接",
+  "subscriptionIntro": "Nebula 还没有 iPhone 或 iPad 应用。创建一个订阅链接并添加到 Streisand、V2Box、Hiddify 或 FoXray 中：它们会获取你的服务器并保持更新。该链接算作你的一台设备，创建新链接会使旧链接失效。",
+  "subscriptionReady": "复制此链接，并在其他应用中添加为订阅。请勿外传：任何拥有它的人都可以使用你的账户。",
+  "subscriptionMake": "创建链接",
+  "subscriptionCopy": "复制",
+  "subscriptionCopied": "链接已复制",
+  "close": "关闭"
 }

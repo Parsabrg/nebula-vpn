@@ -442,5 +442,13 @@
   "deleteAccountKept": "تُحفظ إجماليات الاستخدام وسجل الأمان برقم عشوائي غير مرتبط بك. تحتفظ النسخ الاحتياطية بالبيانات القديمة حتى 30 يومًا.",
   "deleteAccountAction": "احذف حسابي",
   "deletingAccount": "جارٍ الحذف",
-  "accountDeleted": "تم حذف حسابك."
+  "accountDeleted": "تم حذف حسابك.",
+  "rowSubscriptionLink": "آيفون وآيباد",
+  "subscriptionTitle": "رابط للتطبيقات الأخرى",
+  "subscriptionIntro": "لا يوجد لـ Nebula تطبيق لآيفون أو آيباد بعد. أنشئ رابط اشتراك وأضفه في Streisand أو V2Box أو Hiddify أو FoXray: ستحصل على خوادمك وتبقيها محدّثة. يُحسب الرابط كأحد أجهزتك، وإنشاء رابط جديد يوقف القديم.",
+  "subscriptionReady": "انسخ هذا الرابط وأضفه كاشتراك في التطبيق الآخر. احتفظ به لنفسك: يمكن لأي شخص يملكه استخدام حسابك.",
+  "subscriptionMake": "إنشاء رابط",
+  "subscriptionCopy": "نسخ",
+  "subscriptionCopied": "تم نسخ الرابط",
+  "close": "إغلاق"
 }

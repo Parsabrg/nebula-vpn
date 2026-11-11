@@ -442,5 +442,13 @@
   "deleteAccountKept": "Verbrauchssummen und das Sicherheitsprotokoll bleiben unter einer zufälligen Nummer erhalten, die nicht mit dir verbunden ist. Sicherungen enthalten die alten Daten bis zu 30 Tage.",
   "deleteAccountAction": "Mein Konto löschen",
   "deletingAccount": "Wird gelöscht",
-  "accountDeleted": "Dein Konto wurde gelöscht."
+  "accountDeleted": "Dein Konto wurde gelöscht.",
+  "rowSubscriptionLink": "iPhone & iPad",
+  "subscriptionTitle": "Link für andere Apps",
+  "subscriptionIntro": "Nebula hat noch keine App für iPhone oder iPad. Erstelle einen Abo-Link und füge ihn in Streisand, V2Box, Hiddify oder FoXray hinzu: Sie erhalten deine Server und halten sie aktuell. Der Link zählt als eines deiner Geräte, und ein neuer Link deaktiviert den alten.",
+  "subscriptionReady": "Kopiere diesen Link und füge ihn in der anderen App als Abo hinzu. Halte ihn privat: Jeder, der ihn hat, kann dein Konto nutzen.",
+  "subscriptionMake": "Link erstellen",
+  "subscriptionCopy": "Kopieren",
+  "subscriptionCopied": "Link kopiert",
+  "close": "Schließen"
 }

@@ -442,5 +442,13 @@
   "deleteAccountKept": "Los totales de uso y el registro de seguridad se conservan con un número aleatorio que no está vinculado a ti. Las copias de seguridad guardan los datos anteriores hasta 30 días.",
   "deleteAccountAction": "Eliminar mi cuenta",
   "deletingAccount": "Eliminando",
-  "accountDeleted": "Tu cuenta se eliminó."
+  "accountDeleted": "Tu cuenta se eliminó.",
+  "rowSubscriptionLink": "iPhone y iPad",
+  "subscriptionTitle": "Enlace para otras apps",
+  "subscriptionIntro": "Nebula aún no tiene app para iPhone ni iPad. Crea un enlace de suscripción y añádelo en Streisand, V2Box, Hiddify o FoXray: obtendrán tus servidores y los mantendrán al día. El enlace cuenta como uno de tus dispositivos, y crear uno nuevo desactiva el anterior.",
+  "subscriptionReady": "Copia este enlace y añádelo como suscripción en la otra app. No lo compartas: cualquiera que lo tenga puede usar tu cuenta.",
+  "subscriptionMake": "Crear enlace",
+  "subscriptionCopy": "Copiar",
+  "subscriptionCopied": "Enlace copiado",
+  "close": "Cerrar"
 }
