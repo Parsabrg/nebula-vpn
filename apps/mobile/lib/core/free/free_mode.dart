@@ -5,7 +5,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../servers/profile_link.dart';
 import '../servers/server_repository.dart';
-import '../settings/advanced_settings_controller.dart';
 import '../storage/device_id_store.dart';
 import '../storage/storage_providers.dart';
 import 'subscriptions.dart';
@@ -193,11 +192,6 @@ class FreeModeNotifier extends Notifier<bool> {
     if (deviceId.read() == null) {
       await deviceId.write(freeDeviceId);
     }
-    // A relay's requests are counted and shared: what does not need it stays
-    // off it. The switch is in Settings like any other.
-    await ref
-        .read(advancedSettingsControllerProvider.notifier)
-        .setIranDirect(enabled: true);
     state = true;
   }
 

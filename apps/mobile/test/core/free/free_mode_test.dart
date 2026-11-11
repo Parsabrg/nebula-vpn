@@ -5,6 +5,7 @@ import 'package:nebula_mobile/core/free/free_mode.dart';
 import 'package:nebula_mobile/core/free/subscriptions.dart';
 import 'package:nebula_mobile/core/servers/server_repository.dart';
 import 'package:nebula_mobile/core/settings/advanced_settings_controller.dart';
+import 'package:nebula_mobile/core/storage/advanced_settings_store.dart';
 import 'package:nebula_mobile/core/storage/storage_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -162,10 +163,10 @@ void main() {
         isTrue,
       );
       expect(container.read(deviceIdStoreProvider).read(), freeDeviceId);
-      // Public servers are shared: what does not need them stays off them.
+      // Routing is left as the person set it.
       expect(
         container.read(advancedSettingsControllerProvider).iranDirect,
-        isTrue,
+        AdvancedSettings.defaults.iranDirect,
       );
       // The list and the credentials are now this device's own.
       expect(

@@ -52,10 +52,7 @@ Future<void> main(List<String> arguments) async {
     await windowManager.setPreventClose(true);
 
     _trayManager = DesktopTrayManager(
-      onShowWindow: () async {
-        await windowManager.show();
-        await windowManager.focus();
-      },
+      onShowWindow: _showWindow,
       onExit: () async {
         await _trayManager?.dispose();
         await windowManager.setPreventClose(false);
@@ -113,6 +110,19 @@ Future<void> main(List<String> arguments) async {
   runApp(
     UncontrolledProviderScope(container: container, child: const NebulaApp()),
   );
+}
+
+/// Shows the window and makes sure it is painted. Started hidden at sign-in
+/// and opened from the tray, the window stayed white: Flutter had not drawn
+/// into it while it was hidden (owner, Windows, 2026-11-10). A forced frame
+/// and a one-pixel size nudge make it draw.
+Future<void> _showWindow() async {
+  await windowManager.show();
+  await windowManager.focus();
+  WidgetsBinding.instance.scheduleForcedFrame();
+  final Size size = await windowManager.getSize();
+  await windowManager.setSize(Size(size.width + 1, size.height));
+  await windowManager.setSize(size);
 }
 
 /// Intercepts the native close button so the window hides to the system tray
