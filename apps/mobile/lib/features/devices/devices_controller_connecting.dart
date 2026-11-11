@@ -780,7 +780,10 @@ mixin _Connecting on _DevicesCore {
       if (!_cancelled(attempt) &&
           tunnelUp &&
           runningProxy == null &&
-          !await _tunnelCarriesTraffic(attempt) &&
+          !await _tunnelCarriesTraffic(
+            attempt,
+            slow: protocolProfileCode == kDnsTunnelProfileCode,
+          ) &&
           !_cancelled(attempt)) {
         // Xray's tunnel is up the moment the engine starts, whether or not
         // the server is there. Seen on Windows with saved credentials for a

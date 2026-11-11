@@ -83,6 +83,10 @@ const Duration _probeGaveUp = Duration(seconds: 6);
 /// How long the second, confirming request through a new tunnel may take.
 const Duration _confirmWithin = Duration(milliseconds: 3500);
 
+/// A probe's own deadline ([answersThroughSocks]); the DNS tunnel's
+/// confirming request may take all of it.
+const Duration _probeTimeout = Duration(seconds: 8);
+
 /// Where the per-protocol test sends its request: v2ray's own default, a
 /// tiny empty answer from a host that is reachable wherever the tunnel is.
 const String _delayProbeUrl = 'https://www.gstatic.com/generate_204';
@@ -703,7 +707,11 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
   });
   String? _storedDeviceId();
   Future<bool> _serverAnswered(int attempt);
-  Future<bool> _tunnelCarriesTraffic(int attempt, {bool viaProxy = true});
+  Future<bool> _tunnelCarriesTraffic(
+    int attempt, {
+    bool viaProxy = true,
+    bool slow = false,
+  });
   Future<String> _probeConfig(
     XrayClientResult credential,
     AdvancedSettings settings,
