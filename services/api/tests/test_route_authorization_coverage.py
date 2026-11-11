@@ -50,6 +50,10 @@ AUTHORIZATION_PRIMITIVES = frozenset({"principal", "validate_and_rotate_csrf"})
 # reason. Anything not listed must authorize. Keep this list short and make
 # adding to it uncomfortable: every entry is public attack surface.
 PUBLIC_ROUTES = {
+    ("/v1/relays/{code}/up", "POST"): (
+        "a relay's server reporting in: the shared NEBULA_RELAY_REPORT_TOKEN is "
+        "the credential, compared in constant time; anything else gets 404"
+    ),
     (
         "/v1/sub/{secret}",
         "GET",

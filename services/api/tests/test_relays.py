@@ -27,7 +27,13 @@ from nebula_api.auth.user_service import UserAuthService
 from nebula_api.devices.routes import router as devices_router
 from nebula_api.dns_profiles import RESOLVER_UP_SECONDS, ResolverHealth
 from nebula_api.provisioning.service import ProvisioningService, RequestXrayClientResult
-from nebula_api.relays import RELAY_UP_SECONDS, RelayHealth, parse_relays, with_relay_codes
+from nebula_api.relays import (
+    RELAY_UP_SECONDS,
+    RelayHealth,
+    parse_relays,
+    with_relay_codes,
+)
+from nebula_api.relays import router as relay_report_router
 from nebula_api.servers.routes import router as servers_router
 from nebula_api.servers.service import (
     AvailableProfileEntry,
@@ -58,11 +64,6 @@ class FakeRedis:
     async def set(self, name: str, value: str, ex: int) -> object:
         self.values[name] = (value, ex)
         return True
-
-    async def delete(self, *names: str) -> object:
-        for name in names:
-            self.values.pop(name, None)
-        return 1
 
 
 class RecordingProvisioning(FakeProvisioningService):
@@ -256,9 +257,44 @@ def test_health_follows_the_relays_own_check() -> None:
     asyncio.run(health.record(relays, summary.relay_checked))
     assert asyncio.run(health.up(relays)) == {"de-via-thr"}
     assert redis.values["nebula:relay-up:de-via-thr"][1] == RELAY_UP_SECONDS
+    # A poll that did not reach the relay leaves the mark to expire: the
+    # relay's own report may have come in since.
     asyncio.run(health.record(relays, set()))
+    assert asyncio.run(health.up(relays)) == {"de-via-thr"}
+    redis.values.clear()
     assert asyncio.run(health.up(relays)) == set()
     assert asyncio.run(health.up(())) == set()
+
+
+def _report_app(redis: FakeRedis, token: str) -> FastAPI:
+    app = FastAPI()
+    app.state.settings = Settings(env="test", relays=RELAYS, relay_report_token=token)
+    app.state.relay_health = RelayHealth(redis)
+    app.include_router(relay_report_router)
+    return app
+
+
+def test_a_relay_reports_itself_up_with_the_token() -> None:
+    redis = FakeRedis()
+    with TestClient(_report_app(redis, "s3cret-token")) as client:
+        ok = client.post(
+            "/v1/relays/de-via-thr/up", headers={"Authorization": "Bearer s3cret-token"}
+        )
+        wrong = client.post("/v1/relays/de-via-thr/up", headers={"Authorization": "Bearer no"})
+        unknown = client.post(
+            "/v1/relays/nope/up", headers={"Authorization": "Bearer s3cret-token"}
+        )
+    assert (ok.status_code, wrong.status_code, unknown.status_code) == (204, 404, 404)
+    assert redis.values["nebula:relay-up:de-via-thr"] == ("1", RELAY_UP_SECONDS)
+    assert list(redis.values) == ["nebula:relay-up:de-via-thr"]
+
+
+def test_no_token_configured_records_nothing() -> None:
+    redis = FakeRedis()
+    with TestClient(_report_app(redis, "")) as client:
+        answer = client.post("/v1/relays/de-via-thr/up", headers={"Authorization": "Bearer "})
+    assert answer.status_code == 404
+    assert redis.values == {}
 
 
 @pytest.mark.parametrize(

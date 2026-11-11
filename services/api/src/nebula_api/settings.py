@@ -80,6 +80,9 @@ class Settings(BaseSettings):
     # Relays listed as servers of their own (JSON list); see relays.py and
     # docs/runbooks/relay.md. Empty: none.
     relays: str = ""
+    # Shared with each relay's server, which reports in with it (POST
+    # /v1/relays/{code}/up). Empty: relays are known up only from the poll.
+    relay_report_token: SecretStr = Field(default=SecretStr(""), repr=False)
 
     def relay_list(self) -> "tuple[Relay, ...]":
         from nebula_api.relays import parse_relays

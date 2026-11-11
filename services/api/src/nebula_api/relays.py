@@ -9,16 +9,21 @@ certificate the app checks. Configured with NEBULA_RELAYS; see
 docs/runbooks/relay.md.
 
 The relay's own agent checks that the exit's forwarded ports answer from
-there, reported as the usage source "relay". A relay counts as up only while
-the latest poll said so (RELAY_UP_SECONDS), and is listed as under
-maintenance otherwise, rather than failing to connect without a reason.
+there, reported as the usage source "relay"; and the relay's server reports
+in itself (POST /v1/relays/{code}/up). Either keeps it up for
+RELAY_UP_SECONDS; with neither it is listed as under maintenance, rather than
+failing to connect without a reason. The report exists because Iran filters
+TLS into Iranian servers from abroad at times (2026-11-11, from 16:00 UTC):
+the poll from the exit could not reach the relay's agent while the relay,
+which only needs the outward way, kept working.
 """
 
+import hmac
 from collections.abc import Iterable
 from dataclasses import replace
 from typing import Protocol, Self
 
-from fastapi import Request
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 
 from nebula_api.servers.service import AvailableServerEntry
@@ -118,7 +123,6 @@ def with_relays(
 class _Redis(Protocol):
     async def mget(self, keys: list[str]) -> list[object]: ...
     async def set(self, name: str, value: str, ex: int) -> object: ...
-    async def delete(self, *names: str) -> object: ...
 
 
 def _key(code: str) -> str:
@@ -137,12 +141,18 @@ class RelayHealth:
         return {code for code, value in zip(codes, values, strict=True) if value is not None}
 
     async def record(self, relays: Iterable[Relay], checked: set[str]) -> None:
-        """[checked]: the servers whose agent reached its relay's exit."""
+        """[checked]: the servers whose agent reached its relay's exit.
+
+        Only ever marks up: a poll that could not reach the relay says nothing
+        the relay's own report may not have said since, and the mark expires
+        by itself.
+        """
         for relay in relays:
             if relay.via in checked:
-                await self._redis.set(_key(relay.code), "1", ex=RELAY_UP_SECONDS)
-            else:
-                await self._redis.delete(_key(relay.code))
+                await self.mark_up(relay.code)
+
+    async def mark_up(self, code: str) -> None:
+        await self._redis.set(_key(code), "1", ex=RELAY_UP_SECONDS)
 
 
 async def relays_up(request: Request, relays: tuple[Relay, ...]) -> set[str]:
@@ -157,3 +167,31 @@ def with_relay_codes(server_codes: list[str], relays: Iterable[Relay]) -> list[s
     The app ends a tunnel whose server is not among its device's codes.
     """
     return sorted({*server_codes, *(r.code for r in relays if r.exit in server_codes)})
+
+
+router = APIRouter(tags=["relays"])
+
+
+@router.post("/v1/relays/{code}/up", status_code=status.HTTP_204_NO_CONTENT)
+async def relay_reports_up(code: str, request: Request) -> Response:
+    """A relay's server saying it reaches its exit: the request itself is the
+    proof, made the way the relay's traffic goes (from Iran outward).
+
+    The shared token (NEBULA_RELAY_REPORT_TOKEN) is the credential. Without
+    one configured, or for a code that is not a relay, nothing is recorded
+    and the answer is 404, so the route says nothing about the deployment.
+    """
+    settings = request.app.state.settings
+    expected = settings.relay_report_token.get_secret_value()
+    given = request.headers.get("authorization", "").removeprefix("Bearer ")
+    relay = find_relay(settings.relay_list(), code)
+    health: RelayHealth | None = getattr(request.app.state, "relay_health", None)
+    if (
+        not expected
+        or not hmac.compare_digest(given.encode(), expected.encode())
+        or relay is None
+        or health is None
+    ):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    await health.mark_up(relay.code)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
