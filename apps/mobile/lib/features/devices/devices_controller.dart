@@ -91,6 +91,13 @@ const Duration _probeTimeout = Duration(seconds: 8);
 /// tiny empty answer from a host that is reachable wherever the tunnel is.
 const String _delayProbeUrl = 'https://www.gstatic.com/generate_204';
 
+/// What the per-protocol test fetches: 128 KB, read to the end. A delay to
+/// the tiny URL above read as working on routes that answer small requests
+/// and stall anything bigger (owner, 2026-11-10); the delay shown is still
+/// the time to the first answer.
+const String _protocolTestUrl =
+    'https://speed.cloudflare.com/__down?bytes=$dataProbeBytes';
+
 /// 10 MB, more than ten seconds of most lines in Iran: the speed test
 /// reads what arrives in ten seconds.
 const String _speedProbeUrl =

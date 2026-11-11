@@ -224,15 +224,31 @@ class LinuxXrayRuntime {
   /// xray of its own with an HTTP inbound, no root needed.
   Future<int?> measureDelay(String config, {required String url}) =>
       _withProbe<int?>(config, -1, (HttpClient client) async {
-        final Stopwatch watch = Stopwatch()..start();
-        final int status = await () async {
-          final HttpClientResponse response = await (await client.getUrl(
-            Uri.parse(url),
-          )).close();
-          await response.drain<void>();
-          return response.statusCode;
-        }().timeout(const Duration(seconds: 10));
-        return status < 400 ? watch.elapsedMilliseconds : -1;
+        Future<int?> once() async {
+          final Stopwatch watch = Stopwatch()..start();
+          int? firstAnswer;
+          final int status = await () async {
+            final HttpClientResponse response = await (await client.getUrl(
+              Uri.parse(url),
+            )).close();
+            firstAnswer = watch.elapsedMilliseconds;
+            // Read to the end: a route can answer and then stall the body.
+            await response.drain<void>();
+            return response.statusCode;
+          }().timeout(const Duration(seconds: 12));
+          return status < 400 ? firstAnswer : -1;
+        }
+
+        // Twice over the same proxy, two seconds apart: a route that
+        // carries the first request and drops what follows (WireGuard from
+        // Iran, 2026-11-11) reads -1, not the first request's delay.
+        final int? first = await once();
+        if (first == null || first < 0) {
+          return -1;
+        }
+        await Future<void>.delayed(const Duration(seconds: 2));
+        final int? second = await once();
+        return second == null || second < 0 ? -1 : first;
       });
 
   /// Megabits a second over a download of [url] through [config]'s

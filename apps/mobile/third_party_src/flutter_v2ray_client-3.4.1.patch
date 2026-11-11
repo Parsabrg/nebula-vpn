@@ -358,7 +358,7 @@ index 14830fd..3b5c5be 100644
  
      public static AppConfigs.V2RAY_CONNECTION_MODES getConnectionMode() {
 diff --git a/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/core/V2rayCoreManager.java b/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/core/V2rayCoreManager.java
-index 98a666e..5e1305f 100644
+index 98a666e..3c77721 100644
 --- a/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/core/V2rayCoreManager.java
 +++ b/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/core/V2rayCoreManager.java
 @@ -13,6 +13,7 @@ import android.content.Context;
@@ -1061,7 +1061,7 @@ index 98a666e..5e1305f 100644
          if (coreController != null) {
              return coreController.getIsRunning();
          }
-@@ -389,7 +860,11 @@ public final class V2rayCoreManager {
+@@ -389,23 +860,221 @@ public final class V2rayCoreManager {
          }
      }
  
@@ -1072,12 +1072,136 @@ index 98a666e..5e1305f 100644
 +            return getHysteriaServerDelay(context, config, hysteriaYaml, url);
 +        }
          try {
-             try {
-                 JSONObject config_json = new JSONObject(config);
-@@ -408,4 +883,93 @@ public final class V2rayCoreManager {
+-            try {
+-                JSONObject config_json = new JSONObject(config);
+-                JSONObject new_routing_json = config_json.getJSONObject("routing");
+-                new_routing_json.remove("rules");
+-                config_json.remove("routing");
+-                config_json.put("routing", new_routing_json);
+-                return Libv2ray.measureOutboundDelay(config_json.toString(), url);
+-            } catch (Exception json_error) {
+-                Log.e("getV2rayServerDelay", json_error.toString());
+-                return Libv2ray.measureOutboundDelay(config, url);
++            final JSONObject config_json = new JSONObject(config);
++            // Everything to the proxy: the tunnel's own rules would send the
++            // test's request direct.
++            final JSONObject routing = config_json.optJSONObject("routing");
++            if (routing != null) {
++                routing.remove("rules");
+             }
++            return measureThroughCore(config_json, url);
+         } catch (Exception e) {
+             Log.e("getV2rayServerDelayCore", e.toString());
+             return -1L;
          }
      }
  
++    /**
++     * The delay to [url] through [config], counted only if the whole answer
++     * then arrives. Xray's own measureOutboundDelay stops at the response
++     * headers, so a route that answers small requests and stalls anything
++     * bigger read as working: a protocol test showed a delay while the
++     * tunnel carried nothing (owner, 2026-11-10). A second Xray instance
++     * with a SOCKS inbound of its own, and the request made through it here.
++     */
++    private static long measureThroughCore(final JSONObject config, final String url) throws Exception {
++        final int port;
++        try (java.net.ServerSocket probe = new java.net.ServerSocket(0)) {
++            port = probe.getLocalPort();
++        }
++        final JSONObject inbound = new JSONObject()
++                .put("tag", "probe-in")
++                .put("listen", "127.0.0.1")
++                .put("port", port)
++                .put("protocol", "socks")
++                .put("settings", new JSONObject().put("udp", false));
++        config.put("inbounds", new org.json.JSONArray().put(inbound));
++        final CoreController core = Libv2ray.newCoreController(new CoreCallbackHandler() {
++            @Override
++            public long onEmitStatus(long p0, String p1) {
++                return 0;
++            }
++
++            @Override
++            public long shutdown() {
++                return 0;
++            }
++
++            @Override
++            public long startup() {
++                return 0;
++            }
++        });
++        core.startLoop(config.toString(), 0);
++        try {
++            return twiceThrough(url, port);
++        } finally {
++            try {
++                core.stopLoop();
++            } catch (Exception ignored) {
++                // already stopped
++            }
++        }
++    }
++
++    /**
++     * [url] fetched twice over the same connection, two seconds apart: a
++     * route that carries the first request and drops what follows -- WireGuard
++     * from Iran, 2026-11-11, which then failed every connect -- reads -1, not
++     * the first request's delay.
++     */
++    static long twiceThrough(final String url, final int socksPort) throws InterruptedException {
++        final long first = timedGet(url, socksPort);
++        if (first < 0) {
++            return -1L;
++        }
++        Thread.sleep(2_000);
++        return timedGet(url, socksPort) < 0 ? -1L : first;
++    }
++
++    /**
++     * Milliseconds to the response headers of a GET of [url] through the
++     * SOCKS proxy on [socksPort], or -1 unless the whole body follows within
++     * twelve seconds of the start.
++     */
++    static long timedGet(final String url, final int socksPort) {
++        java.net.HttpURLConnection connection = null;
++        try {
++            final java.net.Proxy proxy = new java.net.Proxy(
++                    java.net.Proxy.Type.SOCKS, new java.net.InetSocketAddress("127.0.0.1", socksPort));
++            connection = (java.net.HttpURLConnection) new java.net.URL(url).openConnection(proxy);
++            connection.setConnectTimeout(10_000);
++            connection.setReadTimeout(10_000);
++            connection.setUseCaches(false);
++            final long start = System.nanoTime();
++            final int status = connection.getResponseCode();
++            final long delay = (System.nanoTime() - start) / 1_000_000L;
++            if (status >= 400) {
++                return -1L;
++            }
++            final long expected = connection.getContentLengthLong();
++            long received = 0;
++            try (java.io.InputStream body = connection.getInputStream()) {
++                final byte[] buffer = new byte[16 * 1024];
++                int read;
++                while ((read = body.read(buffer)) > 0) {
++                    received += read;
++                    if (System.nanoTime() - start > 12_000_000_000L) {
++                        return -1L;
++                    }
++                }
++            }
++            return expected > 0 && received < expected ? -1L : delay;
++        } catch (Exception e) {
++            Log.w("timedGet", e.toString());
++            return -1L;
++        } finally {
++            if (connection != null) {
++                connection.disconnect();
++            }
++        }
++    }
++
 +    /**
 +     * Download and upload since the last read, summed over the proxy and block
 +     * outbounds as before, from "tag,direction,value;tag,direction,value;".
@@ -1153,7 +1277,9 @@ index 98a666e..5e1305f 100644
 +            if (!waitForLocalPort(process, port)) {
 +                return -1L;
 +            }
-+            return Libv2ray.measureOutboundDelay(json.toString(), url);
++            // Through Xray's socks outbound to the client, as before: Java's
++            // SOCKS client cannot read the Hysteria2 client's replies.
++            return measureThroughCore(json, url);
 +        } catch (Exception e) {
 +            Log.e("getHysteriaServerDelay", e.toString());
 +            return -1L;

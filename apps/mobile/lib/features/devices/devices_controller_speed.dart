@@ -80,11 +80,13 @@ mixin _SpeedTests on _DevicesCore {
     final Map<AvailableProfile, XrayClientResult> answered =
         <AvailableProfile, XrayClientResult>{};
     // A few at a time: a subscription's group can hold a hundred links, and
-    // each test starts an engine of its own on the phone.
+    // each test starts an engine of its own on the phone. Eight, not more:
+    // each test downloads 128 KB, and sixteen at once on a slow line timed
+    // out tests of working protocols (2026-11-11).
     int running = 0;
     final List<Completer<void>> waiting = <Completer<void>>[];
     Future<void> slot() async {
-      while (running >= 16) {
+      while (running >= 8) {
         final Completer<void> turn = Completer<void>();
         waiting.add(turn);
         await turn.future;
@@ -359,7 +361,7 @@ mixin _SpeedTests on _DevicesCore {
   Future<ProtocolDelay> _measure(String config) async {
     try {
       return _delayFrom(
-        await _xrayTunnel.measureDelay(config, url: _delayProbeUrl),
+        await _xrayTunnel.measureDelay(config, url: _protocolTestUrl),
       );
     } catch (_) {
       return const ProtocolDelay.failed();
