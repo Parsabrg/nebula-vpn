@@ -40,7 +40,9 @@ class _Release implements HttpClientAdapter {
 
 final AvailableUpdate _update = AvailableUpdate(
   version: '0.1.34',
-  page: Uri.parse('https://github.com/Parsabrg/nebula-vpn/releases/tag/v0.1.34'),
+  page: Uri.parse(
+    'https://github.com/Parsabrg/nebula-vpn/releases/tag/v0.1.34',
+  ),
 );
 
 Map<String, List<int>> _signedRelease() => <String, List<int>>{
