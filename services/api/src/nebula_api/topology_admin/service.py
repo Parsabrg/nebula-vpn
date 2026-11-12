@@ -24,6 +24,7 @@ from nebula_api.models.provisioning import WireGuardPeer, XrayClient
 from nebula_api.models.topology import (
     Protocol,
     ProtocolProfile,
+    RelayRoute,
     ServerProtocolCapability,
     VPNServer,
 )
@@ -131,6 +132,14 @@ class ReconciliationHistoryPage:
 # The scheduled sweep's two passes, run now: everything, or one target.
 # Raises ReconciliationBusy while another pass holds the lock.
 Reconciler = Callable[[UUID | None], Awaitable[tuple[ReconciliationSummary, ReconciliationSummary]]]
+
+
+@dataclass(frozen=True, slots=True)
+class ProfilePort:
+    """Where a profile listens on its server."""
+
+    port: int | None
+    udp: bool
 
 
 class TopologyAdminService:
@@ -302,6 +311,107 @@ class TopologyAdminService:
                 public_host=server.public_host,
                 maximum_devices=server.maximum_devices,
             )
+
+    async def relay_context(
+        self,
+    ) -> tuple[dict[str, tuple[UUID, str, str]], dict[str, ProfilePort]]:
+        """For the relay list: each server by code (id, name, public host), and
+        each profile by code with the port and transport it listens on."""
+
+        async with self._session_factory() as session:
+            servers = {
+                row.code: (row.id, row.display_name, row.public_host)
+                for row in await session.execute(
+                    select(
+                        VPNServer.id, VPNServer.code, VPNServer.display_name, VPNServer.public_host
+                    )
+                )
+            }
+            profiles = {
+                row.code: ProfilePort(port=row.required_port, udp=row.requires_udp)
+                for row in await session.execute(
+                    select(
+                        ProtocolProfile.code,
+                        ProtocolProfile.required_port,
+                        ProtocolProfile.requires_udp,
+                    )
+                )
+            }
+        return servers, profiles
+
+    async def add_relay(
+        self,
+        *,
+        code: str,
+        display_name: str,
+        exit_server_id: UUID,
+        via_server_id: UUID,
+        host: str,
+        ports: dict[str, int],
+        admin_id: UUID,
+        request_id: UUID,
+    ) -> None:
+        """Raises LookupError for a server that does not exist, ValueError for a
+        code already taken."""
+
+        async with self._session_factory() as session:
+            found = set(
+                await session.scalars(
+                    select(VPNServer.id).where(VPNServer.id.in_((exit_server_id, via_server_id)))
+                )
+            )
+            if found != {exit_server_id, via_server_id}:
+                raise LookupError("server not found")
+            if await session.scalar(select(RelayRoute.id).where(RelayRoute.code == code)):
+                raise ValueError("relay code taken")
+            session.add(
+                RelayRoute(
+                    id=uuid4(),
+                    code=code,
+                    display_name=display_name,
+                    exit_server_id=exit_server_id,
+                    via_server_id=via_server_id,
+                    host=host,
+                    ports=ports,
+                )
+            )
+            add_audit_event(
+                session,
+                actor_kind="admin",
+                actor_id=admin_id,
+                target_kind="vpn_server",
+                target_id=via_server_id,
+                event_code="server_changed",
+                outcome="succeeded",
+                request_id=request_id,
+                reason_code="relay_added",
+            )
+            await session.commit()
+
+    async def remove_relay(self, *, code: str, admin_id: UUID, request_id: UUID) -> bool:
+        """False for a code that is not a relay added in the panel."""
+
+        async with self._session_factory() as session:
+            route = await session.scalar(
+                select(RelayRoute).where(RelayRoute.code == code).with_for_update()
+            )
+            if route is None:
+                return False
+            via = route.via_server_id
+            await session.delete(route)
+            add_audit_event(
+                session,
+                actor_kind="admin",
+                actor_id=admin_id,
+                target_kind="vpn_server",
+                target_id=via,
+                event_code="server_changed",
+                outcome="succeeded",
+                request_id=request_id,
+                reason_code="relay_removed",
+            )
+            await session.commit()
+            return True
 
     async def reconcile_now(
         self, *, target_id: UUID | None, admin_id: UUID, request_id: UUID

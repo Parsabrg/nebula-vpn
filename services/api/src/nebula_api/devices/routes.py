@@ -39,7 +39,7 @@ from nebula_api.provisioning.service import (
     TrafficQuotaExhausted,
     XrayOperationInProgress,
 )
-from nebula_api.relays import find_relay, relays_up
+from nebula_api.relays import find_relay, relay_list, relays_up
 
 router = APIRouter(prefix="/v1/devices", tags=["devices"])
 _LOGGER = logging.getLogger(__name__)
@@ -245,7 +245,7 @@ async def xray_client_for(
     """
 
     settings = request.app.state.settings
-    relays = settings.relay_list()
+    relays = await relay_list(request)
     relay = find_relay(relays, server_code)
     relay_port = relay.port_for(protocol_profile_code) if relay else None
     if relay is not None:
@@ -290,7 +290,7 @@ async def revoke_xray_client(
 ) -> Response:
     require_json_request(request)
     try:
-        relay = find_relay(request.app.state.settings.relay_list(), payload.server_code)
+        relay = find_relay(await relay_list(request), payload.server_code)
         await _service(request).revoke_xray_client(
             user_id=principal.user_id,
             device_id=device_id,

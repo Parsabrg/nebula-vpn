@@ -19,14 +19,23 @@ which only needs the outward way, kept working.
 """
 
 import hmac
+import time
 from collections.abc import Iterable
 from dataclasses import replace
-from typing import Protocol, Self
+from typing import TYPE_CHECKING, Protocol, Self
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
+from sqlalchemy import select
+from sqlalchemy.orm import aliased
 
+from nebula_api.models.topology import RelayRoute, VPNServer
 from nebula_api.servers.service import AvailableServerEntry
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from nebula_api.db.engine import SessionFactory
 
 _CODE = r"^[a-z0-9][a-z0-9_-]{0,63}$"
 RELAY_UP_SECONDS = 90
@@ -71,6 +80,64 @@ def parse_relays(raw: str) -> tuple[Relay, ...]:
     if len(codes) != len(set(codes)):
         raise ValueError("relay codes must be unique")
     return tuple(relays)
+
+
+class RelayCatalog:
+    """The relays added in the admin panel, read from the database at most
+    every few seconds: every server list, credential and subscription asks."""
+
+    _FRESH_SECONDS = 15.0
+
+    def __init__(self, session_factory: "SessionFactory") -> None:
+        self._session_factory = session_factory
+        self._read_at = -1e9
+        self._relays: tuple[Relay, ...] = ()
+
+    def forget(self) -> None:
+        """After a change in the panel: the next read goes to the database."""
+        self._read_at = -1e9
+
+    async def relays(self) -> tuple[Relay, ...]:
+        now = time.monotonic()
+        if now - self._read_at >= self._FRESH_SECONDS:
+            async with self._session_factory() as session:
+                self._relays = await load_panel_relays(session)
+            self._read_at = now
+        return self._relays
+
+
+async def load_panel_relays(session: "AsyncSession") -> tuple[Relay, ...]:
+    """Every relay added in the panel, as the settings would spell it."""
+    exit_server = aliased(VPNServer)
+    via_server = aliased(VPNServer)
+    rows = await session.execute(
+        select(RelayRoute, exit_server.code, via_server.code)
+        .join(exit_server, exit_server.id == RelayRoute.exit_server_id)
+        .join(via_server, via_server.id == RelayRoute.via_server_id)
+        .order_by(RelayRoute.created_at)
+    )
+    return tuple(
+        Relay(
+            code=route.code,
+            display_name=route.display_name,
+            exit=exit_code,
+            via=via_code,
+            host=route.host,
+            ports=dict(route.ports),
+        )
+        for route, exit_code, via_code in rows
+    )
+
+
+async def relay_list(request: Request) -> tuple[Relay, ...]:
+    """The relays from NEBULA_RELAYS, then those added in the panel; a code
+    set in both is the settings' one."""
+    configured: tuple[Relay, ...] = request.app.state.settings.relay_list()
+    catalog: RelayCatalog | None = getattr(request.app.state, "relay_catalog", None)
+    if catalog is None:
+        return configured
+    taken = {relay.code for relay in configured}
+    return configured + tuple(r for r in await catalog.relays() if r.code not in taken)
 
 
 def find_relay(relays: Iterable[Relay], server_code: str) -> Relay | None:
@@ -184,7 +251,7 @@ async def relay_reports_up(code: str, request: Request) -> Response:
     settings = request.app.state.settings
     expected = settings.relay_report_token.get_secret_value()
     given = request.headers.get("authorization", "").removeprefix("Bearer ")
-    relay = find_relay(settings.relay_list(), code)
+    relay = find_relay(await relay_list(request), code)
     health: RelayHealth | None = getattr(request.app.state, "relay_health", None)
     if (
         not expected

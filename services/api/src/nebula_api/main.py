@@ -51,7 +51,7 @@ from nebula_api.pairing import PairingService
 from nebula_api.pairing import router as pairing_router
 from nebula_api.provisioning.reconciliation import ReconciliationSummary, reconcile_now
 from nebula_api.provisioning.service import ProvisioningService
-from nebula_api.relays import RelayHealth
+from nebula_api.relays import RelayCatalog, RelayHealth
 from nebula_api.relays import router as relay_report_router
 from nebula_api.request_limits import RequestBodyLimitMiddleware
 from nebula_api.security_status import SecurityStatusService
@@ -59,6 +59,7 @@ from nebula_api.servers.routes import router as server_discovery_router
 from nebula_api.servers.service import ServerDiscoveryService
 from nebula_api.settings import Settings, get_settings
 from nebula_api.subscription import router as subscription_router
+from nebula_api.topology_admin.relays_routes import router as relays_admin_router
 from nebula_api.topology_admin.routes import router as topology_admin_router
 from nebula_api.topology_admin.service import TopologyAdminService
 from nebula_api.usage.counters import CounterKeepingAgentClient
@@ -110,6 +111,7 @@ def create_app(
     effective_user_management_service = user_management_service
     effective_provisioning_service = provisioning_service
     effective_server_discovery_service = server_discovery_service
+    relay_catalog: RelayCatalog | None = None
     effective_account_service = account_service
     effective_access_service = access_service
     effective_readiness_check: ReadinessCheck
@@ -237,6 +239,7 @@ def create_app(
             effective_server_discovery_service = ServerDiscoveryService(
                 create_session_factory(database_engine)
             )
+        relay_catalog = RelayCatalog(create_session_factory(database_engine))
         effective_usage_service = UsageService(
             create_session_factory(database_engine), key_material
         )
@@ -317,6 +320,7 @@ def create_app(
     application.state.relay_health = (
         RelayHealth(cast(Any, redis_client)) if redis_client is not None else None
     )
+    application.state.relay_catalog = relay_catalog
     application.state.account_service = effective_account_service
     application.state.usage_service = effective_usage_service
     application.state.enrollment_service = effective_enrollment_service
@@ -348,6 +352,7 @@ def create_app(
     application.include_router(account_router)
     application.include_router(subscription_router)
     application.include_router(relay_report_router)
+    application.include_router(relays_admin_router)
     application.include_router(enrollment_router)
     application.include_router(enrollment_admin_router)
 

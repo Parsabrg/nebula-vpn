@@ -32,7 +32,7 @@ from nebula_api.auth.user_service import (
 from nebula_api.devices.routes import xray_client_for
 from nebula_api.devices.schemas import XrayClientResponse
 from nebula_api.provisioning.service import ProvisioningError
-from nebula_api.relays import relays_up, with_relays
+from nebula_api.relays import relay_list, relays_up, with_relays
 from nebula_api.servers.service import ServerDiscoveryService
 from nebula_api.topology_seed import WIREGUARD_PROTOCOL_CODE
 
@@ -117,7 +117,7 @@ async def _links(request: Request, user_id: UUID, device_id: UUID) -> list[str]:
     servers = await _service(
         request, "server_discovery_service", ServerDiscoveryService
     ).list_available_servers(user_id, include_maintenance=False)
-    relays = request.app.state.settings.relay_list()
+    relays = await relay_list(request)
     if relays:
         servers = with_relays(
             servers, relays, await relays_up(request, relays), include_maintenance=False

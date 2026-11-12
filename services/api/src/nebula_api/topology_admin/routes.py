@@ -10,6 +10,7 @@ from nebula_api.auth.http import apply_auth_response_headers
 from nebula_api.models.operations import RECONCILIATION_OUTCOMES
 from nebula_api.models.types import AdminRole
 from nebula_api.provisioning.reconciliation import ReconciliationBusy, ReconciliationSummary
+from nebula_api.relays import relay_list
 from nebula_api.security_status import SecurityStatusService
 from nebula_api.topology_admin.schemas import (
     ProtocolListItem,
@@ -253,7 +254,7 @@ async def list_protocol_profiles(
 async def list_vpn_servers(request: Request, response: Response) -> VpnServerListResponse:
     await require_admin_session(request)
     entries = await _service(request).list_vpn_servers()
-    vias = {relay.via for relay in request.app.state.settings.relay_list()}
+    vias = {relay.via for relay in await relay_list(request)}
     apply_auth_response_headers(response)
     return VpnServerListResponse(
         items=[

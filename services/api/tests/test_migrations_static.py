@@ -33,6 +33,7 @@ def test_migration_history_is_linear_and_matches_runtime_head() -> None:
 
     assert scripts.get_heads() == [SCHEMA_HEAD]
     assert [revision.revision for revision in scripts.walk_revisions()] == [
+        "20261112_0023",
         "20261111_0022",
         "20261104_0021",
         "20261103_0020",

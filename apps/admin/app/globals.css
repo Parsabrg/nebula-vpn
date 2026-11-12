@@ -1267,3 +1267,16 @@ h2 {
     animation: none;
   }
 }
+
+/* Relays: a protocol's name and the relay's port for it, on one line. */
+.relay-port {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.relay-port input {
+  width: 7rem;
+}

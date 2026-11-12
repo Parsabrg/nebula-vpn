@@ -8,7 +8,7 @@ from nebula_api.auth.http import apply_auth_response_headers
 from nebula_api.auth.user_authorization import require_user_session
 from nebula_api.auth.user_service import AuthenticatedUser
 from nebula_api.cdn import CDN_PORT, cdn_route_for
-from nebula_api.relays import relays_up, with_relays
+from nebula_api.relays import relay_list, relays_up, with_relays
 from nebula_api.servers.schemas import (
     AvailableProfileItem,
     AvailableServerItem,
@@ -39,7 +39,7 @@ async def list_available_servers(
     entries = await _service(request).list_available_servers(
         principal.user_id, include_maintenance=include_maintenance
     )
-    relays = request.app.state.settings.relay_list()
+    relays = await relay_list(request)
     if relays:
         entries = with_relays(
             entries,
