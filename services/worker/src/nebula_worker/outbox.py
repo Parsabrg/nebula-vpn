@@ -16,17 +16,26 @@ class OutboxRedisClient(Protocol):
     async def get(self, name: str) -> bytes | str | None: ...
 
 
+class OutboxUnavailable(RuntimeError):
+    """Redis could not be asked; the payload may well be there."""
+
+
 def email_outbox_key(delivery_id: UUID) -> str:
     return f"{KEY_PREFIX}:{delivery_id}"
 
 
 async def read_email_payload(client: OutboxRedisClient, delivery_id: UUID) -> dict[str, str] | None:
-    """Return the staged payload, or `None` if it is missing, expired, or malformed."""
+    """Return the staged payload, or `None` if it is missing, expired, or malformed.
+
+    Raises `OutboxUnavailable` when Redis cannot be asked: "could not read" is
+    not "not there", and treating it so dropped activation and reset mail for
+    good on a Redis restart (audit AUD-006).
+    """
 
     try:
         raw = await client.get(email_outbox_key(delivery_id))
-    except Exception:
-        return None
+    except Exception as error:
+        raise OutboxUnavailable("email outbox could not be read") from error
     if raw is None:
         return None
     text = raw.decode("utf-8") if isinstance(raw, bytes) else raw

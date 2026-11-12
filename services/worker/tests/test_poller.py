@@ -173,9 +173,51 @@ def test_deliver_one_sends_and_marks_sent() -> None:
     assert params["provider_message_id"] == "canary-id"
 
 
+def test_deliver_one_waits_once_for_a_payload_not_yet_staged() -> None:
+    engine = FakeEngine()
+
+    asyncio.run(
+        deliver_one(
+            cast(AsyncEngine, engine),
+            FakeRedis(None),
+            FakeAdapter(),
+            delivery(attempt_count=0),
+            settings=Settings(),
+            now=NOW,
+        )
+    )
+
+    assert _sql_kinds(engine.connection.calls) == ["reschedule", "audit"]
+    _sql, params = engine.connection.calls[1]
+    assert params["reason_code"] == "payload_pending"
+
+
+def test_deliver_one_retries_when_redis_cannot_be_read() -> None:
+    engine = FakeEngine()
+
+    class BrokenRedis:
+        async def get(self, _name: str) -> str | None:
+            raise ConnectionError("redis restarting")
+
+    asyncio.run(
+        deliver_one(
+            cast(AsyncEngine, engine),
+            BrokenRedis(),
+            FakeAdapter(),
+            delivery(attempt_count=0),
+            settings=Settings(),
+            now=NOW,
+        )
+    )
+
+    assert _sql_kinds(engine.connection.calls) == ["reschedule", "audit"]
+    _sql, params = engine.connection.calls[1]
+    assert params["reason_code"] == "outbox_unavailable"
+
+
 def test_deliver_one_marks_failed_when_payload_is_missing() -> None:
     engine = FakeEngine()
-    item = delivery()
+    item = delivery(attempt_count=1)
 
     asyncio.run(
         deliver_one(
