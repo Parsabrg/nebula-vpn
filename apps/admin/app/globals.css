@@ -1011,9 +1011,24 @@ h2 {
 
 .server-card__head {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+/* The state badge and its Change button stay together. */
+.server-card__state {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Name and address take the room; the state badge and Change wrap under
+   them when the card is narrow, instead of spilling out of it. */
+.server-card__head > div:first-child {
+  flex: 1 1 14rem;
+  min-width: 0;
 }
 
 .server-card__head h2 {
@@ -1039,19 +1054,23 @@ h2 {
   color: var(--danger-text);
 }
 
-.server-card__facts {
+.server-card__facts,
+.facts {
   display: grid;
   grid-template-columns: max-content 1fr;
   gap: 0.35rem 1rem;
   margin: 0;
 }
 
-.server-card__facts dt {
+.server-card__facts dt,
+.facts dt {
   color: var(--muted);
 }
 
-.server-card__facts dd {
+.server-card__facts dd,
+.facts dd {
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .section-note {

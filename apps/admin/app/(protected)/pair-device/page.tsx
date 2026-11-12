@@ -39,7 +39,7 @@ export default async function PairDevicePage() {
 
       <section className="status-card" aria-labelledby="pair-device-trust">
         <h2 id="pair-device-trust">What the link proves</h2>
-        <dl>
+        <dl className="facts">
           <dt>Deployment</dt>
           <dd>
             <code>{pairing.deploymentId}</code>

@@ -31,7 +31,7 @@ export function ServerStateControl({
   );
 
   return (
-    <>
+    <div className="server-card__state">
       <span
         className={`badge badge--${state}`}
         title={
@@ -76,6 +76,6 @@ export function ServerStateControl({
         action={() => setServerState(serverId, draft)}
         onSuccess={(updated) => setState(updated)}
       />
-    </>
+    </div>
   );
 }
