@@ -18,6 +18,7 @@ const store = {
 
 vi.mock("next/headers", () => ({
   cookies: async () => store,
+  headers: async () => new Headers(),
 }));
 
 vi.mock("@/lib/api/config", () => ({

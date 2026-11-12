@@ -166,9 +166,13 @@ class AdminAuthService:
         async with self._session_factory() as session:
             admin = await self._find_admin(session, normalized, for_update=True)
             account_key = str(admin.id) if admin is not None else normalized
+            # The account's bucket is per network too: keyed on the account
+            # alone, five requests from anywhere naming an admin kept that
+            # admin from signing in (audit AUD-005). The second factor is
+            # what stands between a guessed password and a session.
             allowed = await self._redis.rate_limit(
                 (
-                    RateBucket("admin-account", account_key),
+                    RateBucket("admin-account", f"{account_key} {network_prefix}"),
                     RateBucket("admin-login-network", network_prefix),
                 ),
                 limit=self._settings.admin_login_rate_limit,
@@ -200,20 +204,16 @@ class AdminAuthService:
                 and password_valid
             )
             if not eligible:
-                failure = await self._redis.record_admin_failure(
-                    account_key,
-                    threshold=self._settings.admin_lockout_threshold,
-                    lock_seconds=self._settings.admin_lockout_seconds,
-                )
+                # A wrong password no longer counts toward the lockout: anyone
+                # could then lock an admin out by name. Only second-factor
+                # failures, after the password was proven, do (AUD-005).
                 add_audit_event(
                     session,
                     actor_kind="anonymous",
                     actor_id=None,
                     target_kind="auth_attempt",
                     target_id=request_id,
-                    event_code=(
-                        "auth_lockout_changed" if failure.locked else "admin_authenticated"
-                    ),
+                    event_code="admin_authenticated",
                     outcome="denied",
                     request_id=request_id,
                     reason_code="invalid_credentials",
