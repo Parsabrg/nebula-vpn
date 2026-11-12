@@ -170,7 +170,7 @@ _harness({
   Duration? accessInterval,
   FakeAccountRepository? accounts,
   InMemoryTunnelRestoreStore? restores,
-  Future<bool> Function(LocalProxy?)? tunnelCarries,
+  Future<bool> Function(LocalProxy?, {bool slow})? tunnelCarries,
   Future<bool> Function(LocalProxy, InternetAddress)? tunnelResolves,
   bool Function()? moveRoute,
   Future<bool> Function()? online,
@@ -291,7 +291,7 @@ _harness({
       // A real request otherwise; a tunnel that carries traffic unless a
       // test says it does not.
       tunnelCarriesTrafficProvider.overrideWithValue(
-        tunnelCarries ?? (_) async => true,
+        tunnelCarries ?? (_, {bool slow = false}) async => true,
       ),
       tunnelResolvesProvider.overrideWithValue(
         tunnelResolves ?? (_, _) async => true,
@@ -1003,7 +1003,9 @@ void main() {
     test('a handshake that carries nothing is undone too', () async {
       // Seen on the phone: the server's handshakes got in, the phone's
       // traffic did not, and the screen said Protected for minutes.
-      final harness = _harness(tunnelCarries: (_) async => false);
+      final harness = _harness(
+        tunnelCarries: (_, {bool slow = false}) async => false,
+      );
       addTearDown(harness.container.dispose);
       harness.repository.servers = <AvailableServer>[_wireGuardOnlyServer];
       await harness.container.read(devicesControllerProvider.notifier).load();
@@ -1413,7 +1415,9 @@ void main() {
         () async {
           int probes = 0;
           // The first tunnel (old credential) carries nothing; the next does.
-          final harness = _harness(tunnelCarries: (_) async => ++probes > 6);
+          final harness = _harness(
+            tunnelCarries: (_, {bool slow = false}) async => ++probes > 6,
+          );
           addTearDown(harness.container.dispose);
           final DevicesController notifier = await saved(harness);
           const XrayClientResult rotated = XrayClientResult(
@@ -1500,7 +1504,7 @@ void main() {
         // credential through a clean address with another hello got through.
         late final FakeXrayTunnelController tunnel;
         final harness = _harness(
-          tunnelCarries: (_) async =>
+          tunnelCarries: (_, {bool slow = false}) async =>
               !(tunnel.lastConnectConfig ?? '').contains('echConfigList'),
         );
         tunnel = harness.xrayTunnel;
@@ -1540,7 +1544,7 @@ void main() {
         // and nothing larger got through, while the screen said Protected.
         int probes = 0;
         final harness = _harness(
-          tunnelCarries: (_) async {
+          tunnelCarries: (_, {bool slow = false}) async {
             if ((++probes).isOdd) {
               return true;
             }
@@ -1578,7 +1582,9 @@ void main() {
       });
 
       test('the same credential again is not tried twice', () async {
-        final harness = _harness(tunnelCarries: (_) async => false);
+        final harness = _harness(
+          tunnelCarries: (_, {bool slow = false}) async => false,
+        );
         addTearDown(harness.container.dispose);
         final DevicesController notifier = await saved(harness);
 
@@ -1758,7 +1764,7 @@ void main() {
     test('takes an Xray tunnel down again when nothing gets through', () async {
       int probes = 0;
       final harness = _harness(
-        tunnelCarries: (_) async {
+        tunnelCarries: (_, {bool slow = false}) async {
           probes++;
           return false;
         },
@@ -1789,7 +1795,7 @@ void main() {
     // person to try other protocols that cannot help.
     test('says offline, not blocked, when the device is not online', () async {
       final harness = _harness(
-        tunnelCarries: (_) async => false,
+        tunnelCarries: (_, {bool slow = false}) async => false,
         online: () async => false,
       );
       addTearDown(harness.container.dispose);
@@ -1812,7 +1818,7 @@ void main() {
       // Android may hold back a backgrounded app's own requests; an online
       // phone was told it was offline (2026-10-29).
       final harness = _harness(
-        tunnelCarries: (_) async => false,
+        tunnelCarries: (_, {bool slow = false}) async => false,
         online: () async => false,
         trafficMeaningful: false,
       );
@@ -1842,7 +1848,7 @@ void main() {
         ]) {
       test('says why nothing got through: ${c.$1.name}', () async {
         final harness = _harness(
-          tunnelCarries: (_) async => false,
+          tunnelCarries: (_, {bool slow = false}) async => false,
           reach: (XrayClientResult _) async => c.$1,
         );
         addTearDown(harness.container.dispose);
@@ -1897,7 +1903,9 @@ void main() {
       // The direct profiles pass a quick check but a browser's traffic over
       // them was cut on a home line in Iran; Automatic leaves them out.
       test('skips the direct, hand-picked-only profiles', () async {
-        final harness = _harness(tunnelCarries: (_) async => true);
+        final harness = _harness(
+          tunnelCarries: (_, {bool slow = false}) async => true,
+        );
         addTearDown(harness.container.dispose);
         harness.repository.servers = <AvailableServer>[
           AvailableServer(
@@ -1942,7 +1950,9 @@ void main() {
       test('moves to the next protocol when one carries nothing', () async {
         int probes = 0;
         // Three tries per protocol, two requests each: the first fails all.
-        final harness = _harness(tunnelCarries: (_) async => ++probes > 6);
+        final harness = _harness(
+          tunnelCarries: (_, {bool slow = false}) async => ++probes > 6,
+        );
         addTearDown(harness.container.dispose);
         final DevicesController notifier = await setUpAutomatic(harness);
 
@@ -1964,7 +1974,8 @@ void main() {
         // inbound and the one that worked was never reached.
         String? asked;
         final harness = _harness(
-          tunnelCarries: (_) async => asked == 'vless-tcp-tls',
+          tunnelCarries: (_, {bool slow = false}) async =>
+              asked == 'vless-tcp-tls',
         );
         addTearDown(harness.container.dispose);
         harness.repository.servers = <AvailableServer>[
@@ -2015,7 +2026,9 @@ void main() {
       test('passes over a protocol that just failed here', () async {
         // Its record says it failed minutes ago; trying it first again would
         // spend twenty seconds on what this network is blocking right now.
-        final harness = _harness(tunnelCarries: (_) async => true);
+        final harness = _harness(
+          tunnelCarries: (_, {bool slow = false}) async => true,
+        );
         addTearDown(harness.container.dispose);
         final DevicesController notifier = await setUpAutomatic(harness);
         await harness.container
@@ -2033,7 +2046,9 @@ void main() {
 
       test('records what each protocol did', () async {
         int probes = 0;
-        final harness = _harness(tunnelCarries: (_) async => ++probes > 6);
+        final harness = _harness(
+          tunnelCarries: (_, {bool slow = false}) async => ++probes > 6,
+        );
         addTearDown(harness.container.dispose);
         final DevicesController notifier = await setUpAutomatic(harness);
 
@@ -2047,7 +2062,9 @@ void main() {
       });
 
       test('gives up after four, and says none got through', () async {
-        final harness = _harness(tunnelCarries: (_) async => false);
+        final harness = _harness(
+          tunnelCarries: (_, {bool slow = false}) async => false,
+        );
         addTearDown(harness.container.dispose);
         final DevicesController notifier = await setUpAutomatic(harness);
 
@@ -2066,7 +2083,7 @@ void main() {
 
       test('stops at once when the device is not online', () async {
         final harness = _harness(
-          tunnelCarries: (_) async => false,
+          tunnelCarries: (_, {bool slow = false}) async => false,
           online: () async => false,
         );
         addTearDown(harness.container.dispose);
@@ -2166,7 +2183,9 @@ void main() {
     // A throttled address answers the first request and stalls the rest.
     test('one answer then silence is no tunnel', () async {
       int probes = 0;
-      final harness = _harness(tunnelCarries: (_) async => ++probes == 1);
+      final harness = _harness(
+        tunnelCarries: (_, {bool slow = false}) async => ++probes == 1,
+      );
       addTearDown(harness.container.dispose);
       final DevicesController notifier = await setUpXraySelection(harness);
       harness.repository.requestXrayClientResult = _xrayClientResult();
@@ -2186,7 +2205,7 @@ void main() {
       final harness = _harness(
         // The first tunnel carries nothing; the one through the next route
         // does.
-        tunnelCarries: (_) async => moves > 0,
+        tunnelCarries: (_, {bool slow = false}) async => moves > 0,
         moveRoute: () => ++moves == 1,
       );
       addTearDown(harness.container.dispose);
@@ -2205,7 +2224,9 @@ void main() {
 
     test('keeps an Xray tunnel whose second try gets through', () async {
       int probes = 0;
-      final harness = _harness(tunnelCarries: (_) async => ++probes >= 2);
+      final harness = _harness(
+        tunnelCarries: (_, {bool slow = false}) async => ++probes >= 2,
+      );
       addTearDown(harness.container.dispose);
       final DevicesController notifier = await setUpXraySelection(harness);
       harness.repository.requestXrayClientResult = _xrayClientResult();
@@ -3276,7 +3297,7 @@ void _tunnelHonestyTests() {
     final harness = _harness(
       watchInterval: interval,
       trafficInterval: interval,
-      tunnelCarries: (_) async => carries,
+      tunnelCarries: (_, {bool slow = false}) async => carries,
     );
     addTearDown(harness.container.dispose);
     final DevicesController notifier = await xraySelected(
@@ -3318,7 +3339,7 @@ void _tunnelHonestyTests() {
         watchInterval: interval,
         trafficInterval: const Duration(hours: 1),
         trafficRecheck: interval,
-        tunnelCarries: (_) async => carries,
+        tunnelCarries: (_, {bool slow = false}) async => carries,
       );
       addTearDown(harness.container.dispose);
       final DevicesController notifier = await xraySelected(
@@ -3346,7 +3367,7 @@ void _tunnelHonestyTests() {
       watchInterval: interval,
       trafficInterval: const Duration(hours: 1),
       trafficRecheck: interval,
-      tunnelCarries: (_) async => true,
+      tunnelCarries: (_, {bool slow = false}) async => true,
       tunnelMovesData: (_) async => moves,
     );
     addTearDown(harness.container.dispose);
@@ -3371,7 +3392,7 @@ void _tunnelHonestyTests() {
     final harness = _harness(
       watchInterval: interval,
       trafficInterval: interval,
-      tunnelCarries: (_) async => carries,
+      tunnelCarries: (_, {bool slow = false}) async => carries,
     );
     addTearDown(harness.container.dispose);
     final DevicesController notifier = await xraySelected(
@@ -3403,7 +3424,7 @@ void _tunnelHonestyTests() {
       watchInterval: interval,
       trafficInterval: interval,
       trafficMeaningful: false,
-      tunnelCarries: (_) async => carries,
+      tunnelCarries: (_, {bool slow = false}) async => carries,
     );
     addTearDown(harness.container.dispose);
     final DevicesController notifier = await xraySelected(
@@ -3431,7 +3452,7 @@ void _tunnelHonestyTests() {
     final harness = _harness(
       trafficMeaningful: false,
       onResume: onResume,
-      tunnelCarries: (_) async => carries,
+      tunnelCarries: (_, {bool slow = false}) async => carries,
     );
     addTearDown(harness.container.dispose);
     final DevicesController notifier = await xraySelected(
@@ -3537,7 +3558,7 @@ void _tunnelHonestyTests() {
     final harness = _harness(
       watchInterval: interval,
       trafficInterval: interval,
-      tunnelCarries: (_) async {
+      tunnelCarries: (_, {bool slow = false}) async {
         if (connecting) {
           return true;
         }
@@ -3768,7 +3789,7 @@ void _adoptionTests() {
     final harness = _harness(
       records: records,
       trafficInterval: const Duration(milliseconds: 20),
-      tunnelCarries: (LocalProxy? through) async {
+      tunnelCarries: (LocalProxy? through, {bool slow = false}) async {
         askedThrough.add(through);
         return true;
       },
@@ -4897,7 +4918,8 @@ void _hostileNetworkTests() {
     final _HostileNetwork net = network ?? _HostileNetwork();
     late final FakeXrayTunnelController xray;
     final harness = _harness(
-      tunnelCarries: (_) async => net.carries(xray.lastConnectConfig),
+      tunnelCarries: (_, {bool slow = false}) async =>
+          net.carries(xray.lastConnectConfig),
       online: online,
       reach: reach,
     );

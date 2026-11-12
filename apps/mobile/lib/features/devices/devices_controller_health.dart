@@ -229,12 +229,12 @@ mixin _HealthChecks on _DevicesCore {
         return;
       }
       _trafficFailedReadings++;
-      if (_trafficFailedReadings < 3 ||
+      if (_trafficFailedReadings < _deadAfter ||
           state.isSubmitting ||
           !state.tunnelEstablished) {
         // Confirmed or cleared within seconds: three one-a-minute readings
         // kept a stalled tunnel reading "Protected" for three minutes.
-        if (_trafficFailedReadings < 3) {
+        if (_trafficFailedReadings < _deadAfter) {
           _checkTrafficSoon();
         }
         return;
@@ -271,7 +271,11 @@ mixin _HealthChecks on _DevicesCore {
       return false;
     }
     final LocalProxy? proxy = _tunnelProxy;
-    if (!await ref.read(tunnelCarriesTrafficProvider)(proxy) || !ref.mounted) {
+    if (!await ref.read(tunnelCarriesTrafficProvider)(
+          proxy,
+          slow: _slowTunnel,
+        ) ||
+        !ref.mounted) {
       return false;
     }
     final InternetAddress? resolver = _tunnelResolver();
@@ -325,6 +329,13 @@ mixin _HealthChecks on _DevicesCore {
     return null;
   }
 
+  /// The DNS tunnel: slow by nature, so a reading that times out says
+  /// little. Each waits [slowTrafficProbe] and five in a row -- about three
+  /// minutes -- end it; it is still ended when it is dead (owner, 2026-11-12:
+  /// slow but working must stay, dead must go).
+  bool get _slowTunnel => state.activeProfileCode == kDnsTunnelProfileCode;
+  int get _deadAfter => _slowTunnel ? 5 : 3;
+
   /// Checks the tunnel the moment the app is opened again.
   ///
   /// Off screen on Android, [_checkTraffic] asks nothing (see
@@ -347,7 +358,7 @@ mixin _HealthChecks on _DevicesCore {
     }
     _checkingTraffic = true;
     try {
-      for (int tried = 0; tried < 3; tried++) {
+      for (int tried = 0; tried < _deadAfter; tried++) {
         if (tried > 0) {
           await Future<void>.delayed(const Duration(seconds: 2));
         }
@@ -508,10 +519,10 @@ mixin _HealthChecks on _DevicesCore {
     bool viaProxy = true,
     bool slow = false,
   }) async {
-    final Future<bool> Function(LocalProxy?) carries = ref.read(
+    final Future<bool> Function(LocalProxy?, {bool slow}) carries = ref.read(
       tunnelCarriesTrafficProvider,
     );
-    Future<bool> probe() => carries(viaProxy ? _tunnelProxy : null);
+    Future<bool> probe() => carries(viaProxy ? _tunnelProxy : null, slow: slow);
     for (int tried = 0; tried < 3; tried++) {
       if (!ref.mounted || _cancelled(attempt)) {
         return false;

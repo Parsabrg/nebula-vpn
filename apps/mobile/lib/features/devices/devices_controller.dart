@@ -906,14 +906,26 @@ final tunnelSettleStepProvider = Provider<Duration>(
 /// Android the request goes through that: the app is outside its own tunnel,
 /// so a plain request would answer whenever the phone is online. See
 /// [answersThroughSocks].
+///
+/// [slow]: the DNS tunnel, which carries a request in tens of seconds when
+/// it works at all: each is given [slowTrafficProbe] instead of seconds.
 final tunnelCarriesTrafficProvider =
-    Provider<Future<bool> Function(LocalProxy? through)>(
+    Provider<Future<bool> Function(LocalProxy? through, {bool slow})>(
       (Ref ref) =>
-          (LocalProxy? through) =>
+          (LocalProxy? through, {bool slow = false}) =>
               through != null && defaultTargetPlatform == TargetPlatform.android
-              ? answersThroughSocks(through)
-              : _answers(_delayProbeUrl),
+              ? answersThroughSocks(
+                  through,
+                  timeout: slow ? slowTrafficProbe : const Duration(seconds: 8),
+                )
+              : _answers(
+                  _delayProbeUrl,
+                  timeout: slow ? slowTrafficProbe : const Duration(seconds: 6),
+                ),
     );
+
+/// How long one traffic reading waits over the DNS tunnel.
+const Duration slowTrafficProbe = Duration(seconds: 30);
 
 /// Whether the tunnel's resolver answers a DNS question sent through the
 /// tunnel's proxy over UDP. Android only: elsewhere this app's own traffic is
@@ -964,9 +976,12 @@ Future<bool> _anyAnswers(List<String> urls) async {
   return answer.future;
 }
 
-Future<bool> _answers(String url) async {
+Future<bool> _answers(
+  String url, {
+  Duration timeout = const Duration(seconds: 6),
+}) async {
   final HttpClient client = HttpClient()
-    ..connectionTimeout = const Duration(seconds: 5);
+    ..connectionTimeout = timeout - const Duration(seconds: 1);
   try {
     final int status = await () async {
       final HttpClientResponse response = await (await client.getUrl(
@@ -974,7 +989,7 @@ Future<bool> _answers(String url) async {
       )).close();
       await response.drain<void>();
       return response.statusCode;
-    }().timeout(const Duration(seconds: 6));
+    }().timeout(timeout);
     return status < 400;
   } on Object {
     return false;
