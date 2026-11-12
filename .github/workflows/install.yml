@@ -161,6 +161,11 @@ jobs:
           panel=$(get panel /) admin=$(get api /v1/admin/audit-log) app=$(get api /v1/routes/)
           echo "panel $panel, admin API $admin, app API $app"
           [ "$panel" = 403 ] && [ "$admin" = 403 ] && [ "$app" = 401 ]
+          # The VPN port never serves the admin API: it would skip the allowlist.
+          vpn=$(curl -sSk -o /dev/null -w '%{http_code}' --resolve "$NEBULA_DOMAIN:8445:127.0.0.1"             "https://$NEBULA_DOMAIN:8445/v1/admin/audit-log")
+          echo "admin API on the VPN port: $vpn"; [ "$vpn" = 404 ]
+          # No access log keeps who asked for what (docs/privacy.md).
+          ! sudo grep -rqs "/v1/routes/" /var/log/nginx/access.log
       - name: Relay forwards only its ports, and comes off again
         run: |
           set -eu
