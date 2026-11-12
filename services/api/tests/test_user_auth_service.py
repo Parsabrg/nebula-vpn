@@ -960,3 +960,23 @@ class TestDeletingTheAccount:
         assert account.email == "user@example.com"
         assert account.state is AccountState.ACTIVE
         assert database.executed == []
+
+
+def test_sign_ins_beyond_the_slots_are_refused_before_taking_a_connection() -> None:
+    # A burst held every pooled connection while it waited to hash (AUD-004).
+    from nebula_api.auth import user_service
+
+    async def burst() -> None:
+        held = [user_service.sign_in_slot() for _ in range(user_service._SIGN_IN_SLOTS)]
+        for slot in held:
+            await slot.__aenter__()
+        with pytest.raises(user_service.AuthenticationRateLimited):
+            async with user_service.sign_in_slot():
+                pass
+        for slot in held:
+            await slot.__aexit__(None, None, None)
+        async with user_service.sign_in_slot():
+            assert user_service._sign_ins_in_flight == 1
+        assert user_service._sign_ins_in_flight == 0
+
+    asyncio.run(burst())
