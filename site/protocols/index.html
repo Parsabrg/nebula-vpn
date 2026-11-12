@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VPN protocols for censored networks: REALITY, XHTTP, Hysteria2, DNS tunnel – Nebula VPN</title>
+<meta name="description" content="Which VPN protocols get through censorship in Iran and why: VLESS REALITY, XHTTP, gRPC, WebSocket, Hysteria2, Shadowsocks-2022, WireGuard and a DNS tunnel, as used by Nebula VPN.">
+<link rel="canonical" href="https://parsabrg.github.io/nebula-vpn/protocols/">
+<link rel="icon" type="image/png" href="../favicon.png">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Nebula VPN">
+<meta property="og:title" content="VPN protocols for censored networks: REALITY, XHTTP, Hysteria2, DNS tunnel – Nebula VPN">
+<meta property="og:description" content="Which VPN protocols get through censorship in Iran and why: VLESS REALITY, XHTTP, gRPC, WebSocket, Hysteria2, Shadowsocks-2022, WireGuard and a DNS tunnel, as used by Nebula VPN.">
+<meta property="og:url" content="https://parsabrg.github.io/nebula-vpn/protocols/">
+<meta property="og:image" content="https://parsabrg.github.io/nebula-vpn/icon.png">
+<link rel="stylesheet" href="../style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Nebula VPN",
+      "item": "https://parsabrg.github.io/nebula-vpn/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "VPN protocols for censored networks: REALITY, XHTTP, Hysteria2, DNS tunnel",
+      "item": "https://parsabrg.github.io/nebula-vpn/protocols/"
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<main>
+<nav><a href="../">Nebula VPN</a><a href="../install/">Install</a><a href="../server/">Run a server</a><a href="../protocols/">Protocols</a><a href="../faq/">FAQ</a><a href="https://github.com/Parsabrg/nebula-vpn">GitHub</a></nav>
+<h1>Protocols in Nebula VPN</h1>
+<p class="lede">Filtered networks block different things on different days. Nebula VPN offers several
+protocols on one server, tests them on the network you are on, and shows which ones carry real data.</p>
+
+<h2>VLESS with REALITY</h2>
+<p>Looks like a visit to a well-known website: the TLS handshake borrows another site's certificate,
+so there is no domain of yours to block. Often the first to work when everything else is filtered.</p>
+
+<h2>VLESS over XHTTP, gRPC and WebSocket</h2>
+<p>Ordinary HTTPS traffic to your own domain. Because it is plain HTTP, it can travel through
+Cloudflare or a web host, so it keeps working when your server's address is blocked.</p>
+
+<h2>Hysteria2</h2>
+<p>QUIC over UDP, built for lossy and throttled lines: fast where TCP crawls. With port hopping it
+moves between ports so a single blocked port does not stop it. Some networks drop UDP; then use one of
+the TCP protocols.</p>
+
+<h2>Shadowsocks-2022 and VLESS Encryption</h2>
+<p>Encrypted streams with no TLS at all: nothing for a filter to read in the handshake. Fast on lines
+that leave them alone.</p>
+
+<h2>WireGuard</h2>
+<p>The simplest and fastest where it is allowed. Easy for filters to recognise, so in Iran it often is not.</p>
+
+<h2>DNS tunnel</h2>
+<p>The last resort, for shutdowns when only DNS gets through. It carries traffic inside DNS queries
+to public resolvers: slow (tens of KB/s), but enough for messages and plain pages. The app tests
+resolvers on your network and keeps the ones that work.</p>
+
+<h2>Automatic</h2>
+<p>Automatic tries the protocols on your network and keeps a score per protocol and server. A
+connection is called Protected only after real data has moved through it, and a protocol that stops
+working is turned off with the reason shown, never swapped behind your back.</p>
+<footer>Nebula VPN is free and open source. Not affiliated with Slack's or Defined Networking's Nebula overlay network.</footer>
+</main>
+</body>
+</html>
