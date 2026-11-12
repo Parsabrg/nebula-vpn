@@ -2,10 +2,10 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Self
 from urllib.parse import urlsplit
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     smtp_username: str = ""
     smtp_password_file: Path | None = None
     smtp_starttls: bool = False
+    # Port 465: TLS from the first byte instead of STARTTLS.
+    smtp_implicit_tls: bool = False
+    # A private CA for the mail server, when it is not publicly trusted.
+    smtp_ca_file: Path | None = None
     resend_api_key_file: Path | None = None
 
     poll_interval_seconds: float = Field(default=5.0, ge=0.5, le=60.0)
@@ -72,6 +76,18 @@ class Settings(BaseSettings):
         if parsed.scheme not in {"redis", "rediss"} or not parsed.hostname:
             raise ValueError("must be an absolute Redis URL")
         return value
+
+    @model_validator(mode="after")
+    def _credentials_need_tls(self) -> Self:
+        # The password and every one-time link cross this connection.
+        if (
+            self.env == "production"
+            and self.email_provider == "smtp"
+            and self.smtp_username
+            and not (self.smtp_starttls or self.smtp_implicit_tls)
+        ):
+            raise ValueError("SMTP credentials need STARTTLS or implicit TLS in production")
+        return self
 
     @property
     def smtp_password(self) -> str:

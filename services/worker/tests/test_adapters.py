@@ -1,6 +1,7 @@
 import asyncio
 import json
 import smtplib
+import ssl
 import urllib.error
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -46,6 +47,46 @@ def test_smtp_adapter_uses_starttls_and_login_when_configured(tmp_path: Any) -> 
 
     fake_smtp.starttls.assert_called_once()
     fake_smtp.login.assert_called_once_with("worker", "secret")
+
+
+def test_smtp_starttls_verifies_the_server_certificate() -> None:
+    # smtplib's own default checks nothing: a reset link is an account.
+    settings = Settings(smtp_starttls=True)
+    fake_smtp = MagicMock()
+    fake_smtp.__enter__.return_value = fake_smtp
+    fake_smtp.__exit__.return_value = False
+
+    with patch("smtplib.SMTP", return_value=fake_smtp):
+        asyncio.run(SmtpAdapter(settings).send(to="u@example.com", subject="S", body="B"))
+
+    context = fake_smtp.starttls.call_args.kwargs["context"]
+    assert context.verify_mode == ssl.CERT_REQUIRED
+    assert context.check_hostname is True
+
+
+def test_smtp_port_465_uses_implicit_tls() -> None:
+    settings = Settings(smtp_port=465, smtp_implicit_tls=True, smtp_starttls=True)
+    fake_smtp = MagicMock()
+    fake_smtp.__enter__.return_value = fake_smtp
+    fake_smtp.__exit__.return_value = False
+
+    with (
+        patch("smtplib.SMTP_SSL", return_value=fake_smtp) as implicit,
+        patch("smtplib.SMTP") as plain,
+    ):
+        asyncio.run(SmtpAdapter(settings).send(to="u@example.com", subject="S", body="B"))
+
+    plain.assert_not_called()
+    assert implicit.call_args.kwargs["context"].verify_mode == ssl.CERT_REQUIRED
+    fake_smtp.starttls.assert_not_called()
+    fake_smtp.send_message.assert_called_once()
+
+
+def test_production_refuses_smtp_credentials_without_tls() -> None:
+    with pytest.raises(ValueError, match="TLS"):
+        Settings(env="production", smtp_username="worker", smtp_starttls=False)
+    Settings(env="production", smtp_username="worker", smtp_starttls=True)
+    Settings(env="production", smtp_username="worker", smtp_implicit_tls=True)
 
 
 def test_smtp_adapter_wraps_failures() -> None:
