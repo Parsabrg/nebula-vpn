@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../storage/storage_providers.dart';
+import 'dns_tunnel_desktop.dart';
 import 'dns_tunnel_engine.dart';
 import 'dns_tunnel_sync.dart';
 
@@ -571,9 +572,19 @@ final dnsTunnelActiveResolversProvider =
       }
     });
 
+/// The DNS tunnel runs on Android, Windows and Linux.
+bool get dnsTunnelSupported => const <TargetPlatform>{
+  TargetPlatform.android,
+  TargetPlatform.windows,
+  TargetPlatform.linux,
+}.contains(defaultTargetPlatform);
+
 final dnsTunnelResolversProvider = Provider<DnsTunnelResolvers>((Ref ref) {
   final DnsTunnelResolvers resolvers = DnsTunnelResolvers(
     ref.watch(sharedPreferencesProvider),
+    platform: defaultTargetPlatform == TargetPlatform.android
+        ? const ChannelDnsTunnelPlatform()
+        : DesktopDnsTunnelPlatform(),
   );
   ref.onDispose(resolvers.dispose);
   return resolvers;

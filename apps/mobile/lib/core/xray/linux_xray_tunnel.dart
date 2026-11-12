@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../network/dns_tunnel_engine.dart';
 import '../tunnel/tunnel_traffic.dart';
 import 'linux_tunnel_config.dart';
 import 'linux_vpn_supervisor.dart';
@@ -74,6 +75,7 @@ class LinuxXrayRuntime {
   final String _runtimeDirectory;
   Directory? _state;
   int? _localXrayPid;
+  int? _dnsTunnelPid;
   final List<String> _logs = <String>[];
   final StreamController<TunnelTraffic> _trafficController =
       StreamController<TunnelTraffic>.broadcast();
@@ -109,6 +111,19 @@ class LinuxXrayRuntime {
         );
         return;
       }
+      // The DNS tunnel's engine runs first, as the person, on loopback;
+      // Xray's outbound dials it, and its resolvers leave around the tunnel.
+      final Map<String, dynamic>? dnsTunnel =
+          source.remove('nebulaDnsTunnel') as Map<String, dynamic>?;
+      final List<String> bypass = dnsTunnel == null
+          ? const <String>[]
+          : dnsTunnelResolverIpv4s(dnsTunnel['resolvers'] as String? ?? '');
+      if (dnsTunnel != null) {
+        if (!proxyOnly && bypass.isEmpty) {
+          throw StateError('No IPv4 resolver to reach the DNS tunnel through.');
+        }
+        _dnsTunnelPid = await _startDnsTunnel(dnsTunnel, state);
+      }
       final String xray = await _runtimeBinary('xray');
       final File configFile = File('${state.path}/xray.json');
       if (proxyOnly) {
@@ -120,26 +135,30 @@ class LinuxXrayRuntime {
         ]);
         return;
       }
-      final String? host = _upstreamAddress(source);
-      final String? upstreamIp =
-          pinnedUpstream(source, host) ?? await _resolveIpv4(host);
-      if (host == null || upstreamIp == null) {
-        throw StateError('Linux could not resolve the VPN server address.');
-      }
       final List<String> resolvers = windowsTunnelDnsServers(source);
+      final Map<String, dynamic> routed;
+      if (dnsTunnel != null) {
+        routed = source;
+      } else {
+        final String? host = _upstreamAddress(source);
+        final String? upstreamIp =
+            pinnedUpstream(source, host) ?? await _resolveIpv4(host);
+        if (host == null || upstreamIp == null) {
+          throw StateError('Linux could not resolve the VPN server address.');
+        }
+        routed = windowsXrayPinnedUpstream(source, host, upstreamIp);
+      }
       await configFile.writeAsString(
-        jsonEncode(
-          linuxXrayTunConfig(
-            windowsXrayPinnedUpstream(source, host, upstreamIp),
-            resolvers,
-          ),
-        ),
+        jsonEncode(linuxXrayTunConfig(routed, resolvers)),
       );
       await startLinuxVpnHelper(
         engine: xray,
         config: configFile,
         dnsServers: resolvers,
-        killSwitch: killSwitch,
+        // Its resolvers are many and change: a kill switch allowing them
+        // all would not be one. Off over the DNS tunnel, as on Windows.
+        killSwitch: killSwitch && dnsTunnel == null,
+        bypass: bypass,
       );
       _startTrafficMonitoring();
     } catch (_) {
@@ -197,6 +216,11 @@ class LinuxXrayRuntime {
     _localXrayPid = null;
     if (local != null) {
       Process.killPid(local);
+    }
+    final int? dnsTunnelPid = _dnsTunnelPid;
+    _dnsTunnelPid = null;
+    if (dnsTunnelPid != null) {
+      Process.killPid(dnsTunnelPid);
     }
     final Directory? state = _state;
     _state = null;
@@ -356,6 +380,46 @@ class LinuxXrayRuntime {
         _trafficController.add(reading);
       }
     });
+  }
+
+  /// Writes the DNS tunnel's config (it holds the tunnel key) and resolver
+  /// list into this session's private folder, starts the engine, and waits
+  /// until it accepts on its port: it tests its resolvers first.
+  Future<int> _startDnsTunnel(
+    Map<String, dynamic> tunnel,
+    Directory state,
+  ) async {
+    final String engine = await _runtimeBinary('cottendns_client');
+    final File config = File('${state.path}/cottendns.toml');
+    final File resolvers = File('${state.path}/cottendns_resolvers.txt');
+    await config.writeAsString(tunnel['config'] as String);
+    await resolvers.writeAsString(tunnel['resolvers'] as String? ?? '');
+    final int pid = await _startQuiet(engine, <String>[
+      '-config',
+      config.path,
+      '-resolvers',
+      resolvers.path,
+    ]);
+    final int port = tunnel['port'] as int;
+    final DateTime deadline = DateTime.now().add(const Duration(seconds: 90));
+    while (DateTime.now().isBefore(deadline)) {
+      try {
+        final Socket socket = await Socket.connect(
+          InternetAddress.loopbackIPv4,
+          port,
+          timeout: const Duration(seconds: 1),
+        );
+        socket.destroy();
+        return pid;
+      } on SocketException {
+        if (!await Directory('/proc/$pid').exists()) {
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+      }
+    }
+    Process.killPid(pid);
+    throw StateError('The DNS tunnel found no working resolver.');
   }
 
   /// The bundled engine. Flutter copies assets without their executable

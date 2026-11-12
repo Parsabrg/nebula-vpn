@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io' show InternetAddress, Platform;
+import 'dart:io' show InternetAddress;
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +9,7 @@ import '../free/free_mode.dart';
 import '../network/api_client.dart';
 import '../network/api_exception.dart';
 import '../network/dns_tunnel_engine.dart';
+import '../network/dns_tunnel_resolvers.dart';
 import '../network/dns_tunnel_sync.dart';
 import '../network/route_fallback.dart';
 import '../settings/locale_controller.dart';
@@ -488,7 +489,7 @@ final serverRepositoryProvider = Provider<ServerRepository>((Ref ref) {
     server: DioServerRepository(
       ref.watch(dioProvider),
       preferences: () => ref.read(sharedPreferencesProvider),
-      dnsTunnel: Platform.isAndroid
+      dnsTunnel: dnsTunnelSupported
           ? () => ref.read(dnsTunnelStoreProvider).read()
           : null,
     ),

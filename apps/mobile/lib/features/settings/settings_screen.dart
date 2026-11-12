@@ -212,11 +212,10 @@ class SettingsScreen extends ConsumerWidget {
               meta:
                   ref.watch(advancedSettingsControllerProvider).cleanIp ??
                   text.cleanIpAutomatic,
-              isLast: defaultTargetPlatform != TargetPlatform.android,
+              isLast: !dnsTunnelSupported,
               onTap: () => context.push(RoutePaths.homeCleanIp),
             ),
-            // The DNS tunnel runs on Android only.
-            if (defaultTargetPlatform == TargetPlatform.android)
+            if (dnsTunnelSupported)
               ListenableBuilder(
                 listenable: ref.watch(dnsTunnelResolversProvider),
                 builder: (BuildContext context, _) {

@@ -143,7 +143,11 @@ def desktop_engines() -> list[dict[str, Any]]:
     components = []
     linux = (MOBILE / "tool" / "vendor_linux_runtime.sh").read_text(encoding="utf-8")
     pins = dict(re.findall(r"^(\w+)='([^']+)'$", linux, re.MULTILINE))
-    for engine, owner in (("xray", "XTLS/Xray-core"), ("hysteria", "apernet/hysteria")):
+    for engine, owner in (
+        ("xray", "XTLS/Xray-core"),
+        ("hysteria", "apernet/hysteria"),
+        ("cotten", "WhiteDNS/CottenDNS"),
+    ):
         components.append(
             _component(
                 "application",
@@ -165,6 +169,16 @@ def desktop_engines() -> list[dict[str, Any]]:
             f"pkg:github/XTLS/Xray-core@{values['xrayVersion']}?arch=windows-64",
             "app-windows",
             values["xrayHash"],
+        )
+    )
+    components.append(
+        _component(
+            "application",
+            "cottendns client (windows-amd64, archive)",
+            values["cottenVersion"],
+            f"pkg:github/WhiteDNS/CottenDNS@{values['cottenVersion']}?arch=windows-amd64",
+            "app-windows",
+            values["cottenHash"],
         )
     )
     if hysteria:
