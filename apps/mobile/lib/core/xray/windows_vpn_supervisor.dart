@@ -16,7 +16,8 @@ param(
   [int]$OwnerPid,
   [string]$IsXray,
   [string]$KillSwitch = 'false',
-  [string]$BlockedJson = '[]'
+  [string]$BlockedJson = '[]',
+  [string]$BypassJson = '[]'
 )
 $ErrorActionPreference = 'Stop'
 $stage = 'validating the VPN configuration'
@@ -24,6 +25,7 @@ $exitCode = 1
 $child = $null
 $adapter = $null
 $ownedRoute = $null
+$bypassRoutes = @()
 $tunRoute0 = $null
 $tunRoute128 = $null
 $nrptName = $null
@@ -128,6 +130,27 @@ try {
   if ($null -eq $existingRoute) {
     $ownedRoute = New-NetRoute -DestinationPrefix $prefix -PolicyStore ActiveStore `
       -InterfaceIndex $physicalRoute.InterfaceIndex -NextHop $physicalRoute.NextHop -RouteMetric 1 -ErrorAction SilentlyContinue
+  }
+
+  # The DNS tunnel's resolvers: its engine runs outside the VPN and sends
+  # to them, so they leave by the physical gateway like the server above.
+  $parsedBypass = ConvertFrom-Json -InputObject $BypassJson
+  $bypass = @($parsedBypass)
+  if ($bypass.Count -gt 64) { throw 'invalid bypass' }
+  foreach ($address in $bypass) {
+    $parsed = $null
+    if ($address -isnot [string] -or
+        -not [System.Net.IPAddress]::TryParse($address, [ref]$parsed) -or
+        $parsed.AddressFamily -ne [System.Net.Sockets.AddressFamily]::InterNetwork) {
+      throw 'invalid bypass'
+    }
+    $there = Get-NetRoute -DestinationPrefix "$address/32" -PolicyStore ActiveStore -ErrorAction SilentlyContinue |
+      Where-Object { $_.InterfaceIndex -eq $physicalRoute.InterfaceIndex } | Select-Object -First 1
+    if ($null -eq $there) {
+      $made = New-NetRoute -DestinationPrefix "$address/32" -PolicyStore ActiveStore `
+        -InterfaceIndex $physicalRoute.InterfaceIndex -NextHop $physicalRoute.NextHop -RouteMetric 1 -ErrorAction SilentlyContinue
+      if ($null -ne $made) { $bypassRoutes += $made }
+    }
   }
 
   $stage = 'starting the VPN process'
@@ -297,6 +320,9 @@ try {
   }
   if ($null -ne $ownedRoute) {
     try { $ownedRoute | Remove-NetRoute -Confirm:$false -ErrorAction SilentlyContinue } catch { $cleanupFailed = $true }
+  }
+  foreach ($route in $bypassRoutes) {
+    try { $route | Remove-NetRoute -Confirm:$false -ErrorAction SilentlyContinue } catch { $cleanupFailed = $true }
   }
   try { Clear-DnsClientCache } catch { $cleanupFailed = $true }
   if ($cleanupFailed -and $null -ne $Out) {

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../network/dns_tunnel_engine.dart';
 import '../routing/tunnel_routes.dart';
 import '../tunnel/tunnel_traffic.dart';
 import 'windows_network_monitor.dart';
@@ -79,6 +80,7 @@ class WindowsXrayRuntime {
   int? _xraySupervisorPid;
   int? _xrayPid;
   int? _hysteriaPid;
+  int? _dnsTunnelPid;
   final List<String> _logs = <String>[];
 
   final StreamController<TunnelTraffic> _trafficController =
@@ -108,13 +110,28 @@ class WindowsXrayRuntime {
       final Map<String, dynamic> source =
           jsonDecode(encodedConfig) as Map<String, dynamic>;
       final bool isHysteria = source.containsKey('nebulaHysteriaConfig');
+      // The DNS tunnel's engine runs first, outside the VPN, on loopback;
+      // Xray's outbound dials it. Its resolvers leave by the physical
+      // gateway, as the server's address does otherwise.
+      final Map<String, dynamic>? dnsTunnel =
+          source.remove('nebulaDnsTunnel') as Map<String, dynamic>?;
+      final List<String> bypass = dnsTunnel == null
+          ? const <String>[]
+          : dnsTunnelResolverIpv4s(dnsTunnel['resolvers'] as String? ?? '');
+      if (dnsTunnel != null) {
+        if (!proxyOnly && bypass.isEmpty) {
+          throw StateError('No IPv4 resolver to reach the DNS tunnel through.');
+        }
+        _dnsTunnelPid = await _startDnsTunnel(dnsTunnel, state);
+      }
 
       // Always resolve upstream server address to IPv4 first.
       // This is crucial to prevent the routing loop on Windows.
       final String? upstreamAddress = _upstreamAddress(source, isHysteria);
-      final String? upstreamIp =
-          pinnedUpstream(source, upstreamAddress) ??
-          await _resolveIpv4(upstreamAddress);
+      final String? upstreamIp = dnsTunnel != null
+          ? (bypass.isEmpty ? '127.0.0.1' : bypass.first)
+          : pinnedUpstream(source, upstreamAddress) ??
+                await _resolveIpv4(upstreamAddress);
       if (upstreamIp == null) {
         throw StateError('Windows could not resolve the VPN server address.');
       }
@@ -174,6 +191,8 @@ class WindowsXrayRuntime {
       final String xray = _runtimeBinary('xray.exe');
       final Map<String, dynamic> config = proxyOnly
           ? source
+          : dnsTunnel != null
+          ? _xrayTunConfig(source, proxyOnly, localNetworkDirect)
           : windowsXrayPinnedUpstream(
               _xrayTunConfig(source, proxyOnly, localNetworkDirect),
               upstreamAddress!,
@@ -202,7 +221,10 @@ class WindowsXrayRuntime {
         upstreamIp: upstreamIp,
         dnsServers: dnsServers,
         isXray: true,
-        killSwitch: killSwitch,
+        // Its resolvers are many and change: a kill switch allowing them all
+        // would not be one. Off over the DNS tunnel.
+        killSwitch: killSwitch && dnsTunnel == null,
+        bypass: bypass,
       );
 
       if (!await _nativeTunIsReady(state)) {
@@ -242,6 +264,11 @@ class WindowsXrayRuntime {
     _hysteriaPid = null;
     if (hysteriaPid != null) {
       await _stopHidden(hysteriaPid);
+    }
+    final int? dnsTunnelPid = _dnsTunnelPid;
+    _dnsTunnelPid = null;
+    if (dnsTunnelPid != null) {
+      await _stopHidden(dnsTunnelPid);
     }
     final Directory? state = _stateDirectory;
     _stateDirectory = null;
@@ -503,6 +530,7 @@ class WindowsXrayRuntime {
     required List<String> dnsServers,
     required bool isXray,
     bool killSwitch = false,
+    List<String> bypass = const <String>[],
   }) async {
     final File runner = File('$state\\elevated-supervisor.ps1');
     await runner.writeAsString(windowsVpnSupervisorScript);
@@ -523,6 +551,7 @@ class WindowsXrayRuntime {
           if (killSwitch) ...windowsKillSwitchBlockedIpv6,
         ]),
       ),
+      windowsPowerShellLiteral(jsonEncode(bypass)),
     ].join(' ');
     final String encoded = windowsEncodedCommand(invocation);
     final String launch =
@@ -609,6 +638,49 @@ class WindowsXrayRuntime {
   /// inherited PowerShell's output pipe and kept it open for as long as it
   /// ran. Detached, Windows gives the engine no console and nothing to
   /// inherit, and Dart quotes each argument itself.
+  /// Writes the DNS tunnel's config (it holds the tunnel key) and resolver
+  /// list into this session's folder, starts the engine, and waits until it
+  /// accepts on its port: it tests its resolvers first, which takes seconds.
+  Future<int> _startDnsTunnel(
+    Map<String, dynamic> tunnel,
+    Directory state,
+  ) async {
+    final String? engine = _runtimeBinaryOrNull('cottendns_client.exe');
+    if (engine == null) {
+      throw StateError('The bundled DNS tunnel engine is missing.');
+    }
+    final File config = File('${state.path}\\cottendns.toml');
+    final File resolvers = File('${state.path}\\cottendns_resolvers.txt');
+    await config.writeAsString(tunnel['config'] as String);
+    await resolvers.writeAsString(tunnel['resolvers'] as String? ?? '');
+    final int pid = await _startHidden(engine, <String>[
+      '-config',
+      config.path,
+      '-resolvers',
+      resolvers.path,
+    ]);
+    final int port = tunnel['port'] as int;
+    final DateTime deadline = DateTime.now().add(const Duration(seconds: 90));
+    while (DateTime.now().isBefore(deadline)) {
+      try {
+        final Socket socket = await Socket.connect(
+          InternetAddress.loopbackIPv4,
+          port,
+          timeout: const Duration(seconds: 1),
+        );
+        socket.destroy();
+        return pid;
+      } on SocketException {
+        if (!await _processIsRunning(pid)) {
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+      }
+    }
+    await _stopHidden(pid);
+    throw StateError('The DNS tunnel found no working resolver.');
+  }
+
   Future<int> _startHidden(String executable, List<String> arguments) async {
     final Process process = await Process.start(
       executable,

@@ -52,6 +52,9 @@ const String linuxWireGuardEngine = 'wireguard';
 const String linuxVpnSupervisorScript = r'''#!/bin/bash
 set -u
 ENGINE="$1"; CONFIG="$2"; STATE="$3"; OWNER="$4"; OWNER_START="$5"; DNS="$6"; KILL="${7:-0}"
+# IPv4 addresses that leave around the tunnel: the DNS tunnel's resolvers,
+# reached by its engine, which runs as the person and cannot mark.
+BYPASS="${8:-}"
 DEV=nebula
 MARK=51888
 TABLE=51888
@@ -96,6 +99,12 @@ fi
 for d in ${DNS//,/ }; do
   [[ "$d" =~ ^[0-9a-fA-F:.]+$ ]] || fail "Linux refused a DNS server that is not an address."
 done
+bypass_count=0
+for b in ${BYPASS//,/ }; do
+  [[ "$b" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || fail "Linux refused a resolver that is not an address."
+  bypass_count=$((bypass_count + 1))
+done
+[ "$bypass_count" -le 64 ] || fail "Linux refused too many resolvers."
 engine_name="$(basename "$ENGINE")"
 if [ "$ENGINE" = wireguard ]; then
   command -v wg > /dev/null 2>&1 || fail "Linux needs WireGuard tools for this protocol. Install the wireguard-tools package."
@@ -134,6 +143,7 @@ cleanup() {
   fi
   if [ -n "$routed" ]; then
     [ -n "$server_ip" ] && ip rule del to "$server_ip" lookup main priority 8999 2>/dev/null
+    for b in ${BYPASS//,/ }; do ip rule del to "$b" lookup main priority 8999 2>/dev/null; done
     for v in -4 -6; do
       ip "$v" rule del priority 9000 2>/dev/null
       ip "$v" rule del priority 9001 2>/dev/null
@@ -233,6 +243,9 @@ if [ -n "$routes" ]; then
   if [ -n "$server_ip" ]; then
     ip rule add to "$server_ip" lookup main priority 8999 || fail "Linux could not configure the VPN routes."
   fi
+  for b in ${BYPASS//,/ }; do
+    ip rule add to "$b" lookup main priority 8999 || fail "Linux could not configure the VPN routes."
+  done
   v6=""
   for r in $routes; do
     if [[ "$r" == *:* ]]; then
@@ -289,7 +302,7 @@ claim_resolv_conf() {
 # traffic is theirs. Without nftables this guard is skipped.
 if command -v nft > /dev/null 2>&1; then
   v4=""; v6=""
-  for d in ${DNS//,/ } 127.0.0.53; do
+  for d in ${DNS//,/ } ${BYPASS//,/ } 127.0.0.53; do
     if [[ "$d" == *:* ]]; then v6="$v6${v6:+, }$d"; else v4="$v4${v4:+, }$d"; fi
   done
   v6_line=""
@@ -414,6 +427,7 @@ Future<void> startLinuxVpnHelper({
   required File config,
   required List<String> dnsServers,
   bool killSwitch = false,
+  List<String> bypass = const <String>[],
 }) async {
   final Directory state = config.parent;
   final String run =
@@ -449,6 +463,7 @@ Future<void> startLinuxVpnHelper({
       await _processStartTime(pid),
       dnsServers.join(','),
       if (killSwitch) '1' else '0',
+      bypass.join(','),
     ]);
   } on ProcessException {
     throw StateError(

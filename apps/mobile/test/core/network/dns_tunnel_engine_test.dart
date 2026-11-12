@@ -126,4 +126,17 @@ void main() {
     expect(tunnel['port'], 40000);
     expect(tunnel['config'], contains('LISTEN_PORT = 40000'));
   });
+
+  test('the IPv4 resolvers, each once, ports and IPv6 left out', () {
+    expect(
+      dnsTunnelResolverIpv4s(
+        '1.1.1.1:53\n2.144.2.44\n[2001:db8::1]:53\n1.1.1.1:5353 none\n# x',
+      ),
+      <String>['1.1.1.1', '2.144.2.44'],
+    );
+    final String many = <String>[
+      for (int i = 0; i < 100; i++) '10.0.${i ~/ 250}.${i % 250 + 1}',
+    ].join('\n');
+    expect(dnsTunnelResolverIpv4s(many), hasLength(64));
+  });
 }

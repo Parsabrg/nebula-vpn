@@ -10,6 +10,9 @@ xray_version='v26.9.30'
 xray_hash='f851110beaff16e78d643f0ccfd9524b4a44dfd59bae3e34bb52bba378f7690e'
 hysteria_version='v2.12.2'
 hysteria_hash='6493dfffd55b5883f64c76c63880ecc32988f0c568c9ca9014907877b4d55f94'
+# The DNS tunnel's engine (docs/runbooks/dns-tunnel.md): the same release Android ships.
+cotten_version='v2026.11.03.161534-be99443'
+cotten_hash='d40dbfb873236a772032dcaf52efde95839b38a9302e58085f7080fc760866a4'
 
 mkdir -p "$destination"
 temporary="$(mktemp -d)"
@@ -32,5 +35,9 @@ unzip -qo "$temporary/xray.zip" xray geoip.dat geosite.dat LICENSE -d "$destinat
 fetch "https://github.com/HyNetworks/hysteria/releases/download/app/$hysteria_version/hysteria-linux-amd64" \
   "$destination/hysteria" "$hysteria_hash"
 
-chmod 755 "$destination/xray" "$destination/hysteria"
+fetch "https://github.com/WhiteDNS/CottenDNS/releases/download/$cotten_version/CottenDns_Client_Linux_AMD64.tar.gz"   "$temporary/cottendns.tar.gz" "$cotten_hash"
+tar -xzf "$temporary/cottendns.tar.gz" -C "$temporary" "CottenDns_Client_Linux_AMD64_$cotten_version"
+mv "$temporary/CottenDns_Client_Linux_AMD64_$cotten_version" "$destination/cottendns_client"
+
+chmod 755 "$destination/xray" "$destination/hysteria" "$destination/cottendns_client"
 echo "Linux runtime ready: $(ls "$destination" | tr '\n' ' ')"

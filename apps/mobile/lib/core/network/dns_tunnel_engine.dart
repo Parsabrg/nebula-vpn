@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import '../servers/server_repository.dart';
 import 'dns_tunnel_sync.dart';
@@ -114,4 +115,26 @@ String renderDnsTunnelConfig(
     ],
     '',
   ].join('\n');
+}
+
+/// The IPv4 addresses among [resolvers] (one per line, `ip`, `ip:port` or
+/// `[ipv6]:port`), each once, at most 64: on Windows and Linux the engine
+/// runs outside the VPN and these leave by the physical gateway.
+List<String> dnsTunnelResolverIpv4s(String resolvers) {
+  final Set<String> found = <String>{};
+  for (final String raw in resolvers.split(RegExp(r'[\s,]+'))) {
+    final String entry = raw.trim();
+    if (entry.isEmpty || entry.startsWith('[') || entry.startsWith('#')) {
+      continue;
+    }
+    final String host = entry.split(':').first;
+    final InternetAddress? address = InternetAddress.tryParse(host);
+    if (address != null && address.type == InternetAddressType.IPv4) {
+      found.add(address.address);
+    }
+    if (found.length == 64) {
+      break;
+    }
+  }
+  return found.toList();
 }
