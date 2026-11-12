@@ -560,6 +560,16 @@ class DnsTunnelResolvers extends ChangeNotifier {
 /// while something shows them.
 final dnsTunnelActiveResolversProvider =
     StreamProvider.autoDispose<List<String>>((Ref ref) async* {
+      // A computer's engine reports to no one: the list it was started
+      // with, which it picks from.
+      if (defaultTargetPlatform != TargetPlatform.android) {
+        final DnsTunnelResolvers resolvers = ref.read(
+          dnsTunnelResolversProvider,
+        );
+        final String network = await resolvers.currentNetwork();
+        yield resolvers.workingOn(network);
+        return;
+      }
       const MethodChannel channel = MethodChannel(
         'org.nebulavpn/wireguard_tunnel',
       );
