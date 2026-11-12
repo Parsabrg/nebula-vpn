@@ -95,12 +95,13 @@ class _DnsTunnelResolversScreenState
 
   Future<void> _run(Future<int?> Function(DnsTunnelDetails) test) async {
     final AppText text = AppText.of(context);
-    final DnsTunnelDetails? details = await _prepare(text);
-    if (details == null) {
-      return;
-    }
     setState(() => _message = null);
     try {
+      // Inside the try: a failure here is said, not swallowed.
+      final DnsTunnelDetails? details = await _prepare(text);
+      if (details == null) {
+        return;
+      }
       final int? working = await test(details);
       final int tested = _resolvers.progress?.tested ?? 0;
       if (working == null) {
@@ -270,12 +271,12 @@ class _DnsTunnelResolversScreenState
                 ),
                 const SizedBox(height: 8),
                 OutlinedButton(
-                  onPressed: busy || network != 'wifi'
+                  onPressed: busy || !DnsTunnelResolvers.unmetered(network)
                       ? null
                       : () => _run(resolvers.fullScan),
                   child: Text(text.dnsTunnelResolversFullScan),
                 ),
-                if (network != 'wifi')
+                if (!DnsTunnelResolvers.unmetered(network))
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(

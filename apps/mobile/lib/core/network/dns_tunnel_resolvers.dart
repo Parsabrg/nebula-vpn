@@ -257,6 +257,10 @@ class DnsTunnelResolvers extends ChangeNotifier {
   int iranCountOn(String network) =>
       workingOn(network).where((String r) => _iran[r] ?? false).length;
 
+  /// Wi-Fi on a phone, or a computer: long tests are fine there.
+  static bool unmetered(String? network) =>
+      network == 'wifi' || network == 'desktop';
+
   Future<String> currentNetwork() async {
     final String here = await _platform.networkKey();
     if (here != network) {
@@ -340,7 +344,7 @@ class DnsTunnelResolvers extends ChangeNotifier {
     try {
       final String here = await currentNetwork();
       final DateTime? at = scannedAtOn(here);
-      if (here == 'wifi' && (at == null || _now().difference(at) >= maxAge)) {
+      if (unmetered(here) && (at == null || _now().difference(at) >= maxAge)) {
         await quickTest(details, limit: const Duration(seconds: 60));
       }
     } catch (_) {
@@ -377,7 +381,7 @@ class DnsTunnelResolvers extends ChangeNotifier {
   /// data. Returns how many worked, or null when not on Wi-Fi.
   Future<int?> fullScan(DnsTunnelDetails details) async {
     final String here = await currentNetwork();
-    if (here != 'wifi') {
+    if (!unmetered(here)) {
       return null;
     }
     final int generation = ++_generation;

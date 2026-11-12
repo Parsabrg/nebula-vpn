@@ -144,13 +144,15 @@ class _Scan {
   bool read(String line) {
     final String? good = _after(line, 'WD_SCAN event=valid resolver=');
     final String? bad = _after(line, 'WD_SCAN event=rejected resolver=');
-    if (good != null) {
+    if (good != null && !valid.contains(good)) {
       valid.add(good);
-      seen.add(good);
-      tested++;
+      if (!seen.contains(good)) {
+        seen.add(good);
+        tested++;
+      }
       return true;
     }
-    if (bad != null) {
+    if (bad != null && !seen.contains(bad)) {
       seen.add(bad);
       tested++;
     }
