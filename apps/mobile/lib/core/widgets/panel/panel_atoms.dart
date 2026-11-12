@@ -98,7 +98,11 @@ class _PulsingDotState extends State<_PulsingDot>
     vsync: this,
     // One full sine period at 2.4 rad/s is 2*pi/2.4 = 2.618s.
     duration: const Duration(milliseconds: 2618),
-  )..repeat();
+    // A few breaths when the tunnel comes up, then still: breathing for as
+    // long as the screen was open redrew it every frame, a quarter of a
+    // CPU core on the phone just to fade a dot (2026-11-12). The session
+    // clock beside it, ticking each second, says the screen is live.
+  )..repeat(count: 3);
 
   @override
   void dispose() {
