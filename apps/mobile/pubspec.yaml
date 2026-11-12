@@ -51,7 +51,7 @@ flutter:
     - assets/licenses/
     # The DNS tunnel's starting resolver list (CottenDNS, MIT).
     - path: assets/dns_tunnel/
-      platforms: [android]
+      platforms: [android, windows, linux]
     - path: assets/windows_runtime/
       platforms: [windows]
     - path: assets/app_icon.ico
