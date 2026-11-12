@@ -53,7 +53,9 @@ void main() {
   test('keeps what the server serves, names in order', () async {
     final InMemoryDnsTunnelStore store = InMemoryDnsTunnelStore();
 
-    await _sync(_Answering(200, _served), store).refresh();
+    expect(await _sync(_Answering(200, _served), store).refresh(), isTrue);
+    // The same details again: nothing to rebuild the server list for.
+    expect(await _sync(_Answering(200, _served), store).refresh(), isFalse);
 
     expect(store.details!.domains, <String>[
       'nt.example.test',
@@ -67,7 +69,7 @@ void main() {
     final InMemoryDnsTunnelStore store = InMemoryDnsTunnelStore()
       ..details = DnsTunnelDetails.fromJson(_served);
 
-    await _sync(_Answering(404), store).refresh();
+    expect(await _sync(_Answering(404), store).refresh(), isTrue);
 
     expect(store.details, isNull);
   });
@@ -76,7 +78,7 @@ void main() {
     final InMemoryDnsTunnelStore store = InMemoryDnsTunnelStore()
       ..details = DnsTunnelDetails.fromJson(_served);
 
-    await _sync(_Answering(null), store).refresh();
+    expect(await _sync(_Answering(null), store).refresh(), isFalse);
 
     expect(store.details, isNotNull);
   });

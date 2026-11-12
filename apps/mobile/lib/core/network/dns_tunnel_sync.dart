@@ -127,8 +127,12 @@ class DnsTunnelSync {
   final Dio _dio;
   final DnsTunnelStore _store;
 
-  Future<void> refresh() async {
+  /// Whether the details changed: the server list is built from them, so
+  /// a first sign-in listed no DNS tunnel until the next load (Linux,
+  /// 2026-11-13).
+  Future<bool> refresh() async {
     try {
+      final DnsTunnelDetails? before = await _store.read();
       final Response<dynamic> response = await _dio.get<dynamic>(
         '/v1/dns-tunnel/',
       );
@@ -137,14 +141,19 @@ class DnsTunnelSync {
       );
       if (details != null) {
         await _store.write(details);
+        return before == null ||
+            jsonEncode(before.toJson()) != jsonEncode(details.toJson());
       }
     } on DioException catch (error) {
       if (error.response?.statusCode == 404) {
+        final bool had = await _store.read() != null;
         await _store.clear();
+        return had;
       }
     } catch (_) {
       // Housekeeping: never worth failing anything the person asked for.
     }
+    return false;
   }
 }
 
