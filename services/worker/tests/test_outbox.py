@@ -1,7 +1,9 @@
 import asyncio
 from uuid import uuid4
 
-from nebula_worker.outbox import email_outbox_key, read_email_payload
+import pytest
+
+from nebula_worker.outbox import OutboxUnavailable, email_outbox_key, read_email_payload
 
 
 class FakeRedis:
@@ -57,7 +59,6 @@ def test_non_string_values_return_none() -> None:
     assert payload is None
 
 
-def test_redis_failure_returns_none() -> None:
-    payload = asyncio.run(read_email_payload(FakeRedis(raises=True), uuid4()))
-
-    assert payload is None
+def test_redis_failure_is_not_a_missing_payload() -> None:
+    with pytest.raises(OutboxUnavailable):
+        asyncio.run(read_email_payload(FakeRedis(raises=True), uuid4()))

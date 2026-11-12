@@ -15,7 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from nebula_worker.adapters.base import EmailAdapter, EmailSendError
-from nebula_worker.outbox import OutboxRedisClient, read_email_payload
+from nebula_worker.outbox import OutboxRedisClient, OutboxUnavailable, read_email_payload
 from nebula_worker.settings import Settings
 from nebula_worker.templates import UnknownTemplate, render
 
@@ -168,13 +168,28 @@ async def deliver_one(
     settings: Settings,
     now: datetime,
 ) -> None:
-    payload = await read_email_payload(redis_client, delivery.id)
-    if payload is None:
+    try:
+        payload = await read_email_payload(redis_client, delivery.id)
+    except OutboxUnavailable:
+        # Tried again with backoff, like a provider that is down.
         await _finalize(
             engine,
             delivery,
-            outcome="failed",
-            result_code="payload_unavailable",
+            outcome="denied",
+            result_code="outbox_unavailable",
+            now=now,
+            settings=settings,
+        )
+        return
+    if payload is None:
+        # The API stages the payload just after committing the row, so a
+        # first claim can come before it: tried again once, then given up.
+        first = delivery.attempt_count == 0
+        await _finalize(
+            engine,
+            delivery,
+            outcome="denied" if first else "failed",
+            result_code="payload_pending" if first else "payload_unavailable",
             now=now,
             settings=settings,
         )
