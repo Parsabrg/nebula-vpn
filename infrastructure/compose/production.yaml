@@ -316,6 +316,7 @@ services:
       NEBULA_SMTP_PORT: ${NEBULA_SMTP_PORT:-587}
       NEBULA_SMTP_USERNAME: ${NEBULA_SMTP_USERNAME:-}
       NEBULA_SMTP_STARTTLS: ${NEBULA_SMTP_STARTTLS:-true}
+      NEBULA_SMTP_IMPLICIT_TLS: ${NEBULA_SMTP_IMPLICIT_TLS:-false}
       NEBULA_SMTP_PASSWORD_FILE: /etc/nebula/secrets/smtp_password
       NEBULA_RESEND_API_KEY_FILE: /etc/nebula/secrets/resend_api_key
     volumes:

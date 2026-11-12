@@ -2,6 +2,7 @@
 
 import asyncio
 import smtplib
+import ssl
 import uuid
 from email.message import EmailMessage
 
@@ -28,11 +29,25 @@ class SmtpAdapter:
         message["Message-ID"] = message_id
         message.set_content(body)
 
-        with smtplib.SMTP(self._settings.smtp_host, self._settings.smtp_port, timeout=10) as smtp:
-            if self._settings.smtp_starttls:
-                smtp.starttls()
+        settings = self._settings
+        connection: smtplib.SMTP
+        if settings.smtp_implicit_tls:
+            connection = smtplib.SMTP_SSL(
+                settings.smtp_host, settings.smtp_port, timeout=10, context=self._tls()
+            )
+        else:
+            connection = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10)
+        with connection as smtp:
+            if settings.smtp_starttls and not settings.smtp_implicit_tls:
+                # Verified: smtplib's default context checks no certificate,
+                # and a reset link is an account (audit AUD-001).
+                smtp.starttls(context=self._tls())
             password = self._settings.smtp_password
             if self._settings.smtp_username and password:
                 smtp.login(self._settings.smtp_username, password)
             smtp.send_message(message)
         return message_id
+
+    def _tls(self) -> ssl.SSLContext:
+        ca = self._settings.smtp_ca_file
+        return ssl.create_default_context(cafile=str(ca) if ca else None)

@@ -509,7 +509,9 @@ case $NEBULA_EMAIL_MODE in
   resend) setenv NEBULA_EMAIL_PROVIDER resend ;;
   smtp) setenv NEBULA_EMAIL_PROVIDER smtp; setenv NEBULA_SMTP_HOST "$NEBULA_SMTP_HOST"
         setenv NEBULA_SMTP_PORT "$NEBULA_SMTP_PORT"; setenv NEBULA_SMTP_USERNAME "$NEBULA_SMTP_USERNAME"
-        setenv NEBULA_SMTP_STARTTLS "$([ "$NEBULA_SMTP_PORT" = 465 ] && echo false || echo true)" ;;
+        # 465 speaks TLS from the first byte; the others upgrade with STARTTLS.
+        setenv NEBULA_SMTP_STARTTLS "$([ "$NEBULA_SMTP_PORT" = 465 ] && echo false || echo true)"
+        setenv NEBULA_SMTP_IMPLICIT_TLS "$([ "$NEBULA_SMTP_PORT" = 465 ] && echo true || echo false)" ;;
   # The worker needs a provider; this one is unroutable, so mail waits in the
   # outbox until email is configured.
   *) setenv NEBULA_EMAIL_PROVIDER smtp; setenv NEBULA_SMTP_HOST unset.invalid ;;
