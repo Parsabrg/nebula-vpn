@@ -26,13 +26,14 @@ from nebula_api.agent_client.models import (
 from nebula_api.auth.key_material import AuthKeyMaterial
 from nebula_api.auth.redis_state import RateBucket, RedisAuthState
 from nebula_api.db.engine import create_database_engine, create_session_factory
-from nebula_api.provisioning.service import ProvisioningService
+from nebula_api.provisioning.service import ProvisioningRejected, ProvisioningService
 from nebula_api.settings import Settings
 from nebula_api.topology_seed import (
     WIREGUARD_PROFILE_CODE,
     create_vpn_server,
     enable_server_capability,
     grant_user_server_access,
+    seed_vless_grpc_protocol,
     seed_vless_xhttp_protocol,
     seed_wireguard_protocol,
 )
@@ -218,3 +219,93 @@ def test_a_device_holds_its_own_credential_on_each_server() -> None:
     # Each server's agent got its own; none of server b's went to a's.
     assert calls.count(f"{servers['a']}.internal") == 2
     assert calls.count(f"{servers['b']}.internal") == 2
+
+
+@pytest.mark.skipif(
+    not os.environ.get("NEBULA_DATABASE_URL"), reason="PostgreSQL is not configured"
+)
+def test_the_device_limit_counts_devices_not_their_profiles() -> None:
+    """A device on two profiles takes one of the server's slots, not two.
+
+    Counting clients filled a 50-device server with a few devices' profiles,
+    and nobody could get a new one (2026-11-13).
+    """
+
+    engine = create_database_engine(os.environ["NEBULA_DATABASE_URL"])
+    session_factory = create_session_factory(engine)
+
+    def builder(agent_host: str, agent_port: int) -> AgentClient:
+        return cast(AgentClient, _Agent(agent_host, []))
+
+    service = ProvisioningService(
+        session_factory,
+        cast(RedisAuthState, _AllowAll()),
+        Settings(env="test"),
+        cast(AgentClientBuilder, builder),
+        _key_material(),
+    )
+    unique = uuid4().hex[:10]
+    code = f"cap-dev-{unique}"
+    user_id, first, second = uuid4(), uuid4(), uuid4()
+    email = f"capdev-{unique}@example.com"
+    grpc = "vless-grpc-tls"
+
+    async def scenario() -> None:
+        await seed_vless_xhttp_protocol(session_factory)
+        await seed_vless_grpc_protocol(session_factory)
+        await create_vpn_server(
+            session_factory,
+            code=code,
+            display_name=code,
+            agent_host=f"{code}.internal",
+            agent_port=9443,
+            public_host=f"{code}.internal",
+            wireguard_client_pool="203.0.119.0/24",
+            wireguard_gateway_address="203.0.119.1",
+            maximum_devices=1,
+            state="active",
+        )
+        for profile in (XHTTP, grpc):
+            await enable_server_capability(
+                session_factory, server_code=code, protocol_profile_code=profile
+            )
+        async with engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "INSERT INTO users (id, email, email_normalized, password_hash, state, "
+                    "device_limit, activated_at) VALUES "
+                    "(:id, :email, :email, 'cap-test-hash', 'active', 5, now())"
+                ),
+                {"id": user_id, "email": email},
+            )
+            for device in (first, second):
+                await connection.execute(
+                    text(
+                        "INSERT INTO devices (id, user_id, name, platform, client_version) "
+                        "VALUES (:id, :user_id, 'cap-test-device', 'android', '1.0.0')"
+                    ),
+                    {"id": device, "user_id": user_id},
+                )
+        await grant_user_server_access(session_factory, user_email=email, server_code=code)
+
+        async def request(device: Any, profile: str) -> None:
+            await service.request_xray_client(
+                user_id=user_id,
+                device_id=device,
+                server_code=code,
+                protocol_profile_code=profile,
+                network_prefix="203.0.113.0/24",
+                request_id=uuid4(),
+            )
+
+        await request(first, XHTTP)
+        # The same device, a second profile: still the one device.
+        await request(first, grpc)
+        # Another device: the server is full.
+        with pytest.raises(ProvisioningRejected):
+            await request(second, XHTTP)
+
+    try:
+        asyncio.run(scenario())
+    finally:
+        asyncio.run(engine.dispose())

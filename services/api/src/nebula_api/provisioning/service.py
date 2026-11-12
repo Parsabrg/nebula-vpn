@@ -655,7 +655,7 @@ class ProvisioningService:
                 # must happen under one lock, or two concurrent requests could
                 # each observe the last free slot and overshoot the cap by one.
                 await self._lock_xray_allocation(session, server.id)
-                await self._require_xray_capacity(session, server, capability)
+                await self._require_xray_capacity(session, server, capability, device.id)
 
                 client_uuid = uuid4()
                 desired_generation = 1
@@ -1034,27 +1034,33 @@ class ProvisioningService:
         session: AsyncSession,
         server: VPNServer,
         capability: ServerProtocolCapability,
+        device_id: UUID,
     ) -> None:
-        """Mirrors _require_capacity for the Xray/VLESS profile's own
-        XrayClient rows -- a separate count from WireGuardPeer's, since each
-        protocol has its own ServerProtocolCapability row and cap. Callers
-        must already hold this server's xray allocation lock."""
+        """Room on this server for [device_id]'s new Xray client.
 
-        live_clients = (
-            await session.scalar(
-                select(func.count())
-                .select_from(XrayClient)
-                .where(
-                    XrayClient.vpn_server_id == server.id,
-                    XrayClient.state.in_(_LIVE_PEER_STATES),
-                )
-            )
-            or 0
+        The limit is on devices, as its name says: a device holds a client
+        per profile it uses (up to twenty here), and counting clients filled
+        a 50-device server with a few people's devices, after which no new
+        profile could be had by anyone -- an iPhone link got Hysteria2 only
+        (2026-11-13). A device already on the server takes no new slot.
+        Callers must already hold this server's xray allocation lock."""
+
+        live = select(XrayClient.device_id).where(
+            XrayClient.vpn_server_id == server.id,
+            XrayClient.state.in_(_LIVE_PEER_STATES),
+        )
+        if (
+            await session.scalar(live.where(XrayClient.device_id == device_id).limit(1))
+            == device_id
+        ):
+            return
+        live_devices = (
+            await session.scalar(select(func.count()).select_from(live.distinct().subquery())) or 0
         )
         effective_limit = server.maximum_devices
         if capability.capacity_limit is not None:
             effective_limit = min(effective_limit, capability.capacity_limit)
-        if live_clients >= effective_limit:
+        if live_devices >= effective_limit:
             raise ProvisioningRejected()
 
     async def _require_permission(
