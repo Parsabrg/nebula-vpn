@@ -14,7 +14,7 @@ data, and the one to ask about it.
   servers' Xray and Hysteria2 keep no connection log; checked on the live
   server: no connection lines at all.
 - Your DNS lookups.
-- Your IP address. No database table has a column for it.
+- Your IP address. No database table has a column for it, and the web server keeps no access log.
 - Your password (only a slow, salted Argon2id hash of it is stored), and
   one-time sign-in, activation and reset codes (only keyed digests).
 - Private keys: your WireGuard key never leaves your device.
