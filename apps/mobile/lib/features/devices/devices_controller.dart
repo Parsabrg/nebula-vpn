@@ -539,7 +539,10 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
   /// resolvers. Never awaited by the screen and never able to fail it.
   Future<void> _refreshDnsTunnel() async {
     try {
-      await ref.read(dnsTunnelSyncProvider).refresh();
+      if (await ref.read(dnsTunnelSyncProvider).refresh() && ref.mounted) {
+        // The list carries the DNS tunnel only once its details are here.
+        unawaited(load());
+      }
       if (!Platform.isAndroid || !ref.mounted) {
         return;
       }
