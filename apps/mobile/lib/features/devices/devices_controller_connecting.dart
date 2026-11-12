@@ -562,6 +562,13 @@ mixin _Connecting on _DevicesCore {
     // This network's tested list, retested first when it is a week old.
     final DnsTunnelResolvers resolvers = ref.read(dnsTunnelResolversProvider);
     final String network = await resolvers.ensureFresh(details);
+    // On a computer this app's own traffic goes through its tunnel: a test
+    // still running would send its hundreds of questions through the DNS
+    // tunnel itself and stall it (Windows, 2026-11-12). Android's app is
+    // outside its VPN, so its tests go on there.
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      await resolvers.stop();
+    }
     final ServerSocket probe = await ServerSocket.bind(
       InternetAddress.loopbackIPv4,
       0,
