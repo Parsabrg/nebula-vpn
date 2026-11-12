@@ -231,7 +231,10 @@ services:
       # leftmost value verbatim, which would turn this fix into a
       # rate-limit bypass. The gateway is stable because the frontend
       # subnet is pinned below.
-      FORWARDED_ALLOW_IPS: 172.30.100.1
+      # And the admin panel (fixed below), which passes on the address nginx
+      # gave it: without it every administrator shared one rate bucket and
+      # five requests from anyone locked them all out (audit AUD-002).
+      FORWARDED_ALLOW_IPS: 172.30.100.1,172.30.100.10
     volumes:
       - /etc/nebula/secrets:/etc/nebula/secrets:ro
       # Writable, unlike the secrets mount above. This is where the
@@ -551,7 +554,10 @@ services:
         limits:
           cpus: "1"
           memory: 512M
-    networks: [frontend]
+    networks:
+      frontend:
+        # Trusted by the API to name the administrator's address.
+        ipv4_address: 172.30.100.10
     logging: *default-logging
     restart: unless-stopped
 

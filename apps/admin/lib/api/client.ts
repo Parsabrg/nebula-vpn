@@ -1,6 +1,7 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { cookies, headers as requestHeaders } from "next/headers";
 import { adminOrigin, apiBaseUrl } from "./config";
+import { forwardedClient } from "./forwarded-client";
 import { readCsrfToken } from "./csrf";
 import { ApiError, StepUpRequiredError } from "./http-error";
 import { parseSetCookie } from "./set-cookie";
@@ -87,6 +88,10 @@ export async function apiFetch<T>(
   const headers: Record<string, string> = {
     Cookie: await forwardedCookieHeader(),
   };
+  const client = forwardedClient((await requestHeaders()).get("x-real-ip"));
+  if (client) {
+    headers["X-Forwarded-For"] = client;
+  }
   const init: RequestInit = { method, headers, cache: "no-store" };
 
   if (options.body !== undefined) {

@@ -334,7 +334,7 @@ def test_unknown_admin_and_rate_limit_have_generic_failures_with_audit() -> None
                 request_id=uuid4(),
             )
         )
-    assert redis.failures == 1
+    assert redis.failures == 0  # passwords never feed the lockout (AUD-005)
     assert any(isinstance(value, AuditLog) for value in denied_database.added)
 
     limited_database = ScriptedSession(scalar_values=(admin(),))
@@ -615,10 +615,12 @@ def test_password_challenge_rejects_every_ineligible_admin_condition(
             )
         )
 
-    assert redis.failures == 1
+    # A wrong password never counts toward the lockout (AUD-005).
+    assert redis.failures == 0
 
 
-def test_password_failure_that_crosses_threshold_audits_lockout_transition() -> None:
+def test_wrong_passwords_never_lock_an_admin_out() -> None:
+    # Anyone who knows an admin's address could otherwise keep them out.
     database = ScriptedSession(scalar_values=(admin(),))
     redis = AdminRedis()
     redis.failures = Settings(env="test").admin_lockout_threshold - 1
@@ -634,8 +636,26 @@ def test_password_failure_that_crosses_threshold_audits_lockout_transition() -> 
             )
         )
 
+    assert redis.failures == Settings(env="test").admin_lockout_threshold - 1
     audit = next(value for value in database.added if isinstance(value, AuditLog))
-    assert audit.event_code == "auth_lockout_changed"
+    assert audit.event_code == "admin_authenticated"
+
+
+def test_admin_account_bucket_is_per_network() -> None:
+    database = ScriptedSession(scalar_values=(admin(),))
+    auth, redis = service(ScriptedFactory(database))
+    with pytest.raises(AuthenticationRejected):
+        asyncio.run(
+            auth.password_challenge(
+                identifier="owner@example.com",
+                password="incorrect-password",  # noqa: S106 - test fixture
+                network_prefix="203.0.113.0/24",
+                request_id=uuid4(),
+            )
+        )
+    account = redis.rate_calls[0][0]
+    assert account.namespace == "admin-account"
+    assert account.subject.endswith(" 203.0.113.0/24")
 
 
 def test_invalid_identifier_is_normalized_to_neutral_unknown_account() -> None:
@@ -652,7 +672,7 @@ def test_invalid_identifier_is_normalized_to_neutral_unknown_account() -> None:
             )
         )
 
-    assert redis.failures == 1
+    assert redis.failures == 0  # passwords never feed the lockout (AUD-005)
 
 
 def test_start_enrollment_rejects_missing_challenge_without_database_access() -> None:

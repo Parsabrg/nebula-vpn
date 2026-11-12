@@ -1,6 +1,7 @@
 import "server-only";
 import { type NextRequest, NextResponse } from "next/server";
 import { adminOrigin, apiBaseUrl } from "./config";
+import { forwardedClient } from "./forwarded-client";
 
 /**
  * Thin 1:1 proxy for one `/v1/admin/auth/*` endpoint: forwards the request
@@ -26,6 +27,10 @@ export async function proxyAdminAuthRequest(
   };
   if (csrfHeader) {
     headers["X-CSRF-Token"] = csrfHeader;
+  }
+  const client = forwardedClient(request.headers.get("x-real-ip"));
+  if (client) {
+    headers["X-Forwarded-For"] = client;
   }
 
   const upstream = await fetch(new URL(backendPath, apiBaseUrl()), {
