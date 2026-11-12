@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Protocol, cast
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import func, or_, select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nebula_api.account_erasure import erase_account
@@ -946,21 +946,26 @@ class UserAuthService:
 
         if not 20 <= len(secret) <= 64:
             return None
-        _, digest = hash_hardware_id(
-            _SUBSCRIPTION_NAMESPACE + secret,
-            self._keys.token_peppers,
-            key_version=self._settings.token_key_version,
-        )
+        # Every pepper still in the ring: a link made before a rotation keeps
+        # working, as devices do (audit AUD-012).
+        candidates = [
+            hash_hardware_id(
+                _SUBSCRIPTION_NAMESPACE + secret, self._keys.token_peppers, key_version=version
+            )
+            for version in self._keys.token_peppers
+        ]
+        now = self._now()
         async with self._session_factory() as session:
             row = (
                 await session.execute(
                     select(Device.user_id, Device.id)
                     .join(User, User.id == Device.user_id)
                     .where(
-                        Device.hardware_hash == digest,
+                        tuple_(Device.hardware_key_version, Device.hardware_hash).in_(candidates),
                         Device.platform == DevicePlatform.IOS,
                         Device.state == LifecycleState.ACTIVE,
                         User.state == AccountState.ACTIVE,
+                        or_(User.expires_at.is_(None), User.expires_at > now),
                     )
                 )
             ).first()
