@@ -169,6 +169,20 @@ async def exercise_subscription(database_url: str, redis_url: str) -> None:
         assert await service.subscription_owner(first) is None
         assert (await service.subscription_owner(second) or (None,))[0] == user_id
         assert await service.subscription_owner("short") is None
+        # After a pepper rotation, with the old pepper kept, the link works.
+        rotated = UserAuthService(
+            session_factory,
+            redis_state,
+            AuthKeyMaterial(
+                private_key,
+                {"v1": private_key.public_key()},
+                {1: b"p" * 32, 2: b"q" * 32},
+                {1: b"m" * 32},
+                {1: b"x" * 32},
+            ),
+            Settings(env="test", token_key_version=2),
+        )
+        assert (await rotated.subscription_owner(second) or (None,))[0] == user_id
         # A real device at the limit leaves no room for a link.
         async with engine.begin() as connection:
             await connection.execute(
