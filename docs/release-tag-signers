@@ -1,0 +1,3 @@
+# Signs release tags (git tag -s, SSH): install.sh --update refuses a tag it
+# cannot verify against this file, as installed before the update.
+releases@nebula-vpn namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO3oob4Ghi021R3V+1+yMWxEOfNT4OQ1HwsuRsbTKdv1

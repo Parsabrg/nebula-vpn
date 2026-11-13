@@ -38,8 +38,12 @@ checks pass.
 Tag the merged release commit and push the tag:
 
 ```sh
-git tag vX <merge commit> && git push origin vX
+git -c gpg.format=ssh -c user.signingkey=apps/mobile/android/app/nebula-release-sign   tag -s vX -m vX <merge commit> && git push origin vX
 ```
+
+The tag is signed with the release key: `install.sh --update` refuses a tag
+it cannot verify against `docs/release-tag-signers` as the server already
+had it (from 0.1.38; 0.1.37 and earlier were not signed).
 
 The **Release** workflow (`.github/workflows/release.yml`) then builds
 everything from that tag on GitHub's machines, and refuses if the tag,

@@ -214,6 +214,13 @@ if [ "${1:-}" = --update ]; then
   HTTPS_PROXY=${NEBULA_INSTALL_PROXY:-} g fetch -q --tags origin || die "could not fetch the releases"
   tag=${2:-$(g tag -l 'v*' --sort=-v:refname | awk 'NR == 1')}
   g rev-parse -q --verify "refs/tags/$tag" >/dev/null || die "there is no release ${tag:-at all}"
+  # Signed by the release key, checked against the signers this checkout
+  # already had: whoever can push a tag cannot also run code here as root.
+  if [ -f "$REPO/docs/release-tag-signers" ]; then
+    signers=$(mktemp); cp "$REPO/docs/release-tag-signers" "$signers"
+    g -c gpg.format=ssh -c gpg.ssh.allowedSignersFile="$signers" verify-tag "$tag" >/dev/null 2>&1       || { rm -f "$signers"; die "$tag is not signed by the release key (docs/release-tag-signers); not installing it"; }
+    rm -f "$signers"
+  fi
   # Never backwards: older code than the database's migrations would not start.
   g merge-base --is-ancestor HEAD "refs/tags/$tag" \
     || die "$tag is not newer than this checkout ($(g describe --tags --always)); wait for the next release"
