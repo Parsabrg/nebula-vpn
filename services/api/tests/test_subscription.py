@@ -267,8 +267,13 @@ def test_new_link_names_the_iran_relay_server_while_it_is_up(
         return {"de-via-thr"}
 
     class Topology:
+        chosen: str | None = None
+
         async def relay_context(self) -> tuple[dict[str, object], dict[str, object]]:
             return {"thr": (uuid4(), "Tehran", "thr.example.org")}, {}
+
+        async def choice(self, _key: str) -> str | None:
+            return self.chosen
 
     monkeypatch.setattr(subscription, "relay_list", relays)
     monkeypatch.setattr(subscription, "relays_up", up)
@@ -282,5 +287,14 @@ def test_new_link_names_the_iran_relay_server_while_it_is_up(
         return set()
 
     monkeypatch.setattr(subscription, "relays_up", down)
+    answer = client.post("/v1/account/subscription", headers={"Authorization": "Bearer t"})
+    assert answer.json()["url"] == f"https://cdn.example.org/v1/sub/{_SECRET}"
+
+    # An address the administrator chose wins, if it is still on offer.
+    topology = client.app.state.topology_admin_service  # type: ignore[attr-defined]
+    topology.chosen = "thr.example.org:8445"
+    answer = client.post("/v1/account/subscription", headers={"Authorization": "Bearer t"})
+    assert answer.json()["url"] == f"https://thr.example.org:8445/v1/sub/{_SECRET}"
+    topology.chosen = "evil.example.net"
     answer = client.post("/v1/account/subscription", headers={"Authorization": "Bearer t"})
     assert answer.json()["url"] == f"https://cdn.example.org/v1/sub/{_SECRET}"

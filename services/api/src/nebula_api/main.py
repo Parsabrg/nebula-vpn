@@ -62,6 +62,9 @@ from nebula_api.subscription import router as subscription_router
 from nebula_api.topology_admin.relays_routes import router as relays_admin_router
 from nebula_api.topology_admin.routes import router as topology_admin_router
 from nebula_api.topology_admin.service import TopologyAdminService
+from nebula_api.topology_admin.subscription_link_routes import (
+    router as subscription_link_admin_router,
+)
 from nebula_api.usage.counters import CounterKeepingAgentClient
 from nebula_api.usage.service import UsageLedger, UsageService
 from nebula_api.user_management.routes import router as user_management_router
@@ -353,6 +356,7 @@ def create_app(
     application.include_router(subscription_router)
     application.include_router(relay_report_router)
     application.include_router(relays_admin_router)
+    application.include_router(subscription_link_admin_router)
     application.include_router(enrollment_router)
     application.include_router(enrollment_admin_router)
 
