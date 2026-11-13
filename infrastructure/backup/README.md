@@ -42,9 +42,10 @@ also compromise a restore.
    - Create an **application key** scoped to just this bucket (Account →
      Application Keys → Add a New Application Key). Note the key ID and the
      application key itself -- the application key is only ever shown once.
-   - Add a **lifecycle rule** on the bucket (Bucket Settings → Lifecycle
-     Settings) to delete files older than 30 days, matching the retention
-     decision -- simpler than scripting pruning here.
+   - The job itself deletes bucket copies older than 30 days
+     (`NEBULA_BACKUP_REMOTE_KEEP_DAYS`), so the key needs delete access. A
+     **lifecycle rule** on the bucket (Bucket Settings → Lifecycle Settings)
+     doing the same is a fine second guard.
 
 3. **Generate the `age` keypair**, on the VPS, and immediately move the
    private half somewhere that isn't this server:
