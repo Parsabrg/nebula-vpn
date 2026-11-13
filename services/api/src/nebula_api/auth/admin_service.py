@@ -45,7 +45,11 @@ from nebula_api.auth.redis_state import (
     RedisAuthState,
     SessionMethod,
 )
-from nebula_api.auth.user_service import AuthenticationRateLimited, AuthenticationRejected
+from nebula_api.auth.user_service import (
+    AuthenticationRateLimited,
+    AuthenticationRejected,
+    sign_in_slot,
+)
 from nebula_api.db.engine import SessionFactory
 from nebula_api.identity import normalize_email, normalize_username
 from nebula_api.models.identity import (
@@ -155,6 +159,22 @@ class AdminAuthService:
         self._clock = clock
 
     async def password_challenge(
+        self,
+        *,
+        identifier: str,
+        password: str,
+        network_prefix: str,
+        request_id: UUID,
+    ) -> AdminPasswordChallenge:
+        async with sign_in_slot():
+            return await self._password_challenge(
+                identifier=identifier,
+                password=password,
+                network_prefix=network_prefix,
+                request_id=request_id,
+            )
+
+    async def _password_challenge(
         self,
         *,
         identifier: str,

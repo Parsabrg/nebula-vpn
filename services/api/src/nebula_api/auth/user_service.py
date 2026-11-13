@@ -1,7 +1,8 @@
 """Transactional user authentication, refresh rotation, and password recovery."""
 
 import secrets
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Protocol, cast
@@ -54,6 +55,30 @@ class AuthenticationRateLimited(AuthenticationRejected):
     def __init__(self, retry_after_seconds: int) -> None:
         super().__init__("Authentication was not accepted")
         self.retry_after_seconds = retry_after_seconds
+
+
+# A sign-in holds a pooled connection (and a row lock) while it waits for one
+# of four hashing threads: a burst of 90 left nothing in the pool for anyone
+# else for four seconds (audit AUD-004). At most this many are in flight;
+# beyond it a sign-in is told to retry, before it takes a connection. Twice
+# the hashing threads keeps them busy and leaves most of the pool (5 + 10).
+# ponytail: per process, and this API is one process by design.
+_SIGN_IN_SLOTS = 8
+_sign_ins_in_flight = 0
+
+
+@asynccontextmanager
+async def sign_in_slot() -> AsyncIterator[None]:
+    """Admit one password check, or refuse at once with a short retry."""
+
+    global _sign_ins_in_flight
+    if _sign_ins_in_flight >= _SIGN_IN_SLOTS:
+        raise AuthenticationRateLimited(5)
+    _sign_ins_in_flight += 1
+    try:
+        yield
+    finally:
+        _sign_ins_in_flight -= 1
 
 
 SUBSCRIPTION_DEVICE_NAME = "Subscription link"
@@ -141,6 +166,32 @@ class UserAuthService:
         network_prefix: str,
         request_id: UUID,
         hardware_id: str | None = None,
+    ) -> UserTokenPair:
+        async with sign_in_slot():
+            return await self._login(
+                identifier=identifier,
+                password=password,
+                device_id=device_id,
+                device_name=device_name,
+                platform=platform,
+                client_version=client_version,
+                network_prefix=network_prefix,
+                request_id=request_id,
+                hardware_id=hardware_id,
+            )
+
+    async def _login(
+        self,
+        *,
+        identifier: str,
+        password: str,
+        device_id: UUID | None,
+        device_name: str,
+        platform: DevicePlatform,
+        client_version: str,
+        network_prefix: str,
+        request_id: UUID,
+        hardware_id: str | None,
     ) -> UserTokenPair:
         normalized = _normalize_identifier(identifier)
         now = self._now()
