@@ -70,6 +70,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     if (running != nullptr) {
       ::ShowWindow(running, ::IsIconic(running) ? SW_RESTORE : SW_SHOW);
       ::SetForegroundWindow(running);
+      // Repainted by the running app on WM_SHOWWINDOW; this covers a window
+      // that was visible already but never drew.
+      ::RedrawWindow(running, nullptr, nullptr,
+                     RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
     }
     if (single_instance != nullptr) {
       ::CloseHandle(single_instance);
