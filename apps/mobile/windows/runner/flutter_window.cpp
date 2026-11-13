@@ -76,6 +76,15 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     return 0;
   }
 
+  // Shown again after being hidden -- from the tray, by a second launch
+  // (main.cpp shows the running window directly), or at sign-in -- Flutter
+  // had not drawn into the hidden window and it stayed white until resized
+  // (owner, Windows, 2026-11-10 and 2026-11-13). Every way of showing the
+  // window passes here, so a frame is asked for here.
+  if (message == WM_SHOWWINDOW && wparam && flutter_controller_) {
+    flutter_controller_->ForceRedraw();
+  }
+
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result =
