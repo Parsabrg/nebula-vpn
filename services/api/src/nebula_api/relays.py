@@ -23,6 +23,7 @@ import time
 from collections.abc import Iterable
 from dataclasses import replace
 from typing import TYPE_CHECKING, Protocol, Self
+from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
@@ -96,6 +97,13 @@ class RelayCatalog:
     def forget(self) -> None:
         """After a change in the panel: the next read goes to the database."""
         self._read_at = -1e9
+
+    async def via_of(self, code: str) -> "UUID | None":
+        """The relay server of the panel relay [code], read fresh."""
+        async with self._session_factory() as session:
+            return await session.scalar(
+                select(RelayRoute.via_server_id).where(RelayRoute.code == code)
+            )
 
     async def relays(self) -> tuple[Relay, ...]:
         now = time.monotonic()
@@ -261,4 +269,28 @@ async def relay_reports_up(code: str, request: Request) -> Response:
     ):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     await health.mark_up(relay.code)
+    # The answer carries what the relay should be: the control plane cannot
+    # always reach an agent inside Iran, but this request always comes out.
+    # The relay saves it when it changed and checks it again before applying.
+    service = getattr(request.app.state, "topology_admin_service", None)
+    via_id = await _panel_via(request, relay.code)
+    if service is not None and via_id is not None:
+        cdns = [name.strip() for name in settings.cdn_host.split(",") if name.strip()]
+        base = f"https://{cdns[0]}" if cdns else str(settings.api_public_url).rstrip("/")
+        from nebula_api.topology_admin.service import relay_env
+
+        planned = await service.relay_request(
+            via_server_id=via_id, report_base=base, report_token=expected
+        )
+        if planned is not None:
+            return Response(content=relay_env(planned[1]), media_type="text/plain")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+async def _panel_via(request: Request, code: str) -> "UUID | None":
+    """The relay server of a relay added in the panel; None for NEBULA_RELAYS."""
+
+    catalog: RelayCatalog | None = getattr(request.app.state, "relay_catalog", None)
+    if catalog is None:
+        return None
+    return await catalog.via_of(code)

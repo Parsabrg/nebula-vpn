@@ -123,7 +123,7 @@ if [ -n "$PORTS" ] && [ -n "$REPORT_URL" ] && [ -n "$REPORT_TOKEN" ]; then
 Description=Tell the exit's control plane this relay reaches it
 [Service]
 Type=oneshot
-ExecStart=/bin/sh -c 'curl -fsS -m 15 -o /dev/null -X POST -H "Authorization: Bearer \$(cat $ETC/relay-report-token)" $REPORT_URL'
+ExecStart=/bin/bash $(dirname "$(readlink -f "$0")")/relay-report.sh $REPORT_URL
 UNIT
   cat > /etc/systemd/system/nebula-relay-report.timer <<'UNIT'
 [Unit]
