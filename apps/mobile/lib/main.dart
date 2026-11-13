@@ -54,6 +54,7 @@ Future<void> main(List<String> arguments) async {
     _trayManager = DesktopTrayManager(
       onShowWindow: _showWindow,
       onExit: () async {
+        await stopStaleProbes();
         await _trayManager?.dispose();
         await windowManager.setPreventClose(false);
         await windowManager.close();
@@ -66,6 +67,7 @@ Future<void> main(List<String> arguments) async {
   if (Platform.isWindows || Platform.isLinux) {
     // Not awaited: nothing on screen waits for it.
     unawaited(sweepStaleTunnelFolders());
+    unawaited(stopStaleProbes());
   }
 
   final SharedPreferences preferences = await SharedPreferences.getInstance();
