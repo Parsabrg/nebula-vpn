@@ -43,7 +43,7 @@ nginx -t && systemctl reload nginx
 `server {}` block with no shared dependency on the `:8444` vhost's
 directives -- there's nothing to "enable/disable" as a unit the way
 Debian's sites-enabled convention is meant for, and a plain drop-in avoids
-ever needing to touch the existing, intentionally-untouched `:8444` file to
+ever needing to touch a host's existing `:8444` file to
 wire this one in. (Ubuntu/Debian's stock `nginx.conf` already globs
 `/etc/nginx/conf.d/*.conf` by default alongside `sites-enabled/*`, so no
 `include` line needs adding by hand -- confirm this is still true on the
@@ -58,7 +58,7 @@ removed or narrowed, add `include /etc/nginx/conf.d/*.conf;` inside the
    placeholder `server_name` (`vpn.example.com`) -- the same placeholder
    convention used by `Settings.xray_public_host`/`xray_sni` in
    `services/vpn-agent/src/nebula_agent/settings.py`, since this repo does
-   not know, and the untracked `:8444` config can't be read from here
+   not know, and a pre-installer host's own `:8444` config can't be read from here
    either, what the real certificate path or hostname is on the operator's
    box. Point both `ssl_certificate`/`ssl_certificate_key` and
    `server_name` at whatever the existing `:8444` block already uses --

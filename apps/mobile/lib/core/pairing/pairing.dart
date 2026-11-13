@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 
@@ -30,6 +31,8 @@ import 'package:cryptography/cryptography.dart';
 ///
 /// A link altered on its way to the person, or a server that is not the one
 /// the link names, fails one of these and pairs with nothing.
+const int _maxPairingAnswerBytes = 64 * 1024;
+
 class PairingLink {
   const PairingLink({
     required this.apiUrl,
@@ -314,10 +317,19 @@ Future<Map<String, Object?>> fetchPairingRecord(
       );
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
       final HttpClientResponse response = await request.close();
-      return (
-        response.statusCode,
-        await response.transform(utf8.decoder).join(),
-      );
+      // Read up to a bound: the answer is a few kilobytes, and it comes
+      // from a server not yet trusted (audit AUD-026).
+      final BytesBuilder body = BytesBuilder(copy: false);
+      await for (final List<int> chunk in response) {
+        body.add(chunk);
+        if (body.length > _maxPairingAnswerBytes) {
+          throw const PairingException(
+            PairingFailure.unreachable,
+            'answer too large',
+          );
+        }
+      }
+      return (response.statusCode, utf8.decode(body.takeBytes()));
     }().timeout(deadline);
     if (status != 200) {
       throw PairingException(PairingFailure.unreachable, 'HTTP $status');
