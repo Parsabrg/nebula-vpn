@@ -27,6 +27,7 @@ from webauthn.helpers.structs import (
 )
 
 from nebula_api.auth.audit import add_audit_event
+from nebula_api.auth.denial_audit import first_denial
 from nebula_api.auth.key_material import AuthKeyMaterial
 from nebula_api.auth.mfa import (
     EncryptedMfaSeed,
@@ -156,6 +157,7 @@ class AdminAuthService:
         self._redis = redis_state
         self._keys = key_material
         self._settings = settings
+        self._denials_audited: dict[str, float] = {}
         self._clock = clock
 
     async def password_challenge(
@@ -199,18 +201,23 @@ class AdminAuthService:
                 window_seconds=self._settings.auth_rate_window_seconds,
             )
             if not allowed:
-                add_audit_event(
-                    session,
-                    actor_kind="anonymous",
-                    actor_id=None,
-                    target_kind="auth_attempt",
-                    target_id=request_id,
-                    event_code="auth_rate_limited",
-                    outcome="denied",
-                    request_id=request_id,
-                    reason_code="rate_limited",
-                )
-                await session.commit()
+                if first_denial(
+                    self._denials_audited,
+                    (RateBucket("admin-login-network", network_prefix),),
+                    self._settings.auth_rate_window_seconds,
+                ):
+                    add_audit_event(
+                        session,
+                        actor_kind="anonymous",
+                        actor_id=None,
+                        target_kind="auth_attempt",
+                        target_id=request_id,
+                        event_code="auth_rate_limited",
+                        outcome="denied",
+                        request_id=request_id,
+                        reason_code="rate_limited",
+                    )
+                    await session.commit()
                 raise AuthenticationRateLimited(self._settings.auth_rate_window_seconds)
             lockout = await self._redis.lockout_status(account_key)
             password_valid = await verify_password_or_dummy_async(
