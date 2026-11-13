@@ -15,7 +15,12 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from nebula_worker.adapters.base import EmailAdapter, EmailSendError
-from nebula_worker.outbox import OutboxRedisClient, OutboxUnavailable, read_email_payload
+from nebula_worker.outbox import (
+    OutboxRedisClient,
+    OutboxUnavailable,
+    forget_email_payload,
+    read_email_payload,
+)
 from nebula_worker.settings import Settings
 from nebula_worker.templates import UnknownTemplate, render
 
@@ -235,6 +240,7 @@ async def deliver_one(
                 "reason_code": "sent",
             },
         )
+    await forget_email_payload(redis_client, delivery.id)
 
 
 async def _finalize(
