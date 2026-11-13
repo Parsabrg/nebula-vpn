@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from nebula_api.auth.device_identity import hash_hardware_id
 from nebula_api.auth.key_material import AuthKeyMaterial
@@ -460,7 +461,9 @@ def test_refresh_rotates_once_with_deferred_successor_and_new_access_token() -> 
 def test_refresh_reuse_revokes_family_and_records_detection() -> None:
     token = refresh_record(state=TokenState.CONSUMED)
     session = active_session()
-    database = ScriptedSession(scalar_values=(token, session))
+    # Its successor was used: the old token coming back is reuse, not a retry.
+    used = refresh_record(state=TokenState.CONSUMED)
+    database = ScriptedSession(scalar_values=(token, session, used))
     auth, _redis = service(ScriptedFactory(database))
     raw = "v1." + "B" * 43
     token.token_digest = (
@@ -480,6 +483,28 @@ def test_refresh_reuse_revokes_family_and_records_detection() -> None:
 
     assert session.state is LifecycleState.REVOKED
     assert database.executed and database.commits == 1
+
+
+def test_a_retry_after_a_lost_answer_is_not_reuse() -> None:
+    # Rotated, the answer lost on the way, retried with the old token: its
+    # successor was never used, so it is revoked and nobody is signed out.
+    auth, _redis = service(ScriptedFactory(ScriptedSession()))
+    token = refresh_record(state=TokenState.CONSUMED)
+    unused = refresh_record()
+    lost = asyncio.run(
+        auth._lost_answer(cast(AsyncSession, ScriptedSession(scalar_values=(unused,))), token, NOW)
+    )
+    assert lost
+    assert unused.state is TokenState.REVOKED
+
+    late = asyncio.run(
+        auth._lost_answer(
+            cast(AsyncSession, ScriptedSession(scalar_values=(refresh_record(),))),
+            token,
+            NOW + timedelta(minutes=2),
+        )
+    )
+    assert not late
 
 
 def test_invalid_refresh_is_audited_without_reflecting_token() -> None:
