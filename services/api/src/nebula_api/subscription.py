@@ -45,6 +45,7 @@ _SKIPPED_PROFILES = frozenset({"vless-enc-dns"})
 # ponytail: per process, so each API worker keeps its own; Redis if it runs several.
 _CACHE_SECONDS = 15 * 60
 _cache: dict[UUID, tuple[float, str]] = {}
+_CACHE_MAX = 5_000
 
 
 def _service[T](request: Request, name: str, kind: type[T]) -> T:
@@ -148,14 +149,26 @@ async def subscription(secret: str, request: Request) -> Response:
     if account is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
+    now = time.monotonic()
     cached = _cache.get(device_id)
-    if cached is not None and cached[0] > time.monotonic():
+    if cached is not None and cached[0] > now:
         body = cached[1]
     else:
-        body = base64.b64encode(
-            "\n".join(await _links(request, user_id, device_id)).encode()
-        ).decode()
-        _cache[device_id] = (time.monotonic() + _CACHE_SECONDS, body)
+        links, complete = await _links(request, user_id, device_id)
+        body = base64.b64encode("\n".join(links).encode()).decode()
+        if complete:
+            if len(_cache) >= _CACHE_MAX:
+                # Expired ones first; if none, the cache starts over.
+                for stale in [key for key, (until, _) in _cache.items() if until <= now]:
+                    del _cache[stale]
+                if len(_cache) >= _CACHE_MAX:
+                    _cache.clear()
+            _cache[device_id] = (now + _CACHE_SECONDS, body)
+        elif cached is not None:
+            # A profile failed this time (an agent briefly down): the last
+            # full answer, rather than a short or empty list some apps would
+            # replace their saved servers with (audit AUD-018).
+            body = cached[1]
 
     expire = int(account.expires_at.timestamp()) if account.expires_at else 0
     return Response(
@@ -174,7 +187,9 @@ async def subscription(secret: str, request: Request) -> Response:
     )
 
 
-async def _links(request: Request, user_id: UUID, device_id: UUID) -> list[str]:
+async def _links(request: Request, user_id: UUID, device_id: UUID) -> tuple[list[str], bool]:
+    """The share links, and whether every profile was had."""
+
     servers = await _service(
         request, "server_discovery_service", ServerDiscoveryService
     ).list_available_servers(user_id, include_maintenance=False)
@@ -184,6 +199,7 @@ async def _links(request: Request, user_id: UUID, device_id: UUID) -> list[str]:
             servers, relays, await relays_up(request, relays), include_maintenance=False
         )
     links: list[str] = []
+    complete = True
     for server in servers:
         for profile in server.profiles:
             if (
@@ -201,11 +217,12 @@ async def _links(request: Request, user_id: UUID, device_id: UUID) -> list[str]:
                 )
             except (ProvisioningError, AuthStateUnavailable, HTTPException):
                 # One profile that cannot be had leaves the others listed.
+                complete = False
                 continue
             link = share_link(credential, f"{server.display_name} | {profile.display_name}")
             if link is not None:
                 links.append(link)
-    return links
+    return links, complete
 
 
 def share_link(c: XrayClientResponse, name: str) -> str | None:
