@@ -20,7 +20,7 @@ import re
 import secrets
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from ipaddress import ip_address, ip_network
 from uuid import UUID, uuid4
@@ -79,6 +79,8 @@ from nebula_api.settings import Settings
 Clock = Callable[[], datetime]
 
 _LOGGER = logging.getLogger(__name__)
+
+_STALE_APPLY = timedelta(seconds=60)
 
 _LIVE_PEER_STATES = (
     ProvisioningState.REQUESTED.value,
@@ -290,7 +292,13 @@ class ProvisioningService:
                 )
                 .with_for_update()
             )
-            if existing_peer is not None and existing_peer.state != ProvisioningState.ACTIVE.value:
+            if (
+                existing_peer is not None
+                and existing_peer.state != ProvisioningState.ACTIVE.value
+                and not await self._take_over_stale_apply(
+                    session, "wireguard_peer", existing_peer, now
+                )
+            ):
                 raise OperationInProgress()
 
             if existing_peer is not None:
@@ -612,6 +620,9 @@ class ProvisioningService:
             if (
                 existing_client is not None
                 and existing_client.state != ProvisioningState.ACTIVE.value
+                and not await self._take_over_stale_apply(
+                    session, "xray_client", existing_client, now
+                )
             ):
                 raise XrayOperationInProgress()
 
@@ -926,6 +937,46 @@ class ProvisioningService:
             user_id=user_id,
             request_id=request_id,
         )
+
+    async def _take_over_stale_apply(
+        self,
+        session: AsyncSession,
+        target_kind: str,
+        row: WireGuardPeer | XrayClient,
+        now: datetime,
+    ) -> bool:
+        """Whether an APPLYING row left by an attempt that was cut off may be
+        applied again by this request, closing that attempt's operation.
+
+        A connect whose request was cancelled, or whose agent answer was
+        ambiguous, left the row APPLYING, and every later request got 409
+        until the reconciliation sweep, up to ~17 minutes (audit AUD-014).
+        Past _STALE_APPLY no request is still waiting on that agent call.
+        """
+
+        # ponytail: a request stalled past _STALE_APPLY that later finalizes
+        # would overwrite this attempt's result; the agent timeout is 10 s.
+        if row.state != ProvisioningState.APPLYING.value:
+            return False
+        operation = await session.scalar(
+            select(AgentOperation)
+            .where(
+                AgentOperation.target_kind == target_kind,
+                AgentOperation.target_id == row.id,
+                AgentOperation.state == OperationState.RUNNING.value,
+            )
+            .with_for_update()
+        )
+        if operation is None:
+            return False
+        if (operation.started_at or operation.requested_at) > now - _STALE_APPLY:
+            return False
+        operation.state = OperationState.CANCELLED.value
+        operation.finished_at = now
+        operation.error_code = "superseded"
+        # Before the new operation: one in flight per target.
+        await session.flush()
+        return True
 
     async def _require_traffic_allowance(self, session: AsyncSession, user_id: UUID) -> None:
         """Refuse an account whose allowance the sweep found spent.
