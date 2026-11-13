@@ -20,6 +20,7 @@ from nebula_api.models.identity import (
 )
 from nebula_api.models.operations import (
     AgentOperation,
+    AuditChainCheckpoint,
     AuditLog,
     EmailDelivery,
     ReconciliationRecord,
@@ -52,6 +53,7 @@ __all__ = [
     "AdminTotpCredential",
     "AdminUser",
     "AgentOperation",
+    "AuditChainCheckpoint",
     "AuditLog",
     "CredentialUsage",
     "Deployment",
