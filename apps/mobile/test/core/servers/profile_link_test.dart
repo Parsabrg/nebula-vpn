@@ -244,6 +244,12 @@ void main() {
       'Hysteria2 with an unknown obfuscation':
           'hysteria2://a@example.com:443/?obfs=gost&obfs-password=x',
       'VMess, which this app does not speak': 'vmess://eyJhZGQiOiJ4In0=',
+      // A newline smuggled into a field became a key of its author's choosing
+      // in the Hysteria2 config (AUD-015).
+      'Hysteria2 with a line break in its SNI':
+          'hysteria2://a@example.com:443/?sni=x%0Ainsecure%3A%20true',
+      'Hysteria2 with a line break in its password':
+          'hysteria2://a%0Dx@example.com:443/?sni=example.com',
     };
     for (final MapEntry<String, String> link in refused.entries) {
       test('refused: ${link.key}', () => expect(parseLink(link.value), isNull));

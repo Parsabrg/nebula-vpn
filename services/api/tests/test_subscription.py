@@ -189,6 +189,14 @@ def test_new_link_is_a_path() -> None:
     assert answer.json() == {"path": f"/v1/sub/{_SECRET}"}
 
 
+def test_new_link_names_the_cdn_when_there_is_one() -> None:
+    # Other apps fetch it from networks that block the server's own address.
+    client = _client()
+    client.app.state.settings = Settings(env="test", cdn_host="cdn.example.org")  # type: ignore[attr-defined]
+    answer = client.post("/v1/account/subscription", headers={"Authorization": "Bearer t"})
+    assert answer.json()["url"] == f"https://cdn.example.org/v1/sub/{_SECRET}"
+
+
 @pytest.mark.parametrize(
     ("error", "code"), [(DeviceLimitReached(), 403), (AuthenticationRejected(), 403)]
 )

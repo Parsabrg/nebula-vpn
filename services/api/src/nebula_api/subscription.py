@@ -73,8 +73,15 @@ async def new_subscription(
     except AuthenticationRejected as error:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN) from error
     apply_auth_response_headers(response)
-    # A path: the app puts it after whichever address it reaches the API on.
-    return {"path": f"/v1/sub/{secret}"}
+    path = f"/v1/sub/{secret}"
+    # The CDN's address when there is one: other apps fetch the link from
+    # networks that block the server's own address. Without one, the app puts
+    # the path after whichever address it reaches the API on.
+    settings = request.app.state.settings
+    cdns = [name.strip() for name in settings.cdn_host.split(",") if name.strip()]
+    if cdns:
+        return {"path": path, "url": f"https://{cdns[0]}{path}"}
+    return {"path": path}
 
 
 @router.get("/v1/sub/{secret}")

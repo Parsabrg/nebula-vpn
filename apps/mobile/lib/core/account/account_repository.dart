@@ -221,11 +221,18 @@ class DioAccountRepository implements AccountRepository {
       final Response<dynamic> response = await _dio.post<dynamic>(
         '/v1/account/subscription',
       );
-      final String path =
-          (response.data as Map<String, dynamic>)['path'] as String;
-      // On the address that just answered: a fallback route when the main
-      // one is blocked, which is what the other app will need too.
-      return response.requestOptions.uri.resolve(path).toString();
+      final Map<String, dynamic> data = response.data as Map<String, dynamic>;
+      // The server's CDN address when it has one: the server's own address
+      // is the one networks block, and the other app has no fallback.
+      final String? url = data['url'] as String?;
+      if (url != null && url.startsWith('https://')) {
+        return url;
+      }
+      // Otherwise on the address that just answered: a fallback route when
+      // the main one is blocked, which is what the other app will need too.
+      return response.requestOptions.uri
+          .resolve(data['path'] as String)
+          .toString();
     } on DioException catch (error) {
       throw translateDioException(error);
     }

@@ -545,20 +545,30 @@ String _renderHysteriaClientConfigJson(
 /// has no equivalent routing engine, so only the DNS layer above survives.
 /// Stated rather than left implicit because an ad-block profile on this
 /// transport really does filter less than the same profile on the others.
+/// [value] as a quoted YAML scalar. These fields can come from a pasted link
+/// or a subscription: a newline in one added keys of its author's choosing,
+/// such as `insecure: true` or another listener (audit AUD-015).
+String _yamlString(String value) {
+  if (value.contains(RegExp(r'[\x00-\x1f\x7f]'))) {
+    throw const FormatException('control character in a tunnel setting');
+  }
+  return '"${value.replaceAll(r'\', r'\\').replaceAll('"', r'\"')}"';
+}
+
 String _hysteriaYaml(XrayClientResult result, LocalProxy localProxy) {
   final StringBuffer buffer = StringBuffer()
     // With hopping, the server's own port and its range: the client
     // starts on one and moves every 30 s, so a block on one port does not
     // end the connection.
     ..writeln(
-      'server: ${result.serverAddress}:${result.port}'
-      '${result.portHop == null ? '' : ',${result.portHop}'}',
+      'server: ${_yamlString('${result.serverAddress}:${result.port}'
+      '${result.portHop == null ? '' : ',${result.portHop}'}')}',
     )
     // The client UUID is the whole credential; the server renders it as both
     // username and password in its own userpass map.
-    ..writeln('auth: ${result.uuid}:${result.uuid}')
+    ..writeln('auth: ${_yamlString('${result.uuid}:${result.uuid}')}')
     ..writeln('tls:')
-    ..writeln('  sni: ${result.sni}')
+    ..writeln('  sni: ${_yamlString(result.sni)}')
     // Verification stays on: the server presents a real certificate for this
     // name, so accepting any certificate here would give up the only thing
     // stopping an interceptor from impersonating it.
@@ -569,7 +579,7 @@ String _hysteriaYaml(XrayClientResult result, LocalProxy localProxy) {
       ..writeln('obfs:')
       ..writeln('  type: salamander')
       ..writeln('  salamander:')
-      ..writeln('    password: $obfsPassword');
+      ..writeln('    password: ${_yamlString(obfsPassword)}');
   }
   if (result.portHop != null) {
     buffer
