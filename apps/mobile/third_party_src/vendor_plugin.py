@@ -27,6 +27,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import urllib.request
 import zipfile
@@ -86,10 +87,47 @@ COTTENDNS_ZIP = (
     "cbf12eeebfaa9ec50d07a3195ea9a39b75c5da55f05742db5fa2aeda525665bf",
 )
 
+# Aether, the Cloudflare WARP client (patterniha/Aether, AGPL-3.0): WARP mode
+# and the way in to our servers through WARP. Run as a child process like
+# Hysteria2; only the `aether` binary of each release archive is taken (the
+# archives also carry Tor's and Psiphon's, which the app does not use). No x86
+# build is published, so 32-bit emulators have no WARP.
+AETHER_RELEASE = "https://github.com/patterniha/Aether/releases/download/v2.4.0/"
+AETHER_ARCHIVES = {
+    "arm64-v8a": (
+        "aether-android-arm64.tar.gz",
+        "2857c8ec11090bacb40c94dc1126af1abb59d8270e86992fc239affb61dd2f48",
+    ),
+    "armeabi-v7a": (
+        "aether-android-armv7.tar.gz",
+        "d3d37017151c482e04eab857f87e212ba39eb6f5694f31f6e307d1d2e987b75b",
+    ),
+    "x86_64": (
+        "aether-android-x86_64.tar.gz",
+        "7ec197b85d157e4c38e68d181c28bd15d4f02e59f23fcf508d4b92e14e7d7bca",
+    ),
+}
+
 HERE = Path(__file__).resolve().parent
 MOBILE = HERE.parent
 TARGET = MOBILE / "third_party" / PLUGIN
 PATCH = HERE / f"{PLUGIN}-{VERSION}.patch"
+
+
+def download(url: str) -> bytes:
+    """The file at [url], or its copy in NEBULA_VENDOR_CACHE (a folder of
+    files named as the URL ends) when one is there. For networks where large
+    GitHub downloads keep being reset: fetch them once by other means, such
+    as `gh release download`. The digest checks after this apply either way.
+    """
+    cache = os.environ.get("NEBULA_VENDOR_CACHE")
+    if cache:
+        copy = Path(cache) / url.rsplit("/", 1)[-1]
+        if copy.is_file():
+            print(f"  using {copy}")
+            return copy.read_bytes()
+    with urllib.request.urlopen(url, timeout=600) as response:  # noqa: S310
+        return response.read()
 
 
 def pub_cache_source() -> Path:
@@ -119,8 +157,7 @@ def fetch(abi: str, asset: str, digest: str, into: Path) -> None:
         f"{HYSTERIA_RELEASE}/{asset}"
     )
     print(f"  {abi:<12} downloading {asset}")
-    with urllib.request.urlopen(url, timeout=300) as response:  # noqa: S310
-        payload = response.read()
+    payload = download(url)
     actual = hashlib.sha256(payload).hexdigest()
     if actual != digest:
         raise SystemExit(
@@ -132,8 +169,7 @@ def fetch(abi: str, asset: str, digest: str, into: Path) -> None:
 def fetch_engine(into: Path) -> None:
     url, digest = XRAY_AAR
     print(f"  downloading {url.rsplit('/', 3)[-2]} libv2ray.aar")
-    with urllib.request.urlopen(url, timeout=600) as response:  # noqa: S310
-        payload = response.read()
+    payload = download(url)
     actual = hashlib.sha256(payload).hexdigest()
     if actual != digest:
         raise SystemExit(
@@ -145,8 +181,7 @@ def fetch_engine(into: Path) -> None:
 def fetch_cottendns(jni_libs: Path) -> None:
     url, digest = COTTENDNS_ZIP
     print(f"  downloading {url.rsplit('/', 1)[-1]}")
-    with urllib.request.urlopen(url, timeout=600) as response:  # noqa: S310
-        payload = response.read()
+    payload = download(url)
     actual = hashlib.sha256(payload).hexdigest()
     if actual != digest:
         raise SystemExit(
@@ -157,6 +192,25 @@ def fetch_cottendns(jni_libs: Path) -> None:
             name = f"jniLibs/{abi}/libcottendns_client.so"
             (jni_libs / abi / "libcottendns_client.so").write_bytes(archive.read(name))
             print(f"  {abi:<12} extracted")
+
+
+def fetch_aether(jni_libs: Path) -> None:
+    for abi, (archive_name, digest) in AETHER_ARCHIVES.items():
+        destination = jni_libs / abi / "libaether.so"
+        print(f"  {abi:<12} downloading {archive_name}")
+        payload = download(AETHER_RELEASE + archive_name)
+        actual = hashlib.sha256(payload).hexdigest()
+        if actual != digest:
+            raise SystemExit(
+                f"{archive_name} digest mismatch\n  expected {digest}\n  got      {actual}"
+            )
+        with tarfile.open(fileobj=io.BytesIO(payload), mode="r:gz") as archive:
+            member = archive.getmember("aether")
+            extracted = archive.extractfile(member)
+            if extracted is None:
+                raise SystemExit(f"{archive_name} has no aether binary")
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(extracted.read())
 
 
 def android_ndk() -> Path:
@@ -251,6 +305,9 @@ def main() -> None:
 
     print("fetching the CottenDNS client (pinned by digest)")
     fetch_cottendns(TARGET / "android/src/main/jniLibs")
+
+    print("fetching the Aether WARP client (pinned by digest)")
+    fetch_aether(TARGET / "android/src/main/jniLibs")
 
     print()
     print("done. `flutter build apk` will now use the patched plugin via")

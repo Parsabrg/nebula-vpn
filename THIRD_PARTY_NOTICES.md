@@ -23,6 +23,8 @@ aggregate and each keeps its own terms.
 | AndroidLibXrayLite (`libv2ray.aar`, `libgojni.so`) | Android | LGPL-3.0 | 2dust/AndroidLibXrayLite; Xray-core underneath. |
 | Hysteria | all (`hysteria`, `libhysteria.so`) | MIT | apernet/hysteria |
 | CottenDNS client (DNS tunnel, plan 10) | Android (`libcottendns_client.so`), with its Iran resolver list | MIT, bundling quic-go (MIT), QPACK (MIT) and SOAR (Apache-2.0); all four notices in `cottendns.txt` | WhiteDNS/CottenDNS |
+| Aether (Cloudflare WARP client) | Android (`libaether.so`) | AGPL-3.0, its bundled crates' notices in `aether-third-party.txt` | patterniha/Aether v2.4.0, the release binary pinned by digest in `vendor_plugin.py`; run as a separate program. AGPL-3.0 and GPL-3.0 may be combined (GPL-3.0 section 13); its source is the tagged release. |
+| TLS fingerprint presets (`warp_settings.dart`) | all | GPL-3.0 | Ported from patterniha/PattNG's `AetherFingerprint`. |
 | hev-socks5-tunnel (`libhev-socks5-tunnel.so`) | Android | MIT | heiher/hev-socks5-tunnel, built from source by `vendor_plugin.py` |
 | WireGuard for Android (`libwg-go.so`, `libwg.so`, `libwg-quick.so`) | Android | Apache-2.0 (tunnel library), MIT (wireguard-go) | WireGuard/wireguard-android |
 | Wintun (`wintun.dll`) | Windows | WireGuard LLC "Prebuilt Binaries License" | Redistributed unmodified, as that license allows; loaded by Xray, not linked into Nebula. Its terms ship beside it as `LICENSE-wintun.txt`. |

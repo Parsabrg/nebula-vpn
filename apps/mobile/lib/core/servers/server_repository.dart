@@ -14,6 +14,7 @@ import '../network/dns_tunnel_sync.dart';
 import '../network/route_fallback.dart';
 import '../settings/locale_controller.dart';
 import '../storage/storage_providers.dart';
+import '../warp/warp_settings.dart';
 
 class AvailableProfile {
   const AvailableProfile({
@@ -481,6 +482,8 @@ final serverRepositoryProvider = Provider<ServerRepository>((Ref ref) {
       store: ref.watch(freeLinkStoreProvider),
       subscriptions: ref.watch(subscriptionStoreProvider),
       importedName: () => ref.read(appTextProvider).ownLinksImported,
+      offersWarp: () =>
+          warpSupported ? ref.read(appTextProvider).warpServerName : null,
     );
   }
   // Signed in: the server's list, then the links and subscriptions added on
@@ -498,6 +501,8 @@ final serverRepositoryProvider = Provider<ServerRepository>((Ref ref) {
       subscriptions: ref.watch(subscriptionStoreProvider),
       // Asked when the list is built, in the language of the moment.
       importedName: () => ref.read(appTextProvider).ownLinksImported,
+      offersWarp: () =>
+          warpSupported ? ref.read(appTextProvider).warpServerName : null,
     ),
   );
 });

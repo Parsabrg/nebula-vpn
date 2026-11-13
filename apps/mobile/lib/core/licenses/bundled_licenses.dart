@@ -10,6 +10,8 @@ const List<(List<String>, String)> _bundled = <(List<String>, String)>[
   (<String>['AndroidLibXrayLite'], 'androidlibxraylite.txt'),
   (<String>['Hysteria'], 'hysteria.txt'),
   (<String>['CottenDNS'], 'cottendns.txt'),
+  (<String>['Aether'], 'aether.txt'),
+  (<String>['Aether (bundled crates)'], 'aether-third-party.txt'),
   (<String>['hev-socks5-tunnel'], 'hev-socks5-tunnel.txt'),
   (<String>['WireGuard for Android'], 'wireguard-android.txt'),
   (<String>['wireguard-go'], 'wireguard-go.txt'),

@@ -106,6 +106,11 @@ mixin _SpeedTests on _DevicesCore {
       if (profile.code == kDnsTunnelProfileCode) {
         continue;
       }
+      // WARP needs Aether running, and finding an edge alone can take a
+      // minute: it is tested by connecting.
+      if (profile.protocolCode == kWarpTransport) {
+        continue;
+      }
       if (profile.protocolCode == wireguardProtocolCode) {
         wireguard.add(profile);
         continue;

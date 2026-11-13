@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../warp/warp_settings.dart';
 
 /// The core-level knobs other clients expose, as one value.
 ///
@@ -29,6 +32,7 @@ class AdvancedSettings {
     this.iranDirect = false,
     this.cleanIp,
     this.cleanIpHost,
+    this.warp = WarpSettings.defaults,
   });
 
   /// Resolvers the tunnel declares. Empty means "whatever the profile
@@ -113,6 +117,11 @@ class AdvancedSettings {
   final String? cleanIp;
   final String? cleanIpHost;
 
+  /// Cloudflare WARP through Aether: how it connects, and whether Nebula
+  /// servers are reached through it. Its own screen; kept by the Advanced
+  /// screen's reset like [routingMode].
+  final WarpSettings warp;
+
   /// Not 10808 or 10809: those are v2rayNG's, and two proxies cannot share
   /// a port.
   static const int defaultLocalProxyPort = 10820;
@@ -140,6 +149,7 @@ class AdvancedSettings {
     bool? iranDirect,
     String? Function()? cleanIp,
     String? Function()? cleanIpHost,
+    WarpSettings? warp,
   }) {
     return AdvancedSettings(
       dnsServers: dnsServers ?? this.dnsServers,
@@ -155,6 +165,7 @@ class AdvancedSettings {
       iranDirect: iranDirect ?? this.iranDirect,
       cleanIp: cleanIp == null ? this.cleanIp : cleanIp(),
       cleanIpHost: cleanIpHost == null ? this.cleanIpHost : cleanIpHost(),
+      warp: warp ?? this.warp,
     );
   }
 
@@ -181,7 +192,8 @@ class AdvancedSettings {
         _sameList(other.bypassDomains, bypassDomains) &&
         other.iranDirect == iranDirect &&
         other.cleanIp == cleanIp &&
-        other.cleanIpHost == cleanIpHost;
+        other.cleanIpHost == cleanIpHost &&
+        other.warp == warp;
   }
 
   @override
@@ -199,6 +211,7 @@ class AdvancedSettings {
     iranDirect,
     cleanIp,
     cleanIpHost,
+    warp,
   );
 
   static bool _sameList(List<String> a, List<String> b) {
@@ -383,6 +396,7 @@ class SharedPreferencesAdvancedSettingsStore implements AdvancedSettingsStore {
   static const String _iranDirectKey = 'nebula.iran_direct';
   static const String _cleanIpKey = 'nebula.clean_ip';
   static const String _cleanIpHostKey = 'nebula.clean_ip_host';
+  static const String _warpKey = 'nebula.warp';
 
   final SharedPreferences _preferences;
 
@@ -425,6 +439,7 @@ class SharedPreferencesAdvancedSettingsStore implements AdvancedSettingsStore {
       iranDirect: _preferences.getBool(_iranDirectKey) ?? false,
       cleanIp: _readCleanIp(_preferences.getString(_cleanIpKey)),
       cleanIpHost: _preferences.getString(_cleanIpHostKey),
+      warp: WarpSettings.fromJsonString(_preferences.getString(_warpKey)),
       fragment: FragmentSettings(
         enabled:
             _preferences.getBool(_fragmentKey) ?? fallback.fragment.enabled,
@@ -525,6 +540,7 @@ class SharedPreferencesAdvancedSettingsStore implements AdvancedSettingsStore {
     } else {
       await _preferences.setString(_cleanIpKey, cleanIp);
     }
+    await _preferences.setString(_warpKey, jsonEncode(settings.warp.toJson()));
     await _preferences.setBool(_fragmentKey, settings.fragment.enabled);
     await _preferences.setString(
       _fragmentPacketsKey,

@@ -22,6 +22,7 @@ import '../../features/settings/diagnostics_screen.dart';
 import '../../features/settings/dns_tunnel_resolvers_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/settings/split_tunnel_screen.dart';
+import '../../features/settings/warp_settings_screen.dart';
 import '../../features/splash/splash_screen.dart';
 import '../auth/auth_notifier.dart';
 import '../auth/auth_state.dart';
@@ -233,6 +234,11 @@ final routerProvider = Provider<GoRouter>((Ref ref) {
         path: RoutePaths.homeAdvanced,
         pageBuilder: (BuildContext context, GoRouterState state) =>
             buildNebulaPage(context, state, const AdvancedSettingsScreen()),
+      ),
+      GoRoute(
+        path: RoutePaths.homeWarp,
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            buildNebulaPage(context, state, const WarpSettingsScreen()),
       ),
     ],
   );

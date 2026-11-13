@@ -7,6 +7,7 @@ import '../servers/profile_link.dart';
 import '../servers/server_repository.dart';
 import '../storage/device_id_store.dart';
 import '../storage/storage_providers.dart';
+import '../xray/xray_config.dart';
 import 'subscriptions.dart';
 
 /// Using the app with no Nebula server: connections come from links and
@@ -86,6 +87,22 @@ final freeLinkStoreProvider = Provider<FreeLinkStore>(
 /// The build's own links. A provider so a test can name some.
 /// Whether [serverCode] is one of this device's own links rather than a
 /// server's: those have no account behind them to ask about access.
+/// Cloudflare WARP, offered on every device: it needs no server of ours.
+/// A `free-` code, so a signed-in device sends it here too.
+const String kWarpServerCode = 'free-warp';
+
+/// WARP's one choice. Its connection is Aether's; the Xray config dials it.
+const XrayClientResult warpClient = XrayClientResult(
+  clientId: 'warp',
+  uuid: '',
+  serverAddress: '127.0.0.1',
+  port: 0,
+  sni: '',
+  transport: kWarpTransport,
+  transportSecurity: 'none',
+  adBlock: false,
+);
+
 bool isOwnLinkCode(String? serverCode) =>
     serverCode != null && serverCode.startsWith('free-');
 
@@ -271,6 +288,7 @@ class LocalServerRepository implements ServerRepository {
     required this.store,
     SubscriptionStore? subscriptions,
     this.importedName,
+    this.offersWarp,
   }) : subscriptions = subscriptions ?? InMemorySubscriptionStore();
 
   final FreeLinkStore store;
@@ -281,6 +299,32 @@ class LocalServerRepository implements ServerRepository {
   /// choices, rather than a server per link: a subscription of 122 links
   /// buried everything else. Null only where a test wants a server per link.
   final String Function()? importedName;
+
+  /// Whether Cloudflare WARP is listed, and under what name. Null leaves it
+  /// out (tests that list links only).
+  final String? Function()? offersWarp;
+
+  List<AvailableServer> _warp() {
+    final String? name = offersWarp?.call();
+    return name == null
+        ? const <AvailableServer>[]
+        : <AvailableServer>[
+            AvailableServer(
+              code: kWarpServerCode,
+              displayName: name,
+              publicHost: '',
+              profiles: const <AvailableProfile>[
+                AvailableProfile(
+                  code: kWarpTransport,
+                  displayName: 'WARP',
+                  protocolId: kWarpTransport,
+                  protocolCode: kWarpTransport,
+                  adBlock: false,
+                ),
+              ],
+            ),
+          ];
+  }
 
   /// The code of the group holding the links added by hand.
   static const String importedCode = 'free-imported';
@@ -346,7 +390,7 @@ class LocalServerRepository implements ServerRepository {
   Future<List<AvailableServer>> listAvailableServers() async {
     final List<FreeProfile> profiles = await _profiles();
     if (importedName == null) {
-      return _onePerLink(profiles);
+      return <AvailableServer>[..._warp(), ..._onePerLink(profiles)];
     }
     final String imported = importedName!();
     AvailableProfile choice(FreeProfile profile) => AvailableProfile(
@@ -372,6 +416,7 @@ class LocalServerRepository implements ServerRepository {
       }
     }
     return <AvailableServer>[
+      ..._warp(),
       if (byHand.isNotEmpty)
         AvailableServer(
           code: importedCode,
@@ -423,6 +468,9 @@ class LocalServerRepository implements ServerRepository {
     required String serverCode,
     required String protocolProfileCode,
   }) async {
+    if (serverCode == kWarpServerCode) {
+      return warpClient;
+    }
     // Grouped, the choice names the link; one per link, the server does.
     final String wanted = importedName == null
         ? serverCode

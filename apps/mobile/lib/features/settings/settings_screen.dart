@@ -17,6 +17,7 @@ import '../../core/theme/color_tokens.dart';
 import '../../core/theme/theme_mode_controller.dart';
 import '../../core/theme/type_scale.dart';
 import '../../core/updates/update_check.dart';
+import '../../core/warp/warp_settings.dart';
 import '../../core/widgets/panel/panel_atoms.dart';
 import '../../core/widgets/panel/panel_controls.dart';
 import '../../core/window/login_item.dart';
@@ -200,6 +201,18 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 28),
             SectionHeader(text.sectionAdvanced),
             const SizedBox(height: 4),
+            if (warpSupported)
+              PanelExternalRow(
+                title: text.warpTitle,
+                meta:
+                    ref
+                        .watch(advancedSettingsControllerProvider)
+                        .warp
+                        .throughWarp
+                    ? text.warpThroughOn
+                    : text.warpRowMeta,
+                onTap: () => context.push(RoutePaths.homeWarp),
+              ),
             PanelExternalRow(
               title: text.tunnelOptions,
               meta: ref.watch(advancedSettingsControllerProvider).isDefault
