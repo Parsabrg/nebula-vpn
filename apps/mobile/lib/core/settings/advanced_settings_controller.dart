@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../storage/advanced_settings_store.dart';
 import '../storage/storage_providers.dart';
+import '../warp/warp_settings.dart';
 
 /// Holds the core-level settings and persists every change.
 ///
@@ -153,8 +154,12 @@ class AdvancedSettingsController extends Notifier<AdvancedSettings> {
       routingMode: state.routingMode,
       connectionMode: state.connectionMode,
       localProxyPort: state.localProxyPort,
+      warp: state.warp,
     ),
   );
+
+  /// Cloudflare WARP's settings, from its own screen.
+  Future<void> setWarp(WarpSettings warp) => _write(state.copyWith(warp: warp));
 
   Future<void> _write(AdvancedSettings next) async {
     state = next;

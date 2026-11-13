@@ -358,7 +358,7 @@ index 14830fd..3b5c5be 100644
  
      public static AppConfigs.V2RAY_CONNECTION_MODES getConnectionMode() {
 diff --git a/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/core/V2rayCoreManager.java b/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/core/V2rayCoreManager.java
-index 98a666e..3c77721 100644
+index 98a666e..f8a9df0 100644
 --- a/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/core/V2rayCoreManager.java
 +++ b/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/core/V2rayCoreManager.java
 @@ -13,6 +13,7 @@ import android.content.Context;
@@ -369,7 +369,7 @@ index 98a666e..3c77721 100644
  import android.os.Build;
  import android.os.CountDownTimer;
  import android.util.Log;
-@@ -31,23 +32,47 @@ import dev.amirzr.flutter_v2ray_client.v2ray.utils.V2rayConfig;
+@@ -31,23 +32,55 @@ import dev.amirzr.flutter_v2ray_client.v2ray.utils.V2rayConfig;
  
  import org.json.JSONObject;
  
@@ -398,6 +398,14 @@ index 98a666e..3c77721 100644
 +    private Process hysteriaProcess;
 +    // The DNS tunnel's client (CottenDNS), when the config asks for one.
 +    private Process dnsTunnelProcess;
++    // Aether, the Cloudflare WARP client: WARP mode, or the way in to a
++    // server through WARP. Xray dials its local SOCKS port.
++    private Process aetherProcess;
++    // Counted down when Aether says it serves SOCKS5, which it does only
++    // after its data check. Its port accepts connections from the start,
++    // so a port check passed at once (0 s; serving came at 21 s, home
++    // line, 2026-11-14) and the app gave up on a tunnel still being found.
++    private java.util.concurrent.CountDownLatch aetherReady;
      public AppConfigs.V2RAY_STATES V2RAY_STATE = AppConfigs.V2RAY_STATES.V2RAY_DISCONNECTED;
      private boolean isLibV2rayCoreInitialized = false;
      private CountDownTimer countDownTimer;
@@ -418,7 +426,7 @@ index 98a666e..3c77721 100644
      public static V2rayCoreManager getInstance() {
          if (INSTANCE == null) {
              synchronized (V2rayCoreManager.class) {
-@@ -64,28 +89,51 @@ public final class V2rayCoreManager {
+@@ -64,28 +97,51 @@ public final class V2rayCoreManager {
              @RequiresApi(api = Build.VERSION_CODES.M)
              public void onTick(long millisUntilFinished) {
  
@@ -481,7 +489,7 @@ index 98a666e..3c77721 100644
                  String packageName = context.getPackageName();
                  Intent connection_info_intent = new Intent(packageName + ".V2RAY_CONNECTION_INFO");
                  connection_info_intent.setPackage(packageName);
-@@ -104,7 +152,12 @@ public final class V2rayCoreManager {
+@@ -104,7 +160,14 @@ public final class V2rayCoreManager {
  
              public void onFinish() {
                  countDownTimer.cancel();
@@ -490,12 +498,14 @@ index 98a666e..3c77721 100644
 +                // starts only after it, and with the timer gone the app never
 +                // heard CONNECTED (phone, MCI, 2026-11-06).
 +                final Process dnsTunnel = V2rayCoreManager.getInstance().dnsTunnelProcess;
++                final Process aether = V2rayCoreManager.getInstance().aetherProcess;
 +                if (V2rayCoreManager.getInstance().isV2rayCoreRunning()
-+                        || (dnsTunnel != null && dnsTunnel.isAlive()))
++                        || (dnsTunnel != null && dnsTunnel.isAlive())
++                        || (aether != null && aether.isAlive()))
                      makeDurationTimer(context, enable_traffic_statics);
              }
          }.start();
-@@ -115,16 +168,9 @@ public final class V2rayCoreManager {
+@@ -115,16 +178,9 @@ public final class V2rayCoreManager {
              v2rayServicesListener = (V2rayServicesListener) targetService;
              Libv2ray.initCoreEnv(getUserAssetsPath(targetService.getApplicationContext()), "");
  
@@ -515,7 +525,7 @@ index 98a666e..3c77721 100644
              // Initialize controller with callback handler
              coreController = Libv2ray.newCoreController(new CoreCallbackHandler() {
                  @Override
-@@ -170,6 +216,7 @@ public final class V2rayCoreManager {
+@@ -170,6 +226,7 @@ public final class V2rayCoreManager {
              hours = 0;
              uploadSpeed = 0;
              downloadSpeed = 0;
@@ -523,7 +533,7 @@ index 98a666e..3c77721 100644
              totalDownload = 0;
              totalUpload = 0;
              Log.e(V2rayCoreManager.class.getSimpleName(), "setUpListener => new initialize from "
-@@ -192,19 +239,102 @@ public final class V2rayCoreManager {
+@@ -192,19 +249,138 @@ public final class V2rayCoreManager {
          if (isV2rayCoreRunning()) {
              stopCore();
          }
@@ -618,6 +628,42 @@ index 98a666e..3c77721 100644
 +            }, "DnsTunnel_Bringup").start();
 +            return true;
 +        }
++        final JSONObject aether = extractAether(v2rayConfig.V2RAY_FULL_JSON_CONFIG);
++        if (aether != null) {
++            if (coreController == null || !startAether(aether)) {
++                return false;
++            }
++            // As on the DNS tunnel path. Aether opens its port only once a
++            // WARP edge has carried real data, after a scan that can take a
++            // minute on a filtered network.
++            showNotification(v2rayConfig);
++            final int port = aether.optInt("port");
++            final String xrayConfig = v2rayConfig.V2RAY_FULL_JSON_CONFIG;
++            final java.util.concurrent.CountDownLatch ready = aetherReady;
++            new Thread(() -> {
++                boolean serving = false;
++                try {
++                    serving = ready.await(150, java.util.concurrent.TimeUnit.SECONDS);
++                } catch (InterruptedException interrupted) {
++                    Thread.currentThread().interrupt();
++                }
++                final Process process = aetherProcess;
++                if (!serving || process == null || !process.isAlive()) {
++                    Log.e(V2rayCoreManager.class.getSimpleName(),
++                            "aether never served on " + port + "; tearing down");
++                    stopCore();
++                    return;
++                }
++                try {
++                    coreController.startLoop(xrayConfig, 0);
++                    V2RAY_STATE = AppConfigs.V2RAY_STATES.V2RAY_CONNECTED;
++                } catch (Exception e) {
++                    Log.e(V2rayCoreManager.class.getSimpleName(), "startCore failed =>", e);
++                    stopCore();
++                }
++            }, "Aether_Bringup").start();
++            return true;
++        }
          try {
              if (coreController == null) {
                  Log.e(V2rayCoreManager.class.getSimpleName(), "startCore failed => coreController is null.");
@@ -634,7 +680,7 @@ index 98a666e..3c77721 100644
              coreController.startLoop(v2rayConfig.V2RAY_FULL_JSON_CONFIG, 0);
              V2RAY_STATE = AppConfigs.V2RAY_STATES.V2RAY_CONNECTED;
              if (isV2rayCoreRunning()) {
-@@ -217,7 +347,249 @@ public final class V2rayCoreManager {
+@@ -217,7 +393,344 @@ public final class V2rayCoreManager {
          return true;
      }
  
@@ -675,6 +721,99 @@ index 98a666e..3c77721 100644
 +            return (tunnel == null || tunnel.optInt("port") <= 0) ? null : tunnel;
 +        } catch (Exception e) {
 +            return null;
++        }
++    }
++
++    /**
++     * The Aether run carried by this config ({args, port}), or null. Like the
++     * DNS tunnel, it rides in the JSON under a key Xray never reads.
++     */
++    private JSONObject extractAether(final String fullJsonConfig) {
++        if (fullJsonConfig == null) {
++            return null;
++        }
++        try {
++            final JSONObject run = new JSONObject(fullJsonConfig).optJSONObject("nebulaAether");
++            return (run == null || run.optInt("port") <= 0 || run.optJSONArray("args") == null)
++                    ? null : run;
++        } catch (Exception e) {
++            return null;
++        }
++    }
++
++    private boolean startAether(final JSONObject run) {
++        stopAether();
++        try {
++            final Service service = v2rayServicesListener.getService();
++            final java.util.concurrent.CountDownLatch ready =
++                    new java.util.concurrent.CountDownLatch(1);
++            aetherReady = ready;
++            aetherProcess = startAetherProcess(service, run.getJSONArray("args"),
++                    ready::countDown);
++            if (aetherProcess != null) {
++                // Its exit ends the wait at once rather than at the deadline.
++                final Process started = aetherProcess;
++                new Thread(() -> {
++                    try {
++                        started.waitFor();
++                    } catch (InterruptedException ignored) {
++                        Thread.currentThread().interrupt();
++                    }
++                    ready.countDown();
++                }, "Aether_Watch").start();
++            }
++            return aetherProcess != null;
++        } catch (Exception e) {
++            Log.e(V2rayCoreManager.class.getSimpleName(), "startAether failed =>", e);
++            return false;
++        }
++    }
++
++    /**
++     * Runs Aether from jniLibs in the app's own `aether` folder, where it
++     * keeps its WARP identities (private keys, readable by this app only)
++     * and the last working endpoint. Its output goes to logcat.
++     */
++    public static Process startAetherProcess(final Context context,
++            final org.json.JSONArray args, final Runnable onServing) throws Exception {
++        final File folder = new File(context.getFilesDir(), "aether");
++        folder.mkdirs();
++        final File binary = new File(context.getApplicationInfo().nativeLibraryDir, "libaether.so");
++        if (!binary.exists()) {
++            Log.e("Aether", "binary missing at " + binary.getAbsolutePath());
++            return null;
++        }
++        final java.util.List<String> command = new java.util.ArrayList<>();
++        command.add(binary.getAbsolutePath());
++        for (int i = 0; i < args.length(); i++) {
++            command.add(args.getString(i));
++        }
++        final ProcessBuilder builder = new ProcessBuilder(command);
++        builder.redirectErrorStream(true);
++        builder.directory(folder);
++        final Process started = builder.start();
++        new Thread(() -> {
++            try (java.io.BufferedReader reader = new java.io.BufferedReader(
++                    new java.io.InputStreamReader(started.getInputStream()))) {
++                String line;
++                while ((line = reader.readLine()) != null) {
++                    Log.i("Aether", line);
++                    if (line.contains("socks5 server listening")) {
++                        onServing.run();
++                    }
++                }
++            } catch (Exception ignored) {
++                // stream closed on shutdown
++            }
++        }, "Aether_Log").start();
++        return started;
++    }
++
++    private void stopAether() {
++        final Process process = aetherProcess;
++        aetherProcess = null;
++        if (process != null) {
++            process.destroy();
 +        }
 +    }
 +
@@ -878,19 +1017,21 @@ index 98a666e..3c77721 100644
 +        final boolean wasHysteria = hysteriaProcess != null;
 +        // The DNS tunnel path runs Xray too, maybe not yet started.
 +        final boolean wasDnsTunnel = dnsTunnelProcess != null;
++        final boolean wasAether = aetherProcess != null;
 +        notificationBuilder = null;
 +        stopHysteria();
 +        stopDnsTunnel();
++        stopAether();
          try {
              // Safely cancel notification - handle cases where service might be null
              if (v2rayServicesListener != null && v2rayServicesListener.getService() != null) {
-@@ -232,14 +604,18 @@ public final class V2rayCoreManager {
+@@ -232,14 +745,18 @@ public final class V2rayCoreManager {
          }
  
          try {
 -            if (isV2rayCoreRunning()) {
 -                if (coreController != null) {
-+            if (wasHysteria || wasDnsTunnel || isV2rayCoreRunning()) {
++            if (wasHysteria || wasDnsTunnel || wasAether || isV2rayCoreRunning()) {
 +                // Only Xray has a loop to stop; on the Hysteria path the child
 +                // process is already gone by this point.
 +                if (!wasHysteria && coreController != null && isV2rayCoreRunning()) {
@@ -908,7 +1049,7 @@ index 98a666e..3c77721 100644
              }
              sendDisconnectedBroadCast();
          } catch (Exception e) {
-@@ -307,6 +683,63 @@ public final class V2rayCoreManager {
+@@ -307,6 +824,63 @@ public final class V2rayCoreManager {
          return "";
      }
  
@@ -972,7 +1113,7 @@ index 98a666e..3c77721 100644
      private void showNotification(final V2rayConfig v2rayConfig) {
          Service context = v2rayServicesListener.getService();
          if (context == null) {
-@@ -321,20 +754,46 @@ public final class V2rayCoreManager {
+@@ -321,20 +895,46 @@ public final class V2rayCoreManager {
              }
          }
  
@@ -1026,7 +1167,7 @@ index 98a666e..3c77721 100644
  
          String notificationChannelID = createNotificationChannelID(v2rayConfig.APPLICATION_NAME);
  
-@@ -357,7 +816,7 @@ public final class V2rayCoreManager {
+@@ -357,7 +957,7 @@ public final class V2rayCoreManager {
                      notificationChannelID)
                      .setSmallIcon(v2rayConfig.APPLICATION_ICON)
                      .setContentTitle(v2rayConfig.REMARK)
@@ -1035,7 +1176,7 @@ index 98a666e..3c77721 100644
                      .setPriority(NotificationCompat.PRIORITY_MIN)
                      .setShowWhen(false)
                      .setOnlyAlertOnce(true)
-@@ -366,6 +825,10 @@ public final class V2rayCoreManager {
+@@ -366,6 +966,10 @@ public final class V2rayCoreManager {
                      .setOngoing(true);
  
              context.startForeground(NOTIFICATION_ID, notificationBuilder.build());
@@ -1046,7 +1187,7 @@ index 98a666e..3c77721 100644
          } catch (Exception e) {
              Log.w("V2rayCoreManager", "Failed to show notification, continuing without notification", e);
              // VPN/Proxy continues to work even if notification fails
-@@ -373,6 +836,14 @@ public final class V2rayCoreManager {
+@@ -373,6 +977,14 @@ public final class V2rayCoreManager {
      }
  
      public boolean isV2rayCoreRunning() {
@@ -1061,7 +1202,7 @@ index 98a666e..3c77721 100644
          if (coreController != null) {
              return coreController.getIsRunning();
          }
-@@ -389,23 +860,221 @@ public final class V2rayCoreManager {
+@@ -389,22 +1001,220 @@ public final class V2rayCoreManager {
          }
      }
  
@@ -1071,31 +1212,21 @@ index 98a666e..3c77721 100644
 +        if (hysteriaYaml != null) {
 +            return getHysteriaServerDelay(context, config, hysteriaYaml, url);
 +        }
-         try {
--            try {
--                JSONObject config_json = new JSONObject(config);
--                JSONObject new_routing_json = config_json.getJSONObject("routing");
--                new_routing_json.remove("rules");
--                config_json.remove("routing");
--                config_json.put("routing", new_routing_json);
--                return Libv2ray.measureOutboundDelay(config_json.toString(), url);
--            } catch (Exception json_error) {
--                Log.e("getV2rayServerDelay", json_error.toString());
--                return Libv2ray.measureOutboundDelay(config, url);
++        try {
 +            final JSONObject config_json = new JSONObject(config);
 +            // Everything to the proxy: the tunnel's own rules would send the
 +            // test's request direct.
 +            final JSONObject routing = config_json.optJSONObject("routing");
 +            if (routing != null) {
 +                routing.remove("rules");
-             }
++            }
 +            return measureThroughCore(config_json, url);
-         } catch (Exception e) {
-             Log.e("getV2rayServerDelayCore", e.toString());
-             return -1L;
-         }
-     }
- 
++        } catch (Exception e) {
++            Log.e("getV2rayServerDelayCore", e.toString());
++            return -1L;
++        }
++    }
++
 +    /**
 +     * The delay to [url] through [config], counted only if the whole answer
 +     * then arrives. Xray's own measureOutboundDelay stops at the response
@@ -1133,14 +1264,23 @@ index 98a666e..3c77721 100644
 +            }
 +        });
 +        core.startLoop(config.toString(), 0);
-+        try {
+         try {
 +            return twiceThrough(url, port);
 +        } finally {
-+            try {
+             try {
+-                JSONObject config_json = new JSONObject(config);
+-                JSONObject new_routing_json = config_json.getJSONObject("routing");
+-                new_routing_json.remove("rules");
+-                config_json.remove("routing");
+-                config_json.put("routing", new_routing_json);
+-                return Libv2ray.measureOutboundDelay(config_json.toString(), url);
+-            } catch (Exception json_error) {
+-                Log.e("getV2rayServerDelay", json_error.toString());
+-                return Libv2ray.measureOutboundDelay(config, url);
 +                core.stopLoop();
 +            } catch (Exception ignored) {
 +                // already stopped
-+            }
+             }
 +        }
 +    }
 +
@@ -1192,9 +1332,10 @@ index 98a666e..3c77721 100644
 +                }
 +            }
 +            return expected > 0 && received < expected ? -1L : delay;
-+        } catch (Exception e) {
+         } catch (Exception e) {
+-            Log.e("getV2rayServerDelayCore", e.toString());
 +            Log.w("timedGet", e.toString());
-+            return -1L;
+             return -1L;
 +        } finally {
 +            if (connection != null) {
 +                connection.disconnect();
@@ -1290,10 +1431,9 @@ index 98a666e..3c77721 100644
 +            if (configFile != null) {
 +                configFile.delete();
 +            }
-+        }
-+    }
-+
- }
+         }
+     }
+ 
 diff --git a/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/services/DelayProbeService.java b/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/services/DelayProbeService.java
 new file mode 100644
 index 0000000..1df187f
