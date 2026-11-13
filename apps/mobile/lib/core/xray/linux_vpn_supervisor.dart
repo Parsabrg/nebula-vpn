@@ -175,7 +175,24 @@ suffix=.json
 [ "$engine_name" = hysteria ] && suffix=.yaml
 run_config="$(mktemp --suffix="$suffix" /run/nebula-vpn-XXXXXX)" || fail "Linux could not prepare the VPN configuration."
 cat "$CONFIG" > "$run_config"
-if grep -Eo '"(access|error)"[[:space:]]*:[[:space:]]*"[^"]*"' "$run_config" | grep -Evq ':[[:space:]]*"(none)?"$'; then
+# A text match on the key names was not enough: JSON spells a key with
+# escapes too (\u0061ccess), which a decoder reads as "access" (audit
+# AUD-016). Xray's log section is rebuilt here from the level alone, after
+# a real JSON parse; without python3 an escape is refused outright.
+if [ "$engine_name" = xray ] && command -v python3 > /dev/null 2>&1; then
+  python3 - "$run_config" <<'PY' || fail "Linux refused an unexpected VPN configuration."
+import json, sys
+path = sys.argv[1]
+with open(path, encoding='utf-8') as handle:
+    config = json.load(handle)
+log = config.get('log')
+level = log.get('loglevel') if isinstance(log, dict) else None
+config['log'] = {'loglevel': level if level in ('debug', 'info', 'warning', 'error', 'none') else 'warning'}
+with open(path, 'w', encoding='utf-8') as handle:
+    json.dump(config, handle)
+PY
+elif grep -q '\\u' "$run_config" \
+  || grep -Eo '"(access|error)"[[:space:]]*:[[:space:]]*"[^"]*"' "$run_config" | grep -Evq ':[[:space:]]*"(none)?"$'; then
   fail "Linux refused an unexpected VPN configuration."
 fi
 
