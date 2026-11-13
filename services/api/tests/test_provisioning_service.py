@@ -1100,6 +1100,54 @@ def test_request_xray_client_rejects_when_an_operation_is_already_in_progress(
         asyncio.run(_request_xray_client(service))
 
 
+def _running_operation(target_id: UUID, started_at: datetime) -> AgentOperation:
+    return AgentOperation(
+        id=uuid4(),
+        vpn_server_id=uuid4(),
+        idempotency_key=uuid4(),
+        correlation_id=uuid4(),
+        operation_kind="provision_device",
+        target_kind="xray_client",
+        target_id=target_id,
+        state="running",
+        desired_generation=1,
+        request_fingerprint="0" * 64,
+        requested_at=started_at,
+        started_at=started_at,
+    )
+
+
+@pytest.mark.parametrize(("age_seconds", "taken_over"), [(5, False), (120, True)])
+def test_request_xray_client_takes_over_an_attempt_cut_off_long_ago(
+    age_seconds: int, taken_over: bool
+) -> None:
+    # AUD-014: a connect cut off mid-call left the client APPLYING, and every
+    # later request was refused until the 15-minute sweep.
+    keys = _key_material()
+    client_uuid = uuid4()
+    client = _xray_live_client(state=ProvisioningState.APPLYING.value)
+    credential = _xray_credential_for(client, client_uuid, keys)
+    stuck = _running_operation(client.id, datetime.now(UTC) - timedelta(seconds=age_seconds))
+    session = make_session(
+        _happy_fixtures(
+            {XrayClient: client, DeviceProtocolCredential: credential, AgentOperation: stuck}
+        )
+    )
+    agent = FakeAgentClient(provision_xray=_xray_provision_response(applied_generation=2))
+    service = make_service(session, agent_builder=_agent_builder(agent), key_material=keys)
+
+    if not taken_over:
+        with pytest.raises(XrayOperationInProgress):
+            asyncio.run(_request_xray_client(service))
+        assert stuck.state == "running"
+        return
+    result = asyncio.run(_request_xray_client(service))
+    assert result.uuid == client_uuid
+    assert stuck.state == "cancelled"
+    assert stuck.error_code == "superseded"
+    assert client.state == ProvisioningState.ACTIVE.value
+
+
 def test_request_xray_client_rejects_when_the_server_device_cap_is_reached() -> None:
     session = make_session(
         _happy_fixtures({VPNServer: _server(maximum_devices=5)}), live_peer_count=5
