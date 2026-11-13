@@ -112,8 +112,9 @@ class TestARealExchange:
             async def __aexit__(self, *_args: object) -> None:
                 return None
 
-            async def scalar(self, _statement: object) -> object:
-                return row
+            async def scalar(self, statement: object) -> object:
+                # No server has the node's names yet; the token is found.
+                return None if "FROM vpn_servers" in str(statement) else row
 
             def add(self, _value: object) -> None:
                 return None

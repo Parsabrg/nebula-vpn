@@ -23,7 +23,7 @@ from nebula_api.enrollment.schemas import (
     MintEnrollmentTokenRequest,
     MintEnrollmentTokenResponse,
 )
-from nebula_api.enrollment.service import EnrollmentRejected, EnrollmentService
+from nebula_api.enrollment.service import EnrollmentRejected, EnrollmentService, LabelInUse
 from nebula_api.models.types import AdminRole
 from nebula_api.pki import PkiError, issuing_authority_pem, load_certificate_authority
 from nebula_api.settings import Settings
@@ -122,7 +122,12 @@ async def mint_enrollment_token(
         allowed_roles=frozenset({AdminRole.OWNER, AdminRole.OPERATOR}),
         require_step_up=True,
     )
-    minted = await service.mint(label=payload.label, admin_id=principal.admin_id)
+    try:
+        minted = await service.mint(label=payload.label, admin_id=principal.admin_id)
+    except LabelInUse as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="A server already has this name"
+        ) from error
     apply_auth_response_headers(response)
     settings = cast(Settings, request.app.state.settings)
     return MintEnrollmentTokenResponse(

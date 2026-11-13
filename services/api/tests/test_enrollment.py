@@ -56,6 +56,9 @@ class FakeSession:
                 return row
             if str(row.id) in rendered:
                 return row
+        if "FROM vpn_servers" in str(statement):
+            # No server has these names or this label yet.
+            return None
         return self.rows[0] if self.rows and "token_digest" not in str(statement) else None
 
     async def scalars(self, _statement: object) -> Any:
@@ -422,3 +425,12 @@ def test_the_enrollment_namespace_is_distinct_from_other_token_uses() -> None:
 
 def test_a_uuid_is_never_confused_for_a_token() -> None:
     assert isinstance(uuid4(), UUID)
+
+
+def test_hosts_must_be_names_or_addresses() -> None:
+    from nebula_api.enrollment.service import _HOST
+
+    for good in ("node.example.org", "203.0.113.7", "2001:db8::1", "agent-1.internal"):
+        assert _HOST.match(good), good
+    for bad in ("node.example.org\nX", "a b", "-bad.example.org", "x" * 300, ""):
+        assert not _HOST.match(bad), bad

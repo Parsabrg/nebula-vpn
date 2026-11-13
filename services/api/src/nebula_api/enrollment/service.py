@@ -12,13 +12,15 @@ telling somebody probing with guesses which of them had been real.
 """
 
 import logging
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from ipaddress import IPv4Address, IPv4Network
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
+from nebula_api.auth.audit import add_audit_event
 from nebula_api.auth.opaque_tokens import (
     KeyRing,
     OpaqueTokenError,
@@ -110,6 +112,10 @@ class EnrollmentService:
         expires_at = datetime.now(UTC) + window
 
         async with self._session_factory() as session:
+            # A server already has this name: redeeming would fail on its
+            # unique code after the node did its work (AUD-011).
+            if await session.scalar(select(VPNServer.id).where(VPNServer.code == label)):
+                raise LabelInUse(label)
             row = NodeEnrollmentToken(
                 id=uuid4(),
                 label=label,
@@ -119,6 +125,33 @@ class EnrollmentService:
                 created_by_admin_id=admin_id,
             )
             session.add(row)
+            # Adding a server is the most consequential thing an admin does
+            # here, and left no trail (AUD-011).
+            if admin_id is not None:
+                add_audit_event(
+                    session,
+                    actor_kind="admin",
+                    actor_id=admin_id,
+                    target_kind="vpn_server",
+                    target_id=row.id,
+                    event_code="server_changed",
+                    outcome="succeeded",
+                    request_id=uuid4(),
+                    reason_code="enrollment_token_minted",
+                )
+            else:
+                # From the server's own CLI (nebula-api enroll-token).
+                add_audit_event(
+                    session,
+                    actor_kind="system",
+                    actor_id=None,
+                    target_kind="vpn_server",
+                    target_id=row.id,
+                    event_code="server_changed",
+                    outcome="succeeded",
+                    request_id=uuid4(),
+                    reason_code="enrollment_token_minted",
+                )
             await session.commit()
             token_id = row.id
 
@@ -170,6 +203,21 @@ class EnrollmentService:
             )
             if row is None or not row.is_redeemable(now=now):
                 raise EnrollmentRejected()
+            # The certificate carries these names and the control plane dials
+            # the agent at agent_host: never a name another server already
+            # has, which would let one token holder stand in for it (AUD-011).
+            if not (_HOST.match(public_host) and _HOST.match(agent_host)):
+                raise EnrollmentRejected()
+            taken = await session.scalar(
+                select(VPNServer.id).where(
+                    or_(
+                        VPNServer.public_host.in_((public_host, agent_host)),
+                        VPNServer.agent_host.in_((public_host, agent_host)),
+                    )
+                )
+            )
+            if taken is not None:
+                raise EnrollmentRejected()
 
             try:
                 certificate = sign_node_certificate(
@@ -201,6 +249,18 @@ class EnrollmentService:
             )
             session.add(server)
             await session.flush()
+            add_audit_event(
+                session,
+                # The token holder, not yet anyone the control plane knows.
+                actor_kind="anonymous",
+                actor_id=None,
+                target_kind="vpn_server",
+                target_id=server.id,
+                event_code="server_changed",
+                outcome="succeeded",
+                request_id=uuid4(),
+                reason_code="server_enrolled",
+            )
 
             # What the node says it serves, and each one's ad-block twin (the
             # same inbound). A node enrolled before this sent nothing and gets
@@ -274,6 +334,17 @@ class EnrollmentService:
                 )
             ).all()
             return list(rows)
+
+
+class LabelInUse(ValueError):
+    """A server already has the name a new token was asked for."""
+
+
+# A DNS name or an IPv4/IPv6 literal, nothing else.
+_HOST = re.compile(
+    r"^(?=.{1,253}$)([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$"
+    r"|^[0-9A-Fa-f:.]{2,45}$"
+)
 
 
 def certificate_hostnames(public_host: str, agent_host: str) -> list[str]:
