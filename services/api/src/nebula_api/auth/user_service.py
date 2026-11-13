@@ -48,6 +48,11 @@ class AuthenticationRejected(Exception):
     """Stable denial used for all invalid user credentials and tokens."""
 
 
+# A rotation whose answer was lost on the way (a reset mid-response, common
+# where this is used) is retried with the token it replaced, within this.
+_LOST_ANSWER_WINDOW = timedelta(seconds=60)
+
+
 class AuthenticationRateLimited(AuthenticationRejected):
     """Generic rate denial with a bounded client retry hint."""
 
@@ -307,6 +312,14 @@ class UserAuthService:
             )
             if user_session is None:
                 raise AuthenticationRejected("Authentication was not accepted")
+            if token.state is TokenState.CONSUMED and await self._lost_answer(session, token, now):
+                # Rotated, but the answer never arrived: its successor was
+                # never used. That one goes and this one rotates again, rather
+                # than signing the person out on a lossy network (AUD-013).
+                token.state = TokenState.ACTIVE
+                token.consumed_at = None
+                token.replaced_by_id = None
+                await session.flush()
             if token.state is TokenState.CONSUMED:
                 await revoke_session(session, user_session, now=now)
                 _add_audit(
@@ -374,6 +387,27 @@ class UserAuthService:
             refresh_token=successor_value,
             access_expires_in=self._settings.access_token_ttl_seconds,
         )
+
+    async def _lost_answer(self, session: AsyncSession, token: RefreshToken, now: datetime) -> bool:
+        """Whether [token], used once already, is the same client retrying a
+        rotation whose answer was lost: within a minute, and its successor never
+        used. The successor is revoked when so. Anything else is reuse."""
+
+        if (
+            token.consumed_at is None
+            or token.replaced_by_id is None
+            or now - token.consumed_at > _LOST_ANSWER_WINDOW
+        ):
+            return False
+        successor = await session.scalar(
+            select(RefreshToken).where(RefreshToken.id == token.replaced_by_id).with_for_update()
+        )
+        if successor is None or successor.state is not TokenState.ACTIVE:
+            return False
+        successor.state = TokenState.REVOKED
+        successor.revoked_at = now
+        await session.flush()
+        return True
 
     async def logout(self, *, refresh_token: str, request_id: UUID) -> None:
         now = self._now()
