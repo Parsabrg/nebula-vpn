@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict
 
 from nebula_agent import __version__
 from nebula_agent.api.v1 import router as operations_router
+from nebula_agent.api.v1_relay import router as relay_router
 from nebula_agent.api.v1_usage import router as usage_router
 from nebula_agent.api.v1_xray import router as xray_operations_router
 from nebula_agent.driver_factory import build_xray_driver
@@ -160,6 +161,7 @@ def create_app(
     application.include_router(operations_router)
     application.include_router(xray_operations_router)
     application.include_router(usage_router)
+    application.include_router(relay_router)
 
     @application.get("/healthz", response_model=ProbeResponse, tags=["probes"])
     async def health() -> ProbeResponse:

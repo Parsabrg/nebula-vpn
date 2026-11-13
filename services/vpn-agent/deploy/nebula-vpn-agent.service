@@ -64,7 +64,7 @@ UMask=0077
 # separate /etc/nebula/xray write access below is for the real Xray config
 # file this agent renders (xray_config_dir), which the nebula-xray.service
 # unit then reads read-only.
-StateDirectory=nebula/wireguard nebula/xray
+StateDirectory=nebula/wireguard nebula/xray nebula/relay
 # /etc/nebula/hysteria is the standalone Hysteria2 server's config, rendered
 # from the same provisioned client set as the Xray one. ProtectSystem=strict
 # makes everything outside this list read-only, so omitting it fails the
@@ -72,7 +72,7 @@ StateDirectory=nebula/wireguard nebula/xray
 # surfaces to the user as a plain refusal with no reason attached.
 # The DNS tunnel's config folder only where one is set up ("-": skipped when
 # absent, so the agent still starts on every other server).
-ReadWritePaths=/var/lib/nebula/wireguard /var/lib/nebula/xray /etc/nebula/xray /etc/nebula/hysteria -/etc/nebula/cottendns
+ReadWritePaths=/var/lib/nebula/wireguard /var/lib/nebula/xray /var/lib/nebula/relay /etc/nebula/xray /etc/nebula/hysteria -/etc/nebula/cottendns
 ReadOnlyPaths=/etc/nebula/secrets
 
 ExecStart=/opt/nebula-vpn-agent/.venv/bin/nebula-agent-serve

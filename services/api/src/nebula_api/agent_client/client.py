@@ -42,6 +42,7 @@ from nebula_api.agent_client.models import (
     RevokeDeviceResponse,
     RevokeXrayClientRequest,
     RevokeXrayClientResponse,
+    SetRelayRequest,
     XrayHealthRequest,
     XrayHealthResponse,
 )
@@ -288,6 +289,13 @@ class AgentClient:
 
     async def reconcile(self, request: ReconcileRequest) -> ReconcileResponse:
         return await self._call("/v1/operations/reconcile", request, ReconcileResponse)
+
+    async def set_relay(self, request: SetRelayRequest) -> None:
+        """Ask the agent's server to be this relay; root applies it there."""
+
+        response = await self._post("/v1/relay", request)
+        if response.status_code >= 400:
+            raise AgentRejected(response.status_code, _extract_detail(response))
 
     async def collect_usage(self, request: CollectUsageRequest) -> CollectUsageResponse:
         return await self._call("/v1/usage/collect", request, CollectUsageResponse)

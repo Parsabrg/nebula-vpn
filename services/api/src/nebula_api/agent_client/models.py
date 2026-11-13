@@ -341,6 +341,27 @@ class XrayHealthResponse(_ResponseModel):
     client_count: int = Field(ge=0)
 
 
+class RelayPortSpec(BaseModel):
+    """A port on the relay forwarded to the exit's port for one profile."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    here: int = Field(ge=1, le=65_535)
+    proto: Literal["tcp", "udp"]
+    there: int = Field(ge=1, le=65_535)
+
+
+class SetRelayRequest(BaseModel):
+    """The relay the agent's server should be; no ports means none."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    target: str | None = None
+    ports: list[RelayPortSpec] = Field(default_factory=list)
+    report_url: str | None = None
+    report_token: str | None = None
+
+
 class CollectUsageRequest(BaseModel):
     """No fields. The agent reports every counter it can see, and there is
     nothing for the caller to narrow -- see the agent's route for why it does

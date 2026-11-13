@@ -28,16 +28,29 @@ it needs the owner's OK; the owner chooses the ports.
 ## From the admin panel
 
 **Server health > Relays** lists every relay (those below in `NEBULA_RELAYS`
-and those added there), whether it is up, and the commands for its server.
-**Add relay** takes a name, the exit, the relay's server (it must have joined
-first, from Add server), the address people dial, and the relay's port for
-each protocol to offer. It is listed at once, as under maintenance until its
-server reports in. The commands write `relay.env` with
-`NEBULA_RELAY_REPORT_URL` and `NEBULA_RELAY_REPORT_TOKEN` too, so
-`install.sh` also sets up the 30-second report below; the token is the
-control plane's `NEBULA_RELAY_REPORT_TOKEN`, which the panel never shows.
-A relay added in the panel is removed there; one in `NEBULA_RELAYS` is changed
-in that file.
+and those added there) and whether it is up. **Add relay** takes a name, the
+exit, the relay's server (it must have joined first, from Add server), the
+address people dial, and the relay's port for each protocol to offer; each
+port starts as the protocol's own on the exit. Nothing has to be run on the
+relay's server:
+
+1. The control plane asks the relay server's agent, over its mutual-TLS
+   link, to forward those ports to the exit's IPv4 address and to report in
+   (`POST /v1/relay`). The agent is unprivileged and only writes the request
+   to `/var/lib/nebula/relay/relay.env`.
+2. `nebula-relay-apply.path`, a root unit `install.sh` installs, sees the
+   file change and runs `infrastructure/relay/relay-apply.sh` on it: every
+   value is checked again (an IPv4 exit, `here/proto:there` ports, never the
+   exit's 22, 80, 8444 or 9443, never this server's SSH or a port in use),
+   copied to `/etc/nebula/relay.env`, and applied as below.
+3. The relay starts reporting within 30 seconds and is up in the app.
+
+A server forwards to one exit, so it carries one panel relay. **Remove** asks
+its agent to forward nothing, which takes the forwarding and the report
+timer down. When the agent cannot be reached, the relay is still saved and
+the panel shows the commands to set the server up by hand (below). A server
+installed before this needs `install.sh` run once more for the root unit.
+A relay in `NEBULA_RELAYS` is changed in that file.
 
 ## On the relay
 
