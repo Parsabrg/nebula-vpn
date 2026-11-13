@@ -48,6 +48,9 @@ def test_agent_exposes_only_the_allowlisted_operation_surface() -> None:
         # Read-only, and the only route here that is not an operation: it
         # reports byte counters for the control plane to accumulate.
         "/v1/usage/collect",
+        # Desired state, written for root to apply after checking it again
+        # (api/v1_relay.py, nebula-relay.path).
+        "/v1/relay",
     }
 
 

@@ -14,6 +14,8 @@ export interface RelayServerOption {
 export interface RelayProfileOption {
   code: string;
   displayName: string;
+  /** Where it listens on its server; the relay forwards the same port. */
+  port: number | null;
 }
 
 /**
@@ -33,7 +35,14 @@ export function AddRelayForm({
   const [exitId, setExitId] = useState(servers[0]?.id ?? "");
   const [viaId, setViaId] = useState(servers[1]?.id ?? "");
   const [host, setHost] = useState("");
-  const [ports, setPorts] = useState<Record<string, string>>({});
+  const startPorts = (): Record<string, string> =>
+    Object.fromEntries(
+      profiles.map((profile) => [
+        profile.code,
+        profile.port ? String(profile.port) : "",
+      ]),
+    );
+  const [ports, setPorts] = useState<Record<string, string>>(startPorts);
 
   const chosen: Record<string, number> = {};
   for (const [code, value] of Object.entries(ports)) {
@@ -137,9 +146,9 @@ export function AddRelayForm({
           confirmLabel="Add"
           confirmBody={
             <p>
-              It appears in the app for everyone who may use the exit, as under
-              maintenance until the relay&apos;s server reports in. Set up that
-              server with the commands shown next to the relay.
+              The relay&apos;s server is set up by itself through its agent, and
+              the relay appears in the app for everyone who may use the exit as
+              soon as that server reports in, usually within a minute.
             </p>
           }
           action={() =>
@@ -154,7 +163,7 @@ export function AddRelayForm({
           onSuccess={() => {
             setName("");
             setHost("");
-            setPorts({});
+            setPorts(startPorts());
             router.refresh();
           }}
         />

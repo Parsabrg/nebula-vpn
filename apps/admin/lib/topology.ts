@@ -19,6 +19,7 @@ export interface ProtocolProfileListItem {
   transport: string | null;
   transportSecurity: string | null;
   requiresUdp: boolean;
+  requiredPort: number | null;
   isFullTunnel: boolean;
 }
 
@@ -231,6 +232,7 @@ interface ProtocolProfileListItemBody {
   transport: string | null;
   transport_security: string | null;
   requires_udp: boolean;
+  required_port?: number | null;
   is_full_tunnel: boolean;
 }
 
@@ -284,6 +286,7 @@ export async function listProtocolProfiles(): Promise<
     transport: item.transport,
     transportSecurity: item.transport_security,
     requiresUdp: item.requires_udp,
+    requiredPort: item.required_port ?? null,
     isFullTunnel: item.is_full_tunnel,
   }));
 }

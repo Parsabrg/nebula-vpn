@@ -46,6 +46,8 @@ class ProtocolProfileListItem(AuthModel):
     transport: str | None
     transport_security: str | None
     requires_udp: bool
+    # Where it listens on its server; a relay's form starts from it.
+    required_port: int | None = None
     is_full_tunnel: bool
 
 

@@ -201,6 +201,9 @@ class Settings(BaseSettings):
     relay_check_targets: str | None = Field(
         default=None, pattern=r"^[A-Za-z0-9.:-]+:[0-9]{1,5}(,[A-Za-z0-9.:-]+:[0-9]{1,5})*$"
     )
+    # Where this agent writes the relay the control plane asks for; a root
+    # unit (nebula-relay.path) applies it. See api/v1_relay.py.
+    relay_request_file: PurePosixPath = PurePosixPath("/var/lib/nebula/relay/relay.env")
     xray_tls_cert_file: PurePosixPath | None = None
     xray_tls_key_file: PurePosixPath | None = None
     # Where Xray's API listens. Loopback always -- the API has no

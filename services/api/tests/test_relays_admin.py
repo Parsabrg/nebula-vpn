@@ -48,6 +48,7 @@ class FakeService:
     def __init__(self) -> None:
         self.added: list[dict[str, object]] = []
         self.removed: list[str] = []
+        self.pushed: list[dict[str, object]] = []
         self.taken = False
 
     async def relay_context(
@@ -66,9 +67,13 @@ class FakeService:
             raise ValueError("taken")
         self.added.append(kwargs)
 
-    async def remove_relay(self, *, code: str, **_: object) -> bool:
+    async def remove_relay(self, *, code: str, **_: object) -> UUID | None:
         self.removed.append(code)
-        return code == "de-1-via-thr"
+        return THR if code == "de-1-via-thr" else None
+
+    async def push_relay(self, **kwargs: object) -> bool:
+        self.pushed.append(kwargs)
+        return True
 
 
 class FakeCatalog(RelayCatalog):
@@ -173,6 +178,8 @@ def test_adding_names_it_from_its_servers_and_forgets_the_cache() -> None:
     # An ad-block sibling shares its base profile's port.
     assert added["ports"] == {"vless-tcp-tls": 443, "hysteria2": 443}
     assert catalog.forgotten == 1
+    # And the relay server is set up through its agent, reporting to the CDN.
+    assert service.pushed[0]["via_server_id"] == THR
 
 
 def test_adding_is_refused_without_step_up_or_with_bad_fields() -> None:
@@ -214,6 +221,8 @@ def test_removing_only_the_panels_own() -> None:
     ]
     assert codes == [409, 404, 204]
     assert catalog.forgotten == 1
+    # Its server stops forwarding.
+    assert [push["via_server_id"] for push in service.pushed] == [THR]
 
 
 def test_no_service_is_503() -> None:

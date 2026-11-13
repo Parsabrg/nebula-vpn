@@ -60,12 +60,14 @@ export default async function RelaysPage() {
             </p>
             {relay.up ? null : (
               <p className="section-note">
-                Under maintenance until {relay.viaName} reports in. Shown in the
-                app as such, and not connected to.
+                Under maintenance until {relay.viaName} reports in, usually a
+                minute after it is added: {relay.viaName}&apos;s agent sets it
+                up. If it stays so, {relay.viaName} may need its{" "}
+                <code>install.sh</code> run once more, or the commands below.
               </p>
             )}
             <details>
-              <summary>Set up {relay.viaName}</summary>
+              <summary>Set up {relay.viaName} by hand</summary>
               <p className="section-note">
                 On {relay.viaName}, in the Nebula folder (it must have joined
                 this panel first, from Add server):
@@ -96,6 +98,7 @@ export default async function RelaysPage() {
             profiles={offerable.map((profile) => ({
               code: profile.code,
               displayName: profile.displayName,
+              port: profile.requiredPort,
             }))}
           />
         )}

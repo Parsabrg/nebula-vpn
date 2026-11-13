@@ -24,6 +24,7 @@ function profile(id: string, displayName: string): ProtocolProfileListItem {
     transport: null,
     transportSecurity: null,
     requiresUdp: false,
+    requiredPort: null,
     isFullTunnel: true,
   };
 }

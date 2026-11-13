@@ -6,6 +6,7 @@ The relay's own server still needs its forwarding set up from a shell
 panel can show the commands. See docs/runbooks/relay.md.
 """
 
+import logging
 import re
 from typing import cast
 from uuid import UUID, uuid4
@@ -18,6 +19,8 @@ from nebula_api.auth.http import apply_auth_response_headers
 from nebula_api.models.types import AdminRole
 from nebula_api.relays import Relay, RelayCatalog, RelayHealth, base_profile, relay_list
 from nebula_api.topology_admin.service import TopologyAdminService
+
+_LOGGER = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/admin/relays", tags=["admin-relays"])
 _MUTATION_ROLES = frozenset({AdminRole.OWNER, AdminRole.OPERATOR})
@@ -107,10 +110,9 @@ async def list_relays(request: Request, response: Response) -> RelayListResponse
             up=relay.code in up,
         )
 
-    settings = request.app.state.settings
-    cdns = [name.strip() for name in settings.cdn_host.split(",") if name.strip()]
-    report_url = f"https://{cdns[0]}" if cdns else settings.api_public_url.rstrip("/")
-    return RelayListResponse(items=[item(relay) for relay in relays], report_url=report_url)
+    return RelayListResponse(
+        items=[item(relay) for relay in relays], report_url=_report_base(request)
+    )
 
 
 @router.post("", status_code=status.HTTP_204_NO_CONTENT)
@@ -156,8 +158,10 @@ async def add_relay(payload: AddRelayRequest, request: Request, response: Respon
     except LookupError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND) from error
     except ValueError as error:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="relay_exists") from error
+        detail = "relay_server_in_use" if "server in use" in str(error) else "relay_exists"
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail) from error
     _forget(request)
+    await _push(request, payload.via_server_id)
     apply_auth_response_headers(response)
     return Response(status_code=status.HTTP_204_NO_CONTENT, headers=dict(response.headers))
 
@@ -170,14 +174,34 @@ async def remove_relay(code: str, request: Request, response: Response) -> Respo
     if any(relay.code == code for relay in request.app.state.settings.relay_list()):
         # Kept in NEBULA_RELAYS: changed on the server, not here.
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="relay_in_settings")
-    removed = await _service(request).remove_relay(
+    via_server_id = await _service(request).remove_relay(
         code=code, admin_id=principal.admin_id, request_id=uuid4()
     )
-    if not removed:
+    if via_server_id is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Relay not found")
     _forget(request)
+    await _push(request, via_server_id)
     apply_auth_response_headers(response)
     return Response(status_code=status.HTTP_204_NO_CONTENT, headers=dict(response.headers))
+
+
+def _report_base(request: Request) -> str:
+    settings = request.app.state.settings
+    cdns = [name.strip() for name in settings.cdn_host.split(",") if name.strip()]
+    return f"https://{cdns[0]}" if cdns else str(settings.api_public_url).rstrip("/")
+
+
+async def _push(request: Request, via_server_id: UUID) -> None:
+    """Set the relay server up, or take it down; the setup commands in the
+    panel remain the way when its agent cannot be reached now."""
+
+    applied = await _service(request).push_relay(
+        via_server_id=via_server_id,
+        report_base=_report_base(request),
+        report_token=request.app.state.settings.relay_report_token.get_secret_value(),
+    )
+    if not applied:
+        _LOGGER.warning("relay server %s could not be set up by its agent", via_server_id)
 
 
 def _forget(request: Request) -> None:

@@ -243,6 +243,7 @@ async def list_protocol_profiles(
                 transport=entry.transport,
                 transport_security=entry.transport_security,
                 requires_udp=entry.requires_udp,
+                required_port=entry.required_port,
                 is_full_tunnel=entry.is_full_tunnel,
             )
             for entry in entries

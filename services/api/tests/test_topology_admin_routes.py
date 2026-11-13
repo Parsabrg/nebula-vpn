@@ -355,6 +355,7 @@ def test_protocol_profiles_returns_mapped_items() -> None:
             transport=None,
             transport_security=None,
             requires_udp=True,
+            required_port=8450,
             is_full_tunnel=True,
         )
     ]

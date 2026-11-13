@@ -1,6 +1,8 @@
 """Read-only listing of protocols, protocol profiles, and VPN servers."""
 
 import asyncio
+import ipaddress
+import socket
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -16,7 +18,13 @@ from nebula_api.agent_client.client import (
     AgentResponseInvalid,
     AgentUnreachable,
 )
-from nebula_api.agent_client.models import HealthRequest, HealthState, XrayHealthRequest
+from nebula_api.agent_client.models import (
+    HealthRequest,
+    HealthState,
+    RelayPortSpec,
+    SetRelayRequest,
+    XrayHealthRequest,
+)
 from nebula_api.auth.audit import add_audit_event
 from nebula_api.db.engine import SessionFactory
 from nebula_api.models.operations import ReconciliationRecord
@@ -63,6 +71,7 @@ class ProtocolProfileEntry:
     transport: str | None
     transport_security: str | None
     requires_udp: bool
+    required_port: int | None
     is_full_tunnel: bool
 
 
@@ -220,6 +229,7 @@ class TopologyAdminService:
                 transport=row.transport,
                 transport_security=row.transport_security,
                 requires_udp=row.requires_udp,
+                required_port=row.required_port,
                 is_full_tunnel=row.is_full_tunnel,
             )
             for row in rows
@@ -364,6 +374,11 @@ class TopologyAdminService:
                 raise LookupError("server not found")
             if await session.scalar(select(RelayRoute.id).where(RelayRoute.code == code)):
                 raise ValueError("relay code taken")
+            # A server forwards to one exit: its relay is set up as a whole.
+            if await session.scalar(
+                select(RelayRoute.id).where(RelayRoute.via_server_id == via_server_id)
+            ):
+                raise ValueError("relay server in use")
             session.add(
                 RelayRoute(
                     id=uuid4(),
@@ -388,15 +403,16 @@ class TopologyAdminService:
             )
             await session.commit()
 
-    async def remove_relay(self, *, code: str, admin_id: UUID, request_id: UUID) -> bool:
-        """False for a code that is not a relay added in the panel."""
+    async def remove_relay(self, *, code: str, admin_id: UUID, request_id: UUID) -> UUID | None:
+        """The relay server it was on; None for a code that is not a relay
+        added in the panel."""
 
         async with self._session_factory() as session:
             route = await session.scalar(
                 select(RelayRoute).where(RelayRoute.code == code).with_for_update()
             )
             if route is None:
-                return False
+                return None
             via = route.via_server_id
             await session.delete(route)
             add_audit_event(
@@ -411,7 +427,60 @@ class TopologyAdminService:
                 reason_code="relay_removed",
             )
             await session.commit()
-            return True
+            return via
+
+    async def push_relay(self, *, via_server_id: UUID, report_base: str, report_token: str) -> bool:
+        """Ask the relay server's agent to forward what its relay offers, or
+        nothing once it has none; root applies it there (api/v1_relay.py in
+        the agent). True once the agent took it. The panel's setup commands
+        stay the way when the agent cannot be reached."""
+
+        builder = self._agent_client_builder
+        if builder is None:
+            return False
+        async with self._session_factory() as session:
+            via = await session.get(VPNServer, via_server_id)
+            route = await session.scalar(
+                select(RelayRoute).where(RelayRoute.via_server_id == via_server_id)
+            )
+            exit_server = (
+                await session.get(VPNServer, route.exit_server_id) if route is not None else None
+            )
+            profiles = {
+                row.code: (row.required_port, row.requires_udp)
+                for row in await session.execute(
+                    select(
+                        ProtocolProfile.code,
+                        ProtocolProfile.required_port,
+                        ProtocolProfile.requires_udp,
+                    )
+                )
+            }
+        if via is None:
+            return False
+        request = SetRelayRequest()
+        if route is not None and exit_server is not None:
+            target = await _ipv4_of(exit_server.public_host)
+            if target is None:
+                return False
+            ports = [
+                RelayPortSpec(here=here, proto="udp" if udp else "tcp", there=there)
+                for code, here in route.ports.items()
+                for there, udp in (profiles.get(code, (None, False)),)
+                if there is not None
+            ]
+            request = SetRelayRequest(
+                target=target,
+                ports=ports,
+                report_url=f"{report_base}/v1/relays/{route.code}/up" if report_token else None,
+                report_token=report_token or None,
+            )
+        try:
+            async with builder(via.agent_host, via.agent_port) as agent:
+                await agent.set_relay(request)
+        except (AgentUnreachable, AgentResponseAmbiguous, AgentResponseInvalid, AgentRejected):
+            return False
+        return True
 
     async def reconcile_now(
         self, *, target_id: UUID | None, admin_id: UUID, request_id: UUID
@@ -669,3 +738,17 @@ class TopologyAdminService:
             interface_up=response.interface_up,
             peer_count=response.peer_count,
         )
+
+
+async def _ipv4_of(host: str) -> str | None:
+    """The exit's IPv4 address: a relay forwards to an address, not a name."""
+
+    try:
+        return str(ipaddress.IPv4Address(host))
+    except ValueError:
+        pass
+    try:
+        infos = await asyncio.get_running_loop().getaddrinfo(host, None, family=socket.AF_INET)
+    except OSError:
+        return None
+    return str(infos[0][4][0]) if infos else None
