@@ -197,7 +197,7 @@ void main() {
 
   test('a connect retests a list only once it is a week old', () async {
     final (DnsTunnelResolvers r, _FakePlatform platform) = await _resolvers();
-    await r.saveSource(<String>['9.0.0.1']);
+    await r.saveSource(<String>['9.0.0.1', '9.0.0.2', '9.0.0.3']);
 
     await r.ensureFresh(_details);
     await _settle();
@@ -206,6 +206,26 @@ void main() {
 
     await r.ensureFresh(_details);
     expect(platform.scans.length, afterFirst);
+  });
+
+  test('a connect retests a list with too few working resolvers', () async {
+    // One resolver, found while another VPN carried the test, kept the
+    // tunnel from working for a week (Linux, 2026-11-13).
+    final (DnsTunnelResolvers r, _FakePlatform platform) = await _resolvers(
+      stored: <String, Object>{
+        'nebula.dns_tunnel.resolvers.#built-in/mobile-43211': '9.0.0.1:53\n',
+        'nebula.dns_tunnel.scanned_at.#built-in/mobile-43211': DateTime(
+          2026,
+          11,
+          6,
+        ).millisecondsSinceEpoch,
+      },
+    );
+    expect(r.workingOn('mobile-43211'), hasLength(1));
+
+    await r.ensureFresh(_details);
+
+    expect(platform.scans, isNotEmpty);
   });
 
   test('the whole list is tested only on Wi-Fi', () async {
