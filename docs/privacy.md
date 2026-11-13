@@ -38,7 +38,7 @@ data, and the one to ask about it.
 | Sign-in and email events (that a sign-in or email happened, its outcome; no IP address) | 90 days |
 | Administrator actions (audit log) | 365 days |
 | Server health and housekeeping records | 90 days |
-| Encrypted nightly backups of the database (age-encrypted before they leave the server) | 30 days, then deleted by the storage bucket's own rule |
+| Encrypted nightly backups of the database (age-encrypted before they leave the server) | 30 days, then deleted by the nightly backup job |
 
 A weekly job deletes what is older than this.
 

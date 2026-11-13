@@ -6,7 +6,8 @@
 #
 # Kept in $NEBULA_BACKUP_DIR (default /var/backups/nebula) for
 # $NEBULA_BACKUP_KEEP_DAYS days, and also uploaded to Backblaze B2 when
-# NEBULA_BACKUP_B2_BUCKET is set. Never decrypts anything; `install.sh
+# NEBULA_BACKUP_B2_BUCKET is set, where copies older than
+# $NEBULA_BACKUP_REMOTE_KEEP_DAYS (default 30) are deleted. Never decrypts anything; `install.sh
 # --restore` does that, with the private key the operator kept.
 #
 # Run by infrastructure/systemd/nebula-backup.service, itself triggered by
@@ -85,3 +86,20 @@ compose exec -T -e PGPASSWORD="$POSTGRES_SUPERUSER_PASSWORD" postgres \
   || echo "[$timestamp] warning: could not record the backup in the audit log"
 
 echo "[$timestamp] backup complete: $BACKUP_DIR/$(basename "$encrypted_file")${NEBULA_BACKUP_B2_BUCKET:+ and B2}"
+
+# Off-site copies age out here too, not only by a bucket rule someone had
+# to remember to add: docs/privacy.md promises 30 days (audit AUD-021). Run
+# after the backup is stored and recorded; a failure fails the unit, so it
+# shows, and the next night tries again. Names carry their UTC time, which
+# sorts as text.
+if [ -n "${NEBULA_BACKUP_B2_BUCKET:-}" ]; then
+  remote_keep_days="${NEBULA_BACKUP_REMOTE_KEEP_DAYS:-30}"
+  cutoff="nebula-backup-$(date -u -d "-$remote_keep_days days" +%Y%m%dT%H%M%SZ)"
+  aws s3 ls "s3://$NEBULA_BACKUP_B2_BUCKET/" --endpoint-url "$NEBULA_BACKUP_B2_ENDPOINT" \
+    | awk '{print $4}' | grep -E '^nebula-backup-[0-9]{8}T[0-9]{6}Z\.tar\.gz\.age$' \
+    | while read -r name; do
+        if [[ "$name" < "$cutoff" ]]; then
+          aws s3 rm "s3://$NEBULA_BACKUP_B2_BUCKET/$name" --endpoint-url "$NEBULA_BACKUP_B2_ENDPOINT"
+        fi
+      done
+fi
