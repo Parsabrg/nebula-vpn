@@ -87,3 +87,28 @@ Future<bool> _processIsRunning(int pid) async {
     return true;
   }
 }
+
+/// Stops the speed and protocol-test engines a Windows app left running:
+/// quit during a protocol test, 59 xray.exe and a resolver scan stayed up
+/// with nobody to stop them (2026-11-13). Each runs from a nebula-probe- or
+/// nebula-dnsscan- folder, which no tunnel uses. Run when the app starts --
+/// only one runs at a time, so none of them is its own -- and when it exits.
+Future<void> stopStaleProbes() async {
+  if (!Platform.isWindows) {
+    return;
+  }
+  try {
+    await Process.run('powershell.exe', <String>[
+      '-NoProfile',
+      '-NonInteractive',
+      '-Command',
+      "Get-CimInstance Win32_Process -Filter \"Name='xray.exe' or "
+          "Name='hysteria.exe' or Name='cottendns_client.exe'\" | "
+          "Where-Object { \$_.CommandLine -match 'nebula-probe-|nebula-dnsscan-' } | "
+          'ForEach-Object { Stop-Process -Id \$_.ProcessId -Force '
+          '-ErrorAction SilentlyContinue }',
+    ]);
+  } on ProcessException {
+    // Housekeeping only.
+  }
+}
