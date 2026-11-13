@@ -501,3 +501,23 @@ class RelayRoute(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # The relay's port for each of the exit's profiles (codes without
     # "-adblock"), in the order the app lists them.
     ports: Mapped[dict[str, int]] = mapped_column(JSONB, nullable=False)
+
+
+class DeploymentChoice(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A choice an administrator makes for the whole deployment, by name:
+    "subscription_host" is the address subscription links name ("auto", or a
+    host[:port] from the options the panel offers)."""
+
+    __tablename__ = "deployment_choices"
+    __table_args__ = (
+        CheckConstraint("key IN ('subscription_host')", name="key_allowlist"),
+        CheckConstraint("value ~ '^[A-Za-z0-9.:-]{1,260}$'", name="value_format"),
+        UniqueConstraint("key", name="uq_deployment_choices_key"),
+    )
+
+    key: Mapped[str] = mapped_column(String(64), nullable=False)
+    value: Mapped[str] = mapped_column(String(260), nullable=False)
+    updated_by_admin_id: Mapped[UUID | None] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("admin_users.id", ondelete="SET NULL"),
+    )

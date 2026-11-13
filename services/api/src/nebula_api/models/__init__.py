@@ -32,6 +32,7 @@ from nebula_api.models.provisioning import (
     XrayClient,
 )
 from nebula_api.models.topology import (
+    DeploymentChoice,
     Protocol,
     ProtocolProfile,
     ProtocolProfilePlatform,
@@ -54,6 +55,7 @@ __all__ = [
     "AuditLog",
     "CredentialUsage",
     "Deployment",
+    "DeploymentChoice",
     "Device",
     "DeviceProtocolCredential",
     "EmailDelivery",

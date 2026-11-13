@@ -30,6 +30,7 @@ from nebula_api.db.engine import SessionFactory
 from nebula_api.models.operations import ReconciliationRecord
 from nebula_api.models.provisioning import WireGuardPeer, XrayClient
 from nebula_api.models.topology import (
+    DeploymentChoice,
     Protocol,
     ProtocolProfile,
     RelayRoute,
@@ -493,6 +494,40 @@ class TopologyAdminService:
         except (AgentUnreachable, AgentResponseAmbiguous, AgentResponseInvalid, AgentRejected):
             return False
         return True
+
+    async def choice(self, key: str) -> str | None:
+        """What the administrators chose for [key], or None for the default."""
+
+        async with self._session_factory() as session:
+            return await session.scalar(
+                select(DeploymentChoice.value).where(DeploymentChoice.key == key)
+            )
+
+    async def choose(self, *, key: str, value: str, admin_id: UUID, request_id: UUID) -> None:
+        """Set [key] to [value], audited; the caller checks [value] is offered."""
+
+        async with self._session_factory() as session:
+            row = await session.scalar(
+                select(DeploymentChoice).where(DeploymentChoice.key == key).with_for_update()
+            )
+            if row is None:
+                row = DeploymentChoice(id=uuid4(), key=key, value=value)
+                session.add(row)
+            row.value = value
+            row.updated_by_admin_id = admin_id
+            await session.flush()
+            add_audit_event(
+                session,
+                actor_kind="admin",
+                actor_id=admin_id,
+                target_kind="setting",
+                target_id=row.id,
+                event_code="setting_changed",
+                outcome="succeeded",
+                request_id=request_id,
+                reason_code=key,
+            )
+            await session.commit()
 
     async def reconcile_now(
         self, *, target_id: UUID | None, admin_id: UUID, request_id: UUID
