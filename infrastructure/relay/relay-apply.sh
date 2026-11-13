@@ -141,4 +141,39 @@ else
   rm -f /etc/systemd/system/nebula-relay-report.service /etc/systemd/system/nebula-relay-report.timer \
     "$ETC/relay-report-token"
 fi
+# --- and serves subscription links from inside Iran ----------------------
+# A subscription made while this relay is up names this server: the iPhone
+# apps fetching it reach a server in Iran, where the exit's own address and
+# the CDN may not answer. Its own TLS site (:8445, install.sh) passes
+# /v1/sub/ on to the control plane, outward the way the report goes.
+SITE=/etc/nginx/conf.d/xray-8445.conf
+if [ -f "$SITE" ] && command -v nginx > /dev/null; then
+  cp -a "$SITE" "$SITE.relay-bak"
+  awk '/# nebula-sub-proxy start/ { skip = 1 } !skip { print } /# nebula-sub-proxy end/ { skip = 0 }' \
+    "$SITE" > "$SITE.new" && cat "$SITE.new" > "$SITE" && rm -f "$SITE.new"
+  if [ -n "$PORTS" ] && [ -n "$REPORT_URL" ]; then
+    base=${REPORT_URL%%/v1/*}
+    host=${base#https://}; host=${host%%:*}
+    proxy="    # nebula-sub-proxy start\n"
+    proxy+="    location /v1/sub/ {\n"
+    proxy+="        proxy_pass $base;\n"
+    proxy+="        proxy_ssl_server_name on;\n"
+    proxy+="        proxy_set_header Host $host;\n"
+    proxy+="        proxy_set_header X-Forwarded-For \$remote_addr;\n"
+    proxy+="        proxy_read_timeout 60s;\n"
+    proxy+="        limit_req zone=nebula_api burst=20 nodelay;\n"
+    proxy+="    }\n"
+    proxy+="    # nebula-sub-proxy end\n"
+    awk -v block="$proxy" '/^ *location \/v1\/ \{/ && !done { printf "%s", block; done = 1 } { print }' \
+      "$SITE" > "$SITE.new" && cat "$SITE.new" > "$SITE" && rm -f "$SITE.new"
+  fi
+  if nginx -t > /dev/null 2>&1; then
+    systemctl reload nginx
+    rm -f "$SITE.relay-bak"
+  else
+    mv "$SITE.relay-bak" "$SITE"
+    echo "relay: nginx refused the subscription proxy; left as it was" >&2
+  fi
+fi
+
 echo "relay: ${PORTS:-none}"

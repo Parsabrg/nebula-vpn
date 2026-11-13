@@ -74,14 +74,31 @@ async def new_subscription(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN) from error
     apply_auth_response_headers(response)
     path = f"/v1/sub/{secret}"
-    # The CDN's address when there is one: other apps fetch the link from
-    # networks that block the server's own address. Without one, the app puts
-    # the path after whichever address it reaches the API on.
+    url = await _link_base(request)
+    return {"path": path, "url": f"{url}{path}"} if url else {"path": path}
+
+
+async def _link_base(request: Request) -> str | None:
+    """Where other apps should fetch a link: a relay server in Iran while
+    its relay is up (it passes /v1/sub/ on to here, relay-apply.sh), else the
+    CDN, else None (the app then uses whichever address it reached the API
+    on). From Iran the server's own address and the CDN are often blocked."""
+
+    relays = await relay_list(request)
+    if relays:
+        up = await relays_up(request, relays)
+        topology = getattr(request.app.state, "topology_admin_service", None)
+        if topology is not None:
+            servers, _ = await topology.relay_context()
+            for relay in relays:
+                via = servers.get(relay.via)
+                if relay.code in up and via is not None and via[2]:
+                    # ponytail: the node's own TLS site is on 8445 unless
+                    # install.sh moved it to 443; port it from the node if so.
+                    return f"https://{via[2]}:8445"
     settings = request.app.state.settings
     cdns = [name.strip() for name in settings.cdn_host.split(",") if name.strip()]
-    if cdns:
-        return {"path": path, "url": f"https://{cdns[0]}{path}"}
-    return {"path": path}
+    return f"https://{cdns[0]}" if cdns else None
 
 
 @router.get("/v1/sub/{secret}")

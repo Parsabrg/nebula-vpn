@@ -248,3 +248,39 @@ def test_unknown_protocol_has_no_link() -> None:
     assert share_link(_credential(protocol="wireguard"), "x") is None
     trojan = share_link(_credential(protocol="trojan", password="pw"), "x")  # noqa: S106
     assert trojan is not None and trojan.startswith("trojan://pw@") and "encryption" not in trojan
+
+
+def test_new_link_names_the_iran_relay_server_while_it_is_up(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # From Iran the server's own address and the CDN are often blocked; the
+    # relay server in Iran passes /v1/sub/ on to the control plane.
+    from types import SimpleNamespace
+    from uuid import uuid4
+
+    relay = SimpleNamespace(code="de-via-thr", via="thr")
+
+    async def relays(_request: object) -> list[object]:
+        return [relay]
+
+    async def up(_request: object, _relays: object) -> set[str]:
+        return {"de-via-thr"}
+
+    class Topology:
+        async def relay_context(self) -> tuple[dict[str, object], dict[str, object]]:
+            return {"thr": (uuid4(), "Tehran", "thr.example.org")}, {}
+
+    monkeypatch.setattr(subscription, "relay_list", relays)
+    monkeypatch.setattr(subscription, "relays_up", up)
+    client = _client()
+    client.app.state.settings = Settings(env="test", cdn_host="cdn.example.org")  # type: ignore[attr-defined]
+    client.app.state.topology_admin_service = Topology()  # type: ignore[attr-defined]
+    answer = client.post("/v1/account/subscription", headers={"Authorization": "Bearer t"})
+    assert answer.json()["url"] == f"https://thr.example.org:8445/v1/sub/{_SECRET}"
+
+    async def down(_request: object, _relays: object) -> set[str]:
+        return set()
+
+    monkeypatch.setattr(subscription, "relays_up", down)
+    answer = client.post("/v1/account/subscription", headers={"Authorization": "Bearer t"})
+    assert answer.json()["url"] == f"https://cdn.example.org/v1/sub/{_SECRET}"
