@@ -92,7 +92,6 @@ this repository was published from; plain "#N" is a pull request here.
   [environment variables](docs/environment.md)
 - [Client releases](docs/runbooks/client-release.md)
 - [Monitoring](docs/runbooks/monitoring.md)
-- [Production-readiness audit](docs/runbooks/production-readiness-audit.md)
 - [Going public](docs/runbooks/going-public.md)
 - [Development guide](docs/development.md): toolchain, quality gates and the
   loopback-only Compose stack

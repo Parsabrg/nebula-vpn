@@ -26,7 +26,7 @@ reason (apps/mobile/lib/core/xray/xray_config.dart).
 This is the transports' own enforcement. It is not the only layer: the host
 firewall refuses the same destinations to these services' users, which is
 what still holds if a config is ever rendered without these rules. See
-docs/runbooks/production-readiness-audit.md.
+docs/runbooks/deployment.md, "Host firewall for the transports".
 """
 
 BLOCKED_DESTINATIONS: tuple[str, ...] = (

@@ -37,6 +37,10 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ETC=/etc/nebula
 SECRETS=$ETC/secrets
+# Working files and logs: a fresh private directory, not fixed names in
+# /tmp that another local user could plant a symlink at (AUD-023). Left
+# behind on failure for its logs; removed at the end.
+WORK=$(mktemp -d /tmp/nebula-install.XXXXXX)
 STATE=$ETC/install.conf
 COMPOSE_FILE=$REPO/infrastructure/compose/production.yaml
 PROJECT=nebula-production
@@ -416,15 +420,11 @@ if [ -z "$(swapon --show --noheadings)" ] && [ "$(awk '/MemTotal/{print $2}' /pr
 fi
 if [ -z "$JOIN_URL" ]; then
   if ! command -v docker >/dev/null || ! docker compose version >/dev/null 2>&1; then
-    if [ -n "$BUNDLE" ]; then
-      # The distribution's own packages: its mirrors answer where Docker's
-      # download site may not.
-      apt-get -qq install -y docker.io docker-compose-v2 >/tmp/get-docker.log 2>&1 \
-        || die "Docker install failed; see /tmp/get-docker.log"
-    else
-      fetch https://get.docker.com -o /tmp/get-docker.sh
-      sh /tmp/get-docker.sh >/tmp/get-docker.log 2>&1 || die "Docker install failed; see /tmp/get-docker.log"
-    fi
+    # The distribution's own signed packages: its mirrors answer where
+    # Docker's download site may not, and get.docker.com was the one
+    # download run unverified (audit AUD-023).
+    apt-get -qq install -y docker.io docker-compose-v2 >$WORK/get-docker.log 2>&1 \
+      || die "Docker install failed (see $WORK/get-docker.log); install Docker Engine with the compose plugin, then rerun"
   fi
   systemctl enable --now docker >/dev/null 2>&1
   ok "$(docker --version)"
@@ -510,7 +510,7 @@ build() {
   local tag=$1 context=$2; shift 2
   docker build -q --network host -t "$tag" \
     ${NEBULA_INSTALL_PROXY:+--build-arg HTTP_PROXY=$NEBULA_INSTALL_PROXY --build-arg HTTPS_PROXY=$NEBULA_INSTALL_PROXY} \
-    "$@" "$context" >/tmp/nebula-build.log 2>&1 || { tail -n 30 /tmp/nebula-build.log; die "building $tag failed"; }
+    "$@" "$context" >$WORK/nebula-build.log 2>&1 || { tail -n 30 $WORK/nebula-build.log; die "building $tag failed"; }
 }
 if [ -n "$BUNDLE" ]; then
   # Built by the release, with every third-party image the stack runs.
@@ -555,8 +555,8 @@ if [ ! -f $ETC/adguard/conf/AdGuardHome.yaml ]; then
   install -m 600 "$REPO/infrastructure/adguard/AdGuardHome.yaml" $ETC/adguard/conf/
   ADGUARD_NEW=1
 fi
-compose up -d --no-build --wait --wait-timeout 300 >/tmp/nebula-up.log 2>&1 || {
-  tail -n 20 /tmp/nebula-up.log; compose logs --tail 30 api; die "the stack did not become healthy"; }
+compose up -d --no-build --wait --wait-timeout 300 >$WORK/nebula-up.log 2>&1 || {
+  tail -n 20 $WORK/nebula-up.log; compose logs --tail 30 api; die "the stack did not become healthy"; }
 [ -z "$ADGUARD_NEW" ] || compose restart dns >/dev/null 2>&1
 # The worker reads the mail credential when it starts, and a changed key file
 # alone does not make compose recreate it.
@@ -641,7 +641,7 @@ sed -e "s/panel.example.com/$PANEL/g" -e "s/api.example.com/$APIHOST/g" -e "s/vp
   "$REPO/infrastructure/nginx/nebula-8444.conf" > /etc/nginx/sites-available/nebula
 # A joined server serves no panel or API: its site is the port-80 block alone.
 [ -n "$JOIN_URL" ] && awk '/^server \{/{n++} n<=1' /etc/nginx/sites-available/nebula \
-  | sed "s/server_name .*;/server_name $NEBULA_DOMAIN;/" > /tmp/nebula-site && mv /tmp/nebula-site /etc/nginx/sites-available/nebula
+  | sed "s/server_name .*;/server_name $NEBULA_DOMAIN;/" > $WORK/nebula-site && mv $WORK/nebula-site /etc/nginx/sites-available/nebula
 if [ ! -f $CERT/fullchain.pem ]; then
   # Only the port-80 block until the certificate exists: nginx refuses to load
   # a server block whose certificate file is missing.
@@ -684,16 +684,16 @@ XRAY_HAVE=$(/usr/local/bin/xray version 2>/dev/null | awk 'NR==1{print $2}' || t
 if [ -z "$XRAY_HAVE" ] ||
   [ "$(printf '%s\n' "$XRAY_HAVE" "$XRAY_VERSION" | sort -V | head -1)" != "$XRAY_VERSION" ]; then
   zip=$([ $ARCH = amd64 ] && echo Xray-linux-64.zip || echo Xray-linux-arm64-v8a.zip)
-  get /tmp/xray.zip "https://github.com/XTLS/Xray-core/releases/download/v$XRAY_VERSION/$zip"
-  echo "${XRAY_SHA[$ARCH]}  /tmp/xray.zip" | sha256sum -c --quiet || die "Xray download failed its checksum"
-  rm -rf /tmp/xray-new; unzip -oq /tmp/xray.zip xray -d /tmp/xray-new
-  install -m 0755 /tmp/xray-new/xray /usr/local/bin/xray
+  get $WORK/xray.zip "https://github.com/XTLS/Xray-core/releases/download/v$XRAY_VERSION/$zip"
+  echo "${XRAY_SHA[$ARCH]}  $WORK/xray.zip" | sha256sum -c --quiet || die "Xray download failed its checksum"
+  rm -rf $WORK/xray-new; unzip -oq $WORK/xray.zip xray -d $WORK/xray-new
+  install -m 0755 $WORK/xray-new/xray /usr/local/bin/xray
   ! systemctl is-active -q nebula-xray || systemctl restart nebula-xray
 fi
 if [ ! -x /usr/local/bin/hysteria ]; then
-  get /tmp/hysteria "https://github.com/apernet/hysteria/releases/download/app/v$HYSTERIA_VERSION/hysteria-linux-$ARCH"
-  echo "${HYSTERIA_SHA[$ARCH]}  /tmp/hysteria" | sha256sum -c --quiet || die "Hysteria2 download failed its checksum"
-  install -m 0755 /tmp/hysteria /usr/local/bin/hysteria
+  get $WORK/hysteria "https://github.com/apernet/hysteria/releases/download/app/v$HYSTERIA_VERSION/hysteria-linux-$ARCH"
+  echo "${HYSTERIA_SHA[$ARCH]}  $WORK/hysteria" | sha256sum -c --quiet || die "Hysteria2 download failed its checksum"
+  install -m 0755 $WORK/hysteria /usr/local/bin/hysteria
 fi
 # Xray and the agent read the certificate as themselves, not as root.
 for u in nebula-xray nebula-agent; do
@@ -720,12 +720,12 @@ systemctl enable --now wg-quick@wg0 >/dev/null 2>&1
 # name up first in plain DNS can be forged inside Iran. No query log.
 if [ -n "$JOIN_URL" ]; then
   if ! /usr/local/bin/dnsproxy --version 2>/dev/null | grep -q "$DNSPROXY_VERSION"; then
-    get /tmp/dnsproxy.tgz \
+    get $WORK/dnsproxy.tgz \
       "https://github.com/AdguardTeam/dnsproxy/releases/download/v$DNSPROXY_VERSION/dnsproxy-linux-$ARCH-v$DNSPROXY_VERSION.tar.gz"
-    echo "${DNSPROXY_SHA[$ARCH]}  /tmp/dnsproxy.tgz" | sha256sum -c --quiet || die "dnsproxy download failed its checksum"
+    echo "${DNSPROXY_SHA[$ARCH]}  $WORK/dnsproxy.tgz" | sha256sum -c --quiet || die "dnsproxy download failed its checksum"
     # Its entries start with "./", so the whole archive rather than one name.
-    tar -xzf /tmp/dnsproxy.tgz -C /tmp
-    install -m 0755 "/tmp/linux-$ARCH/dnsproxy" /usr/local/bin/dnsproxy
+    tar -xzf $WORK/dnsproxy.tgz -C $WORK
+    install -m 0755 "$WORK/linux-$ARCH/dnsproxy" /usr/local/bin/dnsproxy
   fi
   # Kept when present: the owner may list other upstreams here.
   [ -f $ETC/dns.env ] || printf '%s\n' \
@@ -746,13 +746,13 @@ if [ -n "$COTTENDNS_DOMAIN" ]; then
   remember NEBULA_COTTENDNS_DOMAINS "$COTTENDNS_DOMAIN"
   if [ "$(cat /usr/local/lib/nebula-cottendns.version 2>/dev/null)" != "$COTTENDNS_VERSION" ]; then
     cname=CottenDns_Server_Linux_$([ $ARCH = amd64 ] && echo AMD64 || echo ARM64).tar.gz
-    get /tmp/cottendns.tgz "https://github.com/WhiteDNS/CottenDNS/releases/download/v$COTTENDNS_VERSION/$cname"
-    echo "${COTTENDNS_SHA[$ARCH]}  /tmp/cottendns.tgz" | sha256sum -c --quiet || die "CottenDNS download failed its checksum"
-    rm -rf /tmp/cottendns-new; mkdir /tmp/cottendns-new; tar -xzf /tmp/cottendns.tgz -C /tmp/cottendns-new
-    install -m 0755 /tmp/cottendns-new/CottenDns_Server_Linux_*_v"$COTTENDNS_VERSION" /usr/local/bin/cottendns-server
+    get $WORK/cottendns.tgz "https://github.com/WhiteDNS/CottenDNS/releases/download/v$COTTENDNS_VERSION/$cname"
+    echo "${COTTENDNS_SHA[$ARCH]}  $WORK/cottendns.tgz" | sha256sum -c --quiet || die "CottenDNS download failed its checksum"
+    rm -rf $WORK/cottendns-new; mkdir $WORK/cottendns-new; tar -xzf $WORK/cottendns.tgz -C $WORK/cottendns-new
+    install -m 0755 $WORK/cottendns-new/CottenDns_Server_Linux_*_v"$COTTENDNS_VERSION" /usr/local/bin/cottendns-server
     # Its licences travel with the binary (THIRD_PARTY_NOTICES.md).
     install -d /usr/local/share/doc/nebula-cottendns
-    cp /tmp/cottendns-new/*LICENSE* /usr/local/share/doc/nebula-cottendns/ 2>/dev/null || true
+    cp $WORK/cottendns-new/*LICENSE* /usr/local/share/doc/nebula-cottendns/ 2>/dev/null || true
     install -d /usr/local/lib && echo "$COTTENDNS_VERSION" > /usr/local/lib/nebula-cottendns.version
   fi
   id nebula-cottendns >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin nebula-cottendns
@@ -794,17 +794,17 @@ fi
 if ! grep -q 'uid-owner nebula-xray' /etc/ufw/before.rules; then
   rules=""; for n in 127.0.0.0/8 0.0.0.0/8 10.0.0.0/8 100.64.0.0/10 169.254.0.0/16 172.16.0.0/12 192.0.0.0/24 192.168.0.0/16 198.18.0.0/15; do
     rules+="-A ufw-before-output -m owner --uid-owner nebula-xray -m conntrack --ctstate NEW -d $n -j REJECT\n"; done
-  awk -v r="$rules" '/^-A ufw-before-output -o lo -j ACCEPT/{printf "%s", r} {print}' /etc/ufw/before.rules > /tmp/ufw-before && cat /tmp/ufw-before > /etc/ufw/before.rules
+  awk -v r="$rules" '/^-A ufw-before-output -o lo -j ACCEPT/{printf "%s", r} {print}' /etc/ufw/before.rules > $WORK/ufw-before && cat $WORK/ufw-before > /etc/ufw/before.rules
   rules=""; for n in ::1/128 fc00::/7 fe80::/10; do
     rules+="-A ufw6-before-output -m owner --uid-owner nebula-xray -m conntrack --ctstate NEW -d $n -j REJECT\n"; done
-  awk -v r="$rules" '/^-A ufw6-before-output -o lo -j ACCEPT/{printf "%s", r} {print}' /etc/ufw/before6.rules > /tmp/ufw-before6 && cat /tmp/ufw-before6 > /etc/ufw/before6.rules
+  awk -v r="$rules" '/^-A ufw6-before-output -o lo -j ACCEPT/{printf "%s", r} {print}' /etc/ufw/before6.rules > $WORK/ufw-before6 && cat $WORK/ufw-before6 > /etc/ufw/before6.rules
 fi
 # The one exception to the block above: Xray reaches this server's resolver.
 if ! grep -q 'dport 5354' /etc/ufw/before.rules; then
   rules=""; for proto in udp tcp; do
     rules+="-A ufw-before-output -m owner --uid-owner nebula-xray -d 127.0.0.1/32 -p $proto --dport 5354 -j ACCEPT\n"; done
   awk -v r="$rules" '/uid-owner nebula-xray/ && !done { printf "%s", r; done = 1 } { print }' /etc/ufw/before.rules \
-    > /tmp/ufw-before && cat /tmp/ufw-before > /etc/ufw/before.rules
+    > $WORK/ufw-before && cat $WORK/ufw-before > /etc/ufw/before.rules
 fi
 # WireGuard clients reach the internet: forwarding, NAT on the outgoing
 # interface and a ufw route. Without them a fresh server's WireGuard carried
@@ -845,7 +845,7 @@ fi
 { HTTPS_PROXY=${NEBULA_INSTALL_PROXY:-} /opt/nebula-vpn-agent/.venv/bin/pip install -q --require-hashes ${PAYLOAD:+--no-index --find-links $PAYLOAD/wheels} \
     -r "$REPO/services/vpn-agent/requirements.lock" \
   && /opt/nebula-vpn-agent/.venv/bin/pip install -q --no-deps --no-build-isolation ${PAYLOAD:+--no-index} "$REPO/services/vpn-agent"; } \
-  >/tmp/nebula-agent-pip.log 2>&1 || { tail -n 20 /tmp/nebula-agent-pip.log; die "installing the agent failed"; }
+  >$WORK/nebula-agent-pip.log 2>&1 || { tail -n 20 $WORK/nebula-agent-pip.log; die "installing the agent failed"; }
 if [ ! -f $ETC/agent.env ]; then
   umask 027
   cat > $ETC/agent.env <<EOF
@@ -1220,3 +1220,4 @@ elif [ -n "${NEW_BACKUP_KEY:-}" ] && [ "$NEW_BACKUP_KEY" != $ETC/backup-key.txt 
   install -m 0600 "$NEW_BACKUP_KEY" $ETC/backup-key.txt; rm -f "$NEW_BACKUP_KEY"
   warn "the backup key is in $ETC/backup-key.txt; copy it off this server, then rerun ./install.sh to delete it"
 fi
+rm -rf "$WORK"

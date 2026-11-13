@@ -20,6 +20,9 @@ async def enforce_body_size_limit(request: Request) -> None:
     have no unbounded free-form fields."""
 
     content_length = request.headers.get("content-length")
+    if content_length is not None and not content_length.isdigit():
+        # A 400, not a 500 from int() (AUD-026).
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="bad content-length")
     if content_length is not None and int(content_length) > _MAX_OPERATION_BODY_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail="request body too large"

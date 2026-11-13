@@ -56,9 +56,10 @@ Primary objectives:
 | Denial of service      | Request/login floods                | Nginx and application rate limits, bounded bodies/timeouts, queue limits    | One VPS remains a single capacity/failure domain                   |
 | Elevation of privilege | API command injection reaches host  | No shell endpoint, typed agent API, fixed subprocess argv, hardened service | Agent compromise still exposes WireGuard administration            |
 | Elevation of privilege | Arbitrary Xray JSON reaches runtime | Capability registry, typed templates, schema and binary validation          | Template defects require tests and rollback                        |
-| Information disclosure | Public Xray subscription URL        | Authenticated profile API, per-device credentials, no public subscriptions  | A compromised device can export its active credential              |
+| Information disclosure | Public Xray subscription URL        | Authenticated profile API, per-device credentials                           | A compromised device can export its active credential              |
+| Information disclosure | Leaked subscription link (`/v1/sub/{secret}`, for iPhone apps) | 256-bit random secret, only its keyed hash stored; one link per account, replaced by a new one and dead with its device or account; no access log on that path | Anyone holding the link gets that device's configs until it is replaced |
 | Tampering              | Invalid protocol/transport pairing  | Reviewed compatibility registry; reject free-form combinations              | Registry updates require security review                           |
-| Elevation of privilege | Admin CSRF                          | SameSite=Strict, per-request CSRF tokens, origin checks                     | Browser extensions and local malware remain outside control        |
+| Elevation of privilege | Admin CSRF                          | `__Host-` SameSite=Strict cookies and Next's Server Action origin check (exact `allowedOrigins`). The API's double-submit token and origin check are filled in by the panel's own server for Server Actions, so they guard direct API calls, not the browser | Browser extensions and local malware remain outside control        |
 | Supply chain           | Malicious package or Action         | Lockfiles/exact pins, Action SHAs, image digests, dependency review, scans  | Python/Flutter transitive locks pending; scans cannot prove benign |
 
 ## Security-sensitive flows

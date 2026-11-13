@@ -27,7 +27,7 @@ class _Result:
     def __init__(self, rows: list[tuple[object, UUID]]) -> None:
         self._rows = rows
 
-    def tuples(self) -> list[tuple[object, UUID]]:
+    def all(self) -> list[tuple[object, UUID]]:
         return self._rows
 
 
