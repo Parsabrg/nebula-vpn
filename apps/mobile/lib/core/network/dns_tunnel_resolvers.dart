@@ -136,6 +136,9 @@ class DnsTunnelResolvers extends ChangeNotifier {
       'nebula.dns_tunnel.scanned_at.${active ?? _builtIn}/$network';
 
   static const int quickTarget = 10;
+
+  /// Fewer working than this: tested again before a connect.
+  static const int minWorking = 3;
   static const int growTarget = 30;
   static const int iranTarget = 10;
   static const Duration maxAge = Duration(days: 7);
@@ -333,7 +336,12 @@ class DnsTunnelResolvers extends ChangeNotifier {
   }) async {
     final String here = await currentNetwork();
     final DateTime? at = scannedAtOn(here);
-    if (at == null || _now().difference(at) >= maxAge) {
+    // Also when too few worked last time: one resolver found while another
+    // VPN carried the test kept the tunnel from ever working for a week
+    // (Linux, 2026-11-13).
+    if (at == null ||
+        _now().difference(at) >= maxAge ||
+        workingOn(here).length < minWorking) {
       await quickTest(details, limit: limit);
     }
     return here;
