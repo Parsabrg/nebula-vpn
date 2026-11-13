@@ -429,15 +429,13 @@ class TopologyAdminService:
             await session.commit()
             return via
 
-    async def push_relay(self, *, via_server_id: UUID, report_base: str, report_token: str) -> bool:
-        """Ask the relay server's agent to forward what its relay offers, or
-        nothing once it has none; root applies it there (api/v1_relay.py in
-        the agent). True once the agent took it. The panel's setup commands
-        stay the way when the agent cannot be reached."""
+    async def relay_request(
+        self, *, via_server_id: UUID, report_base: str, report_token: str
+    ) -> tuple[VPNServer, SetRelayRequest] | None:
+        """What the relay server should forward: its panel relay's ports to the
+        exit's IPv4 address, or nothing once it has none. None when the server
+        is gone or the exit's address cannot be had."""
 
-        builder = self._agent_client_builder
-        if builder is None:
-            return False
         async with self._session_factory() as session:
             via = await session.get(VPNServer, via_server_id)
             route = await session.scalar(
@@ -457,24 +455,38 @@ class TopologyAdminService:
                 )
             }
         if via is None:
+            return None
+        if route is None or exit_server is None:
+            return via, SetRelayRequest()
+        target = await _ipv4_of(exit_server.public_host)
+        if target is None:
+            return None
+        ports = [
+            RelayPortSpec(here=here, proto="udp" if udp else "tcp", there=there)
+            for code, here in route.ports.items()
+            for there, udp in (profiles.get(code, (None, False)),)
+            if there is not None
+        ]
+        return via, SetRelayRequest(
+            target=target,
+            ports=ports,
+            report_url=f"{report_base}/v1/relays/{route.code}/up" if report_token else None,
+            report_token=report_token or None,
+        )
+
+    async def push_relay(self, *, via_server_id: UUID, report_base: str, report_token: str) -> bool:
+        """Ask the relay server's agent to be that relay; root applies it there
+        (api/v1_relay.py in the agent). True once the agent took it. From
+        abroad into Iran this often fails (TLS filtered): the relay's own
+        check-in then brings the same settings (relays.py), within a minute."""
+
+        builder = self._agent_client_builder
+        planned = await self.relay_request(
+            via_server_id=via_server_id, report_base=report_base, report_token=report_token
+        )
+        if builder is None or planned is None:
             return False
-        request = SetRelayRequest()
-        if route is not None and exit_server is not None:
-            target = await _ipv4_of(exit_server.public_host)
-            if target is None:
-                return False
-            ports = [
-                RelayPortSpec(here=here, proto="udp" if udp else "tcp", there=there)
-                for code, here in route.ports.items()
-                for there, udp in (profiles.get(code, (None, False)),)
-                if there is not None
-            ]
-            request = SetRelayRequest(
-                target=target,
-                ports=ports,
-                report_url=f"{report_base}/v1/relays/{route.code}/up" if report_token else None,
-                report_token=report_token or None,
-            )
+        via, request = planned
         try:
             async with builder(via.agent_host, via.agent_port) as agent:
                 await agent.set_relay(request)
@@ -752,3 +764,20 @@ async def _ipv4_of(host: str) -> str | None:
     except OSError:
         return None
     return str(infos[0][4][0]) if infos else None
+
+
+def relay_env(request: SetRelayRequest) -> str:
+    """The request as relay.env lines, as the agent writes it; empty for none."""
+
+    if not request.ports or request.target is None:
+        return ""
+    lines = [
+        f"NEBULA_RELAY_TARGET={request.target}",
+        "NEBULA_RELAY_PORTS=" + " ".join(f"{p.here}/{p.proto}:{p.there}" for p in request.ports),
+    ]
+    if request.report_url and request.report_token:
+        lines += [
+            f"NEBULA_RELAY_REPORT_URL={request.report_url}",
+            f"NEBULA_RELAY_REPORT_TOKEN={request.report_token}",
+        ]
+    return "\n".join(lines) + "\n"

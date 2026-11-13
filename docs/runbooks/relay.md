@@ -45,6 +45,14 @@ relay's server:
    copied to `/etc/nebula/relay.env`, and applied as below.
 3. The relay starts reporting within 30 seconds and is up in the app.
 
+From abroad into Iran the first step often fails: TLS to Iranian servers is
+filtered at times, and the agent cannot be reached. The relay's 30-second
+check-in (`infrastructure/relay/relay-report.sh`) goes outward through the
+CDN instead, and the control plane answers it with what the relay should be;
+the relay saves that when it changed, and step 2 applies it. A relay that is
+reporting in therefore follows the panel within a minute either way. Its very
+first setup still needs the agent reached once, or the manual commands.
+
 A server forwards to one exit, so it carries one panel relay. **Remove** asks
 its agent to forward nothing, which takes the forwarding and the report
 timer down. When the agent cannot be reached, the relay is still saved and

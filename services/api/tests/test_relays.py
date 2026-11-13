@@ -289,6 +289,45 @@ def test_a_relay_reports_itself_up_with_the_token() -> None:
     assert list(redis.values) == ["nebula:relay-up:de-via-thr"]
 
 
+def test_a_panel_relay_gets_what_it_should_be_in_the_answer() -> None:
+    # The control plane cannot always reach an agent inside Iran; the relay's
+    # own check-in always comes out, so its answer carries the settings.
+    from nebula_api.agent_client.models import RelayPortSpec, SetRelayRequest
+
+    via = uuid4()
+
+    class Catalog:
+        async def relays(self) -> tuple[object, ...]:
+            return ()
+
+        async def via_of(self, code: str) -> object:
+            return via if code == "de-via-thr" else None
+
+    class Topology:
+        async def relay_request(self, **kwargs: object) -> tuple[object, SetRelayRequest]:
+            assert kwargs["via_server_id"] == via
+            return object(), SetRelayRequest(
+                target="203.0.113.4",
+                ports=[RelayPortSpec(here=443, proto="udp", there=8450)],
+                report_url=f"{kwargs['report_base']}/v1/relays/de-via-thr/up",
+                report_token=str(kwargs["report_token"]),
+            )
+
+    app = _report_app(FakeRedis(), "s3cret-token")
+    app.state.relay_catalog = Catalog()
+    app.state.topology_admin_service = Topology()
+    with TestClient(app) as client:
+        answer = client.post(
+            "/v1/relays/de-via-thr/up", headers={"Authorization": "Bearer s3cret-token"}
+        )
+    assert answer.status_code == 200
+    assert answer.text.splitlines()[:2] == [
+        "NEBULA_RELAY_TARGET=203.0.113.4",
+        "NEBULA_RELAY_PORTS=443/udp:8450",
+    ]
+    assert "NEBULA_RELAY_REPORT_TOKEN=s3cret-token" in answer.text
+
+
 def test_no_token_configured_records_nothing() -> None:
     redis = FakeRedis()
     with TestClient(_report_app(redis, "")) as client:
