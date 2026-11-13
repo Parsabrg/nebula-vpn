@@ -4,6 +4,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -349,6 +350,30 @@ class AuditLog(UUIDPrimaryKeyMixin, Base):
             f"id={self.id!r}, actor_kind={self.actor_kind!r}, "
             f"event_code={self.event_code!r}, outcome={self.outcome!r})"
         )
+
+
+class AuditChainCheckpoint(UUIDPrimaryKeyMixin, Base):
+    """Where the audit export's hash chain stood at a prune (audit AUD-009).
+
+    Pruning deletes the oldest events; the export starts from the newest
+    checkpoint, so an export kept from before a prune still verifies against
+    one made after it, while deleting any other row still breaks the chain.
+    """
+
+    __tablename__ = "audit_chain_checkpoints"
+    __table_args__ = (
+        CheckConstraint("head ~ '^[0-9a-f]{64}$'", name="head_format"),
+        CheckConstraint("event_count > 0", name="event_count_positive"),
+        Index("ix_audit_chain_checkpoints_until", "until"),
+    )
+
+    # Every event recorded before `until` is folded into `head`.
+    until: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    event_count: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    head: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class EmailDelivery(UUIDPrimaryKeyMixin, TimestampMixin, Base):

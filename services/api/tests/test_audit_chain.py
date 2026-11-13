@@ -8,6 +8,8 @@ import pytest
 from nebula_api.audit.chain import (
     GENESIS,
     AuditChainError,
+    ChainStart,
+    advance,
     chain_lines,
     verify,
     verify_extends,
@@ -99,3 +101,55 @@ def test_audit_verify_command(tmp_path: Path, capsys: pytest.CaptureFixture[str]
     with pytest.raises(SystemExit):
         main(["audit-verify", str(tmp_path / "missing.jsonl")])
     assert "cannot read" in capsys.readouterr().err
+
+
+def pruned_export(entries: list[AuditLogEntry], pruned: int) -> list[str]:
+    """What the server exports after retention removed the first [pruned]."""
+
+    start = advance(ChainStart(), entries[:pruned])
+    return list(chain_lines(entries[pruned:], until=NOW + timedelta(hours=2), start=start))
+
+
+def test_an_older_export_still_verifies_after_a_prune() -> None:
+    # AUD-009: pruning made legitimate retention look like tampering.
+    events = [entry(minute) for minute in range(10)]
+    older = export(events[:6])
+
+    assert verify_extends(older, pruned_export(events, 2)).count == 8
+    assert verify_extends(older, pruned_export(events, 6)).count == 4
+    assert verify_extends(pruned_export(events[:6], 2), pruned_export(events, 4)).count == 6
+
+
+def test_deleting_an_unpruned_event_still_breaks_the_chain() -> None:
+    events = [entry(minute) for minute in range(10)]
+    older = export(events[:6])
+    tampered = events[:4] + events[5:]
+
+    with pytest.raises(AuditChainError):
+        verify_extends(older, pruned_export(tampered, 2))
+
+
+def test_a_forged_checkpoint_does_not_verify() -> None:
+    events = [entry(minute) for minute in range(10)]
+    older = export(events[:6])
+    forged = list(chain_lines(events[2:], until=NOW, start=ChainStart(head="f" * 64, count=2)))
+
+    with pytest.raises(AuditChainError):
+        verify_extends(older, forged)
+
+
+def test_an_older_export_wholly_before_the_checkpoint_is_reported() -> None:
+    events = [entry(minute) for minute in range(10)]
+
+    with pytest.raises(AuditChainError, match="past every event"):
+        verify_extends(export(events[:3]), pruned_export(events, 6))
+
+
+def test_a_checkpoint_line_after_events_is_refused() -> None:
+    lines = export([entry(0)])
+    lines.insert(
+        1, json.dumps({"format": "nebula-audit-chain/1", "checkpoint": GENESIS, "skipped": 1})
+    )
+
+    with pytest.raises(AuditChainError, match="checkpoint"):
+        verify(lines)

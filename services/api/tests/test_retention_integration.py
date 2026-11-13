@@ -227,6 +227,13 @@ def test_an_append_only_audit_table_is_reported_rather_than_silently_skipped() -
             if grants:
                 # The migration credential, which is allowed to prune.
                 assert summary.deleted.get("audit_logs", 0) >= 1
+                # The export chains on from where the pruned events left it.
+                async with engine.begin() as connection:
+                    checkpoint = await connection.scalar(
+                        text("select event_count from audit_chain_checkpoints where until = :t"),
+                        {"t": NOW - timedelta(days=365)},
+                    )
+                assert checkpoint is not None and checkpoint >= 1
             else:
                 assert "audit_logs" in summary.refused
                 assert summary.refused["audit_logs"]

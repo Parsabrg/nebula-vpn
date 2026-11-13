@@ -1,16 +1,16 @@
 """Read-only, filterable audit log listing for administrators."""
 
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, func, select
+from sqlalchemy import ColumnElement, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nebula_api.db.engine import SessionFactory
 from nebula_api.models.identity import AdminUser, Device, User
-from nebula_api.models.operations import AuditLog
+from nebula_api.models.operations import AuditChainCheckpoint, AuditLog
 from nebula_api.models.topology import VPNServer
 
 _MAX_LIMIT = 200
@@ -74,20 +74,37 @@ class AuditLogService:
             rows = (await session.scalars(statement)).all()
             total = await session.scalar(count_statement)
             names = await _names(session, rows)
-        return AuditLogPage(items=[_to_entry(row) for row in rows], total=total or 0, names=names)
+        return AuditLogPage(items=[audit_entry(row) for row in rows], total=total or 0, names=names)
 
-    async def export_events(self, *, until: datetime) -> list[AuditLogEntry]:
-        """Every event recorded before `until`, oldest first, in a fixed order."""
+    async def latest_checkpoint(self) -> tuple[str, int, datetime] | None:
+        """The newest prune checkpoint: head hash, events folded, and until."""
 
-        # ponytail: the whole log in memory; stream it when it reaches millions of rows.
         async with self._session_factory() as session:
-            statement = (
-                select(AuditLog)
-                .where(AuditLog.recorded_at < until)
-                .order_by(AuditLog.recorded_at, AuditLog.id)
+            row = await session.scalar(
+                select(AuditChainCheckpoint).order_by(AuditChainCheckpoint.until.desc()).limit(1)
             )
-            rows = (await session.scalars(statement)).all()
-        return [_to_entry(row) for row in rows]
+        return None if row is None else (row.head, row.event_count, row.until)
+
+    async def export_events(
+        self, *, until: datetime, since: datetime | None = None
+    ) -> AsyncIterator[AuditLogEntry]:
+        """Every event recorded in [since, until), oldest first, in a fixed
+        order, streamed: the whole log never sits in memory (AUD-009)."""
+
+        conditions = [AuditLog.recorded_at < until]
+        if since is not None:
+            conditions.append(AuditLog.recorded_at >= since)
+        async with self._session_factory() as session:
+            # The 5-second limit is for requests; a large log takes longer.
+            await session.execute(text("SET LOCAL statement_timeout = '600s'"))
+            rows = await session.stream_scalars(
+                select(AuditLog)
+                .where(*conditions)
+                .order_by(AuditLog.recorded_at, AuditLog.id)
+                .execution_options(yield_per=1000)
+            )
+            async for row in rows:
+                yield audit_entry(row)
 
 
 _NAMED = {
@@ -142,7 +159,7 @@ def _conditions(filters: AuditLogFilters) -> list[ColumnElement[bool]]:
     return conditions
 
 
-def _to_entry(row: AuditLog) -> AuditLogEntry:
+def audit_entry(row: AuditLog) -> AuditLogEntry:
     return AuditLogEntry(
         id=row.id,
         actor_kind=row.actor_kind,

@@ -10,10 +10,12 @@ silent success.
 """
 
 import asyncio
+from collections.abc import AsyncIterator
 from typing import Any, cast
 
 import pytest
 from sqlalchemy.exc import ProgrammingError
+from sqlalchemy.sql.elements import TextClause
 
 from nebula_api.db.engine import SessionFactory
 from nebula_api.retention import PruneSummary, RetentionPolicy, prune_history
@@ -48,7 +50,19 @@ class _Session:
         return _Rows(self._recorder.next_batch(statement))
 
     async def execute(self, statement: Any) -> _Result:
+        if isinstance(statement, TextClause):  # SET LOCAL
+            return _Result(0)
         return self._recorder.delete(statement)
+
+    async def scalar(self, _statement: Any) -> None:
+        return None  # no audit checkpoint yet
+
+    async def stream_scalars(self, _statement: Any) -> AsyncIterator[object]:
+        async def nothing() -> AsyncIterator[object]:
+            return
+            yield
+
+        return nothing()
 
     async def commit(self) -> None:
         self._recorder.commits += 1
