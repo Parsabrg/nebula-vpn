@@ -525,23 +525,41 @@ void main() {
               as Map<String, dynamic>;
       final String yaml = config['nebulaHysteriaConfig'] as String;
 
-      expect(yaml, contains('server: 203.0.113.10:8450'));
+      expect(yaml, contains('server: "203.0.113.10:8450"'));
       // The client UUID is the whole credential; the server renders it as both
       // username and password in its own userpass map.
       expect(
         yaml,
         contains(
-          'auth: a1b2c3d4-0000-0000-0000-000000000000:'
-          'a1b2c3d4-0000-0000-0000-000000000000',
+          'auth: "a1b2c3d4-0000-0000-0000-000000000000:'
+          'a1b2c3d4-0000-0000-0000-000000000000"',
         ),
       );
-      expect(yaml, contains('sni: ams-1.example.test'));
+      expect(yaml, contains('sni: "ams-1.example.test"'));
       expect(yaml, contains('type: salamander'));
-      expect(yaml, contains('password: s3cret-salamander'));
+      expect(yaml, contains('password: "s3cret-salamander"'));
       // Certificate verification stays on -- the server presents a real
       // certificate for this name, and accepting any would give up the only
       // thing stopping an interceptor impersonating it.
       expect(yaml, contains('insecure: false'));
+    });
+
+    test('a link field cannot add lines to the Hysteria2 config', () {
+      // A newline in the SNI added `insecure: true` before (AUD-015).
+      const XrayClientResult result = XrayClientResult(
+        clientId: 'client-1',
+        uuid: 'a1b2c3d4-0000-0000-0000-000000000000',
+        serverAddress: '203.0.113.10',
+        port: 8450,
+        sni: 'x\ninsecure: true',
+        adBlock: false,
+        transport: 'hysteria',
+        transportSecurity: 'tls',
+      );
+      expect(
+        () => renderXrayClientConfigJson(result, localProxy: _localProxy),
+        throwsFormatException,
+      );
     });
 
     test('a hopping server is dialled on its port and its range', () {
@@ -562,7 +580,7 @@ void main() {
                   )
                   as Map<String, dynamic>)['nebulaHysteriaConfig']
               as String;
-      expect(yaml, contains('server: 203.0.113.10:8450,20000-50000'));
+      expect(yaml, contains('server: "203.0.113.10:8450,20000-50000"'));
       expect(yaml, contains('hopInterval: 30s'));
     });
 
