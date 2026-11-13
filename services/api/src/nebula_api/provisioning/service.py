@@ -44,6 +44,7 @@ from nebula_api.agent_client.models import (
     RevokeXrayClientRequest,
 )
 from nebula_api.auth.audit import add_audit_event
+from nebula_api.auth.denial_audit import first_denial
 from nebula_api.auth.key_material import AuthKeyMaterial
 from nebula_api.auth.redis_state import RateBucket, RedisAuthState
 from nebula_api.db.engine import SessionFactory
@@ -242,6 +243,7 @@ class ProvisioningService:
         self._session_factory = session_factory
         self._redis = redis_state
         self._settings = settings
+        self._denials_audited: dict[str, float] = {}
         self._agent_client_builder = agent_client_builder
         self._keys = key_material
         self._clock = clock
@@ -1160,18 +1162,23 @@ class ProvisioningService:
             window_seconds=self._settings.auth_rate_window_seconds,
         ):
             return
-        add_audit_event(
-            session,
-            actor_kind="user",
-            actor_id=user_id,
-            target_kind="user",
-            target_id=user_id,
-            event_code="auth_rate_limited",
-            outcome="denied",
-            request_id=request_id,
-            reason_code="rate_limited",
-        )
-        await session.commit()
+        if first_denial(
+            self._denials_audited,
+            (RateBucket("device-provision", str(user_id)),),
+            self._settings.auth_rate_window_seconds,
+        ):
+            add_audit_event(
+                session,
+                actor_kind="user",
+                actor_id=user_id,
+                target_kind="user",
+                target_id=user_id,
+                event_code="auth_rate_limited",
+                outcome="denied",
+                request_id=request_id,
+                reason_code="rate_limited",
+            )
+            await session.commit()
         raise ProvisioningRateLimited(self._settings.auth_rate_window_seconds)
 
     async def _finalize_provision_success(

@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from nebula_api.account_erasure import erase_account
 from nebula_api.auth.access_tokens import AccessTokenClaims, decode_access_token, issue_access_token
+from nebula_api.auth.denial_audit import first_denial
 from nebula_api.auth.device_identity import hardware_id_matches, hash_hardware_id
 from nebula_api.auth.key_material import AuthKeyMaterial
 from nebula_api.auth.opaque_tokens import OpaqueTokenError, digest_opaque_token, issue_opaque_token
@@ -157,6 +158,7 @@ class UserAuthService:
         self._redis = redis_state
         self._keys = key_material
         self._settings = settings
+        self._denials_audited: dict[str, float] = {}
         self._clock = clock
 
     async def login(
@@ -1170,18 +1172,19 @@ class UserAuthService:
             window_seconds=self._settings.auth_rate_window_seconds,
         ):
             return
-        _add_audit(
-            session,
-            actor_kind="anonymous",
-            actor_id=None,
-            target_kind="auth_attempt",
-            target_id=request_id,
-            event_code="auth_rate_limited",
-            outcome="denied",
-            request_id=request_id,
-            reason_code="rate_limited",
-        )
-        await session.commit()
+        if first_denial(self._denials_audited, buckets, self._settings.auth_rate_window_seconds):
+            _add_audit(
+                session,
+                actor_kind="anonymous",
+                actor_id=None,
+                target_kind="auth_attempt",
+                target_id=request_id,
+                event_code="auth_rate_limited",
+                outcome="denied",
+                request_id=request_id,
+                reason_code="rate_limited",
+            )
+            await session.commit()
         raise AuthenticationRateLimited(self._settings.auth_rate_window_seconds)
 
     async def _require_rate_limit_without_session(
