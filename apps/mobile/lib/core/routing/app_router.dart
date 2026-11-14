@@ -15,6 +15,7 @@ import '../../features/pairing/pairing_screen.dart';
 import '../../features/password_reset/password_reset_confirm_screen.dart';
 import '../../features/password_reset/password_reset_request_screen.dart';
 import '../../features/settings/advanced_settings_screen.dart';
+import '../../features/settings/appearance_screen.dart';
 import '../../features/settings/bypass_domains_screen.dart';
 import '../../features/settings/clean_ip_screen.dart';
 import '../../features/settings/connection_log_screen.dart';
@@ -239,6 +240,11 @@ final routerProvider = Provider<GoRouter>((Ref ref) {
         path: RoutePaths.homeWarp,
         pageBuilder: (BuildContext context, GoRouterState state) =>
             buildNebulaPage(context, state, const WarpSettingsScreen()),
+      ),
+      GoRoute(
+        path: RoutePaths.homeAppearance,
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            buildNebulaPage(context, state, const AppearanceScreen()),
       ),
     ],
   );

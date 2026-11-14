@@ -35,6 +35,7 @@ abstract final class RoutePaths {
   /// Pushed from Settings: the knobs that change what the core is told to do.
   static const String homeAdvanced = '/home/settings/advanced';
   static const String homeWarp = '/home/settings/warp';
+  static const String homeAppearance = '/home/settings/appearance';
 
   /// Reachable while unauthenticated; every other route requires a session.
   static const Set<String> unauthenticatedReachable = <String>{

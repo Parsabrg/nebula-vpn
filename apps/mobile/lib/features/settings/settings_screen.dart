@@ -13,6 +13,7 @@ import '../../core/settings/protection_controller.dart';
 import '../../core/split_tunnel/split_tunnel_controller.dart';
 import '../../core/storage/advanced_settings_store.dart';
 import '../../core/storage/protection_preference_store.dart';
+import '../../core/theme/appearance_controller.dart';
 import '../../core/theme/color_tokens.dart';
 import '../../core/theme/theme_mode_controller.dart';
 import '../../core/theme/type_scale.dart';
@@ -23,6 +24,7 @@ import '../../core/widgets/panel/panel_controls.dart';
 import '../../core/window/login_item.dart';
 import '../../core/wireguard/native_tunnel_channel.dart';
 import '../../l10n/app_localizations.dart';
+import 'appearance_screen.dart';
 import 'legal_document_screen.dart';
 
 /// Sections in the order they are reached for: how it looks, how it
@@ -58,19 +60,18 @@ class SettingsScreen extends ConsumerWidget {
           children: <Widget>[
             const SizedBox(height: 8),
             SectionHeader(text.sectionAppearance),
-            const SizedBox(height: 12),
-            PanelSegmented<ThemeMode>(
-              semanticsLabel: text.themeModeLabel,
-              segments: <(ThemeMode, String)>[
-                (ThemeMode.light, text.themeLight),
-                (ThemeMode.dark, text.themeDark),
-                (ThemeMode.system, text.themeSystem),
-              ],
-              selected: mode,
-              onChanged: (ThemeMode next) =>
-                  ref.read(themeModeProvider.notifier).setMode(next),
+            const SizedBox(height: 4),
+            PanelExternalRow(
+              title: text.sectionAppearance,
+              meta:
+                  '${lookName(text, ref.watch(appearanceProvider).look)} · '
+                  '${switch (mode) {
+                    ThemeMode.light => text.themeLight,
+                    ThemeMode.dark => text.themeDark,
+                    ThemeMode.system => text.themeSystem,
+                  }}',
+              onTap: () => context.push(RoutePaths.homeAppearance),
             ),
-            const SizedBox(height: 12),
             _LanguageRow(text: text),
 
             const SizedBox(height: 28),
