@@ -16,22 +16,25 @@ function block(selector: string): Record<string, string> {
   const body = css.slice(start, css.indexOf("}", start));
   const vars: Record<string, string> = {};
   for (const match of body.matchAll(/--([\w-]+):\s*([^;]+);/g)) {
-    vars[match[1]] = match[2].trim();
+    vars[match[1] ?? ""] = (match[2] ?? "").trim();
   }
   return vars;
 }
 
 type Rgba = [number, number, number, number];
 
-function parse(colour: string): Rgba {
+function parse(colour: string | undefined): Rgba {
+  if (colour === undefined) {
+    throw new Error("missing token");
+  }
   const hex = /^#([0-9a-f]{6})$/i.exec(colour);
   if (hex) {
-    const n = parseInt(hex[1], 16);
+    const n = parseInt(hex[1] ?? "", 16);
     return [(n >> 16) & 255, (n >> 8) & 255, n & 255, 1];
   }
   const rgba = /^rgba?\(([^)]+)\)$/.exec(colour);
   if (rgba) {
-    const [r, g, b, a = "1"] = rgba[1].split(",").map((s) => s.trim());
+    const [r, g, b, a = "1"] = (rgba[1] ?? "").split(",").map((s) => s.trim());
     return [Number(r), Number(g), Number(b), Number(a)];
   }
   throw new Error(`cannot read ${colour}`);
@@ -56,7 +59,8 @@ function luminance([r, g, b]: Rgba): number {
 }
 
 function ratio(a: Rgba, b: Rgba): number {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  const hi = Math.max(luminance(a), luminance(b));
+  const lo = Math.min(luminance(a), luminance(b));
   return (hi + 0.05) / (lo + 0.05);
 }
 

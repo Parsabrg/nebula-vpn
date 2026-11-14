@@ -2141,3 +2141,7 @@ h2 {
   text-decoration: none;
   gap: 10px;
 }
+
+.admin-header__account > * {
+  white-space: nowrap;
+}
