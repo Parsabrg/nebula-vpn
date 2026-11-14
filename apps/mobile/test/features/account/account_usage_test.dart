@@ -81,6 +81,21 @@ void main() {
     expect(find.text('Settings'), findsOneWidget);
   });
 
+  testWidgets('sign out asks first, and Cancel keeps the account', (
+    WidgetTester tester,
+  ) async {
+    await _pump(tester, _account(usedBytes: gib));
+
+    await tester.tap(find.text('Sign out'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sign out?'), findsOneWidget);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sign out?'), findsNothing);
+    expect(find.text('owner'), findsOneWidget);
+  });
+
   group('formatBytes', () {
     test('bytes below a kilobyte are exact', () {
       expect(formatBytes(0), '0 B');

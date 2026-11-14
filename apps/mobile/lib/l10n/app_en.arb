@@ -685,5 +685,11 @@
   "routingWhatGoesThrough": "What goes through the VPN",
   "@routingWhatGoesThrough": {"description": "Routing: the section label above the Everything / Sanctioned services only choice."},
   "routingEverything": "Everything",
-  "@routingEverything": {"description": "Routing: everything goes through the VPN (the default)."}
+  "@routingEverything": {"description": "Routing: everything goes through the VPN (the default)."},
+  "sectionApp": "App",
+  "@sectionApp": {"description": "Account: the section with Update, iPhone & iPad, Password and Settings."},
+  "signOutConfirmTitle": "Sign out?",
+  "@signOutConfirmTitle": {"description": "Account: the sign-out confirmation's title."},
+  "signOutConfirmBody": "The VPN disconnects on this device. You’ll need your password to sign in again.",
+  "@signOutConfirmBody": {"description": "Account: the sign-out confirmation's body."}
 }

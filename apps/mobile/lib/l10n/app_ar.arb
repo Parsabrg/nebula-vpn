@@ -552,5 +552,11 @@
   "routingWhatGoesThrough": "What goes through the VPN",
   "@routingWhatGoesThrough": {"description": "NEEDS TRANSLATION (English placeholder). Routing: the section label above the Everything / Sanctioned services only choice."},
   "routingEverything": "كل شيء",
-  "@routingEverything": {"description": "Routing: everything goes through the VPN (the default). Same word as logEverything."}
+  "@routingEverything": {"description": "Routing: everything goes through the VPN (the default). Same word as logEverything."},
+  "sectionApp": "App",
+  "@sectionApp": {"description": "NEEDS TRANSLATION (English placeholder). Account: the section with Update, iPhone & iPad, Password and Settings."},
+  "signOutConfirmTitle": "Sign out?",
+  "@signOutConfirmTitle": {"description": "NEEDS TRANSLATION (English placeholder). Account: the sign-out confirmation's title."},
+  "signOutConfirmBody": "The VPN disconnects on this device. You’ll need your password to sign in again.",
+  "@signOutConfirmBody": {"description": "NEEDS TRANSLATION (English placeholder). Account: the sign-out confirmation's body."}
 }
