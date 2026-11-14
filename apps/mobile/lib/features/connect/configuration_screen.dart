@@ -5,10 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/servers/server_repository.dart';
 import '../../core/storage/storage_providers.dart';
 import '../../core/theme/color_tokens.dart';
-import '../../core/theme/type_scale.dart';
-import '../../core/widgets/panel/panel_atoms.dart';
-import '../../core/widgets/panel/panel_cta.dart';
-import '../../core/widgets/panel/panel_row.dart';
+import '../../core/widgets/nebula/nebula_controls.dart';
+import '../../core/widgets/nebula/nebula_data.dart';
+import '../../core/widgets/nebula/nebula_feedback.dart';
+import '../../core/widgets/nebula/nebula_page.dart';
+import '../../core/widgets/nebula/nebula_rows.dart';
+import '../../core/widgets/nebula/nebula_surface.dart';
 import '../../l10n/app_localizations.dart';
 import '../devices/devices_controller.dart';
 import '../devices/devices_state.dart';
@@ -29,86 +31,71 @@ class ConfigurationScreen extends ConsumerWidget {
     final NebulaPalette palette = context.palette;
     final XrayClientResult? client = state.xrayClient;
 
-    return Scaffold(
-      backgroundColor: palette.bg,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: Text(AppText.of(context).configurationTitle),
+    final AppText text = AppText.of(context);
+    NebulaRow info(String title, String value) => NebulaRow(
+      title: title,
+      trailing: Flexible(child: NebulaRowTrailing.value(context, value)),
+    );
+
+    return NebulaPage(
+      title: text.configurationTitle,
+      footer: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          if (client != null) ...<Widget>[
+            NebulaButton(
+              label: text.copy,
+              icon: Icons.content_copy,
+              onPressed: () => _copy(context, client),
+            ),
+            const SizedBox(height: 8),
+          ],
+          NebulaButton.text(
+            label: text.releasePeer,
+            danger: true,
+            onPressed: () => _releasePeer(context, ref, state),
+          ),
+        ],
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        const SizedBox(height: 16),
+        NebulaNotice(text: text.peerOnlyNotice, kind: NebulaNoticeKind.warning),
+        if (client == null)
+          NebulaEmptyState(
+            icon: Icons.description_outlined,
+            title: text.noClientConfiguration,
+          )
+        else ...<Widget>[
+          NebulaSectionLabel(text.xrayClient),
+          NebulaRowGroup(
             children: <Widget>[
-              Expanded(
-                child: ListView(
-                  children: <Widget>[
-                    const SizedBox(height: 8),
-                    const _PeerOnlyNotice(),
-                    const SizedBox(height: 24),
-                    if (client == null)
-                      Text(
-                        AppText.of(context).noClientConfiguration,
-                        style: context.type.rowLabel.copyWith(
-                          color: palette.textMuted,
-                        ),
-                      )
-                    else ...<Widget>[
-                      SectionHeader(AppText.of(context).xrayClient),
-                      const SizedBox(height: 4),
-                      PanelRowGroup(
-                        rows: <PanelRow>[
-                          PanelRow(
-                            label: AppText.of(context).rowAddress,
-                            value: '${client.serverAddress} : ${client.port}',
-                          ),
-                          PanelRow(label: 'SNI', value: client.sni),
-                          PanelRow(
-                            label: AppText.of(context).rowTransport,
-                            value:
-                                '${client.transport} / ${client.transportSecurity}',
-                          ),
-                          if (client.path != null)
-                            PanelRow(
-                              label: AppText.of(context).rowPath,
-                              value: client.path!,
-                            ),
-                          PanelRow(
-                            label: 'UUID',
-                            value: truncateUuid(client.uuid),
-                          ),
-                        ],
-                      ),
-                    ],
-                    const SizedBox(height: 24),
-                  ],
-                ),
+              info(text.rowAddress, '${client.serverAddress} : ${client.port}'),
+              info('SNI', client.sni),
+              info(
+                text.rowTransport,
+                '${client.transport} / ${client.transportSecurity}',
               ),
-              if (client != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: PanelCta(
-                    label: AppText.of(context).copy,
-                    icon: Icons.content_copy,
-                    style: CtaStyle.warning,
-                    onPressed: () => _copy(context, client),
-                  ),
-                ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: TextButton(
-                  onPressed: () => _releasePeer(context, ref, state),
-                  child: Text(AppText.of(context).releasePeer),
-                ),
-              ),
+              if (client.path != null) info(text.rowPath, client.path!),
+              info('UUID', truncateUuid(client.uuid)),
             ],
           ),
-        ),
-      ),
+          const SizedBox(height: 16),
+          // What Copy puts on the clipboard, so nothing is copied unseen.
+          NebulaPanel(
+            padding: const EdgeInsets.all(14),
+            child: SelectableText(
+              clientSummary(client),
+              style: TextStyle(
+                fontFamily: 'GeistMono',
+                fontSize: 12,
+                height: 18 / 12,
+                color: palette.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -120,9 +107,7 @@ class ConfigurationScreen extends ConsumerWidget {
     if (!context.mounted) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppText.of(context).configurationCopied)),
-    );
+    showNebulaSnackbar(context, AppText.of(context).configurationCopied);
   }
 
   /// Releasing is destructive and not obviously so from the button, so it
@@ -134,25 +119,17 @@ class ConfigurationScreen extends ConsumerWidget {
     WidgetRef ref,
     DevicesState state,
   ) async {
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: Text(AppText.of(context).releasePeerQuestion),
-        content: Text(AppText.of(context).releasePeerBody),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(AppText.of(context).cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(AppText.of(context).release),
-          ),
-        ],
-      ),
+    final AppText text = AppText.of(context);
+    final bool confirmed = await showNebulaConfirm(
+      context,
+      title: text.releasePeerQuestion,
+      body: text.releasePeerBody,
+      action: text.release,
+      cancel: text.cancel,
+      destructive: true,
     );
 
-    if (confirmed != true || !context.mounted) {
+    if (!confirmed || !context.mounted) {
       return;
     }
     final String? deviceId = ref.read(deviceIdStoreProvider).read();
@@ -163,40 +140,5 @@ class ConfigurationScreen extends ConsumerWidget {
     if (context.mounted) {
       Navigator.of(context).maybePop();
     }
-  }
-}
-
-/// The dashed amber box that says why this screen exists.
-class _PeerOnlyNotice extends StatelessWidget {
-  const _PeerOnlyNotice();
-
-  @override
-  Widget build(BuildContext context) {
-    final NebulaPalette palette = context.palette;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: palette.amber.withValues(alpha: 0.5)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Icon(Icons.warning_amber_rounded, size: 20, color: palette.amber),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                AppText.of(context).peerOnlyNotice,
-                style: context.type.rowLabel.copyWith(
-                  color: palette.amberText,
-                  height: 19 / 13,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
