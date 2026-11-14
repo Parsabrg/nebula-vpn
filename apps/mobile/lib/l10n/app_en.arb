@@ -671,5 +671,7 @@
   "accentAmber": "Amber",
   "@accentAmber": {"description": "An accent colour's name (swatch label)."},
   "accentMono": "Mono",
-  "@accentMono": {"description": "An accent colour's name (swatch label)."}
+  "@accentMono": {"description": "An accent colour's name (swatch label)."},
+  "connectionDetails": "Connection details",
+  "@connectionDetails": {"description": "Connect: the link to the screen with address, session, resolvers and configuration."}
 }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/auth/auth_notifier.dart';
@@ -10,37 +9,39 @@ import '../../core/network/dns_tunnel_engine.dart';
 import '../../core/network/dns_tunnel_resolvers.dart';
 import '../../core/storage/storage_providers.dart';
 import '../../core/theme/color_tokens.dart';
-import '../../core/theme/type_scale.dart';
+import '../../core/theme/look.dart';
 import '../../core/tunnel/tunnel_traffic.dart';
+import '../../core/widgets/nebula/nebula_controls.dart';
+import '../../core/widgets/nebula/nebula_data.dart';
+import '../../core/widgets/nebula/nebula_nav.dart';
+import '../../core/widgets/nebula/nebula_page.dart';
+import '../../core/widgets/nebula/nebula_rows.dart';
+import '../../core/widgets/nebula/nebula_surface.dart';
 import '../../core/widgets/panel/panel_atoms.dart';
-import '../../core/widgets/panel/panel_cta.dart';
-import '../../core/widgets/panel/panel_row.dart';
-import '../../core/xray/local_proxy.dart';
 import '../../l10n/app_localizations.dart';
 import '../devices/devices_controller.dart';
 import '../devices/devices_state.dart';
 import '../free/free_mode_screen.dart';
-import 'configuration_screen.dart';
 import 'connect_view.dart';
+import 'connection_details_screen.dart';
 import 'servers_screen.dart';
 import 'tunnel_traffic_provider.dart';
 
-/// The first tab, and the whole point of the app.
+/// The first tab, and the whole point of the app (DESIGN_SPEC §4, Connect):
+/// deliberately sparse. The status hero, a traffic line while connected,
+/// space, one server row, the way to Connection details, and the action.
 ///
-/// One screen with seven presentations rather than seven screens: the status
-/// line, the state word, the row set and the action all change together, and
-/// [connectViewOf] decides which set is showing. Keeping that decision in a
-/// pure function means the states can be tested without pumping a widget, and
-/// means this file only has to lay them out.
-/// Below this height the Connect screen scrolls as one page.
-const double _pinnedLayoutMinHeight = 560;
-
+/// One screen with seven presentations: [connectViewOf] decides which, a
+/// pure function the states are tested through.
 class ConnectScreen extends ConsumerStatefulWidget {
   const ConnectScreen({super.key});
 
   @override
   ConsumerState<ConnectScreen> createState() => _ConnectScreenState();
 }
+
+/// Below this height the Connect screen scrolls as one page.
+const double _pinnedLayoutMinHeight = 560;
 
 class _ConnectScreenState extends ConsumerState<ConnectScreen> {
   @override
@@ -64,53 +65,63 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
   Widget build(BuildContext context) {
     final DevicesState state = ref.watch(devicesControllerProvider);
     final ConnectView view = connectViewOf(state);
-    final NebulaPalette palette = context.palette;
-    // Watched here and passed down, rather than watched inside
-    // ConnectStateBlock: that widget is deliberately a pure function of what
-    // it is given, which is what lets its seven presentations be tested
-    // without standing up a controller.
+    final NebulaPalette p = context.palette;
     final TunnelTraffic? traffic = ref.watch(tunnelTrafficProvider).value;
+    final bool free = ref.watch(freeModeProvider);
+
+    final Widget block = ConnectStateBlock(
+      view: view,
+      state: state,
+      traffic: traffic,
+      freeMode: free,
+    );
+    final Widget messages = ConnectMessages(
+      state: state,
+      view: view,
+      serverUnreachable: ref.watch(authNotifierProvider) is AuthUnreachable,
+    );
+    final Widget bottom = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        messages,
+        if (_hasServerRow(view)) ...<Widget>[
+          ConnectServerRow(view: view, state: state),
+          Center(
+            child: NebulaLinkButton(
+              label: AppText.of(context).connectionDetails,
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (BuildContext context) =>
+                      const ConnectionDetailsScreen(),
+                ),
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
+        _Action(view: view, state: state),
+        const SizedBox(height: 16),
+      ],
+    );
 
     return Scaffold(
-      backgroundColor: palette.bg,
+      backgroundColor: p.bg,
       body: SafeArea(
         child: Padding(
-          // 24px screen padding; the CTA block sits in 20px insets, so it is
-          // pulled back out below rather than nested inside this.
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: nebulaPagePadding(context),
           child: LayoutBuilder(
             builder: (BuildContext context, BoxConstraints box) {
-              final Widget block = ConnectStateBlock(
-                view: view,
-                state: state,
-                traffic: traffic,
-                freeMode: ref.watch(freeModeProvider),
-                dnsResolvers: state.activeProfileCode == kDnsTunnelProfileCode
-                    ? ref.watch(dnsTunnelActiveResolversProvider).value
-                    : null,
-              );
-              final Widget messages = ConnectMessages(
-                state: state,
-                serverUnreachable:
-                    ref.watch(authNotifierProvider) is AuthUnreachable,
-              );
-              final Widget action = Padding(
-                padding: const EdgeInsets.fromLTRB(0, 0, 0, 16),
-                child: _Action(view: view, state: state),
-              );
-              // Short screens (landscape on a phone) scroll as one page: with
-              // the messages and the button pinned, the state and its rows
-              // were squeezed to nothing behind an error card (2026-10-19).
+              // Short screens (a phone in landscape) scroll as one page:
+              // pinned, the state was squeezed to nothing behind an error.
               if (box.maxHeight < _pinnedLayoutMinHeight) {
                 return SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
-                      const _TopBar(),
+                      const _Header(),
                       block,
-                      const SizedBox(height: 16),
-                      messages,
-                      action,
+                      const SizedBox(height: 24),
+                      bottom,
                     ],
                   ),
                 );
@@ -118,13 +129,9 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  const _TopBar(),
+                  const _Header(),
                   Expanded(child: SingleChildScrollView(child: block)),
-                  // Outside the scroll, so it cannot end up below the fold:
-                  // at the end of the rows it was cut off right above the
-                  // button, with nothing to say more was there.
-                  messages,
-                  action,
+                  bottom,
                 ],
               );
             },
@@ -133,50 +140,90 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
       ),
     );
   }
+
+  static bool _hasServerRow(ConnectView view) =>
+      view != ConnectView.loading &&
+      view != ConnectView.unreachable &&
+      view != ConnectView.noServers;
 }
 
-class _TopBar extends ConsumerWidget {
-  const _TopBar();
+/// The brand on a phone, the "Connect" title on desktop, and "+" for Your
+/// links. Free mode shows it too: a first install looked for the Add
+/// buttons here (2026-10-17).
+class _Header extends StatelessWidget {
+  const _Header();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final NebulaPalette palette = context.palette;
+  Widget build(BuildContext context) {
+    final NebulaPalette p = context.palette;
+    final AppText text = AppText.of(context);
+    final bool desktop = nebulaDesktopLayout(context);
+    final Widget plus = Icon(Icons.add, size: 22, color: p.textPrimary);
     return Padding(
-      padding: const EdgeInsets.only(top: 28),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
-        children: <Widget>[
-          Text(
-            'NEBULA',
-            style: context.type.wordmark.copyWith(color: palette.textMuted),
-          ),
-          const Spacer(),
-          // Adding links and subscriptions, where it is found: tucked into
-          // Settings nobody came across it. Free mode shows it too: its Free
-          // tab has the same Add buttons, but a first install looked for
-          // them here (2026-10-17).
-          IconButton(
-            tooltip: AppText.of(context).ownLinksTitle,
-            icon: Icon(Icons.add, color: palette.textPrimary),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (BuildContext context) =>
-                    const FreeModeScreen(ownLinks: true),
+      padding: EdgeInsets.only(
+        top: desktop ? 28 : 24,
+        bottom: 4,
+        left: p.look == NebulaLook.minimal ? 0 : 4,
+      ),
+      child: SizedBox(
+        height: 48,
+        child: Row(
+          children: <Widget>[
+            if (desktop)
+              Semantics(
+                header: true,
+                child: Text(text.tabConnect, style: nebulaTitleStyle(p)),
+              )
+            else
+              const NebulaBrand(),
+            const Spacer(),
+            Tooltip(
+              message: text.ownLinksTitle,
+              child: NebulaPressable(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (BuildContext context) =>
+                        const FreeModeScreen(ownLinks: true),
+                  ),
+                ),
+                borderRadius: BorderRadius.circular(22),
+                semanticLabel: text.ownLinksTitle,
+                excludeChildSemantics: true,
+                child: switch (p.look) {
+                  NebulaLook.glass => NebulaPanel(
+                    radius: 22,
+                    child: SizedBox.square(
+                      dimension: 44,
+                      child: Center(child: plus),
+                    ),
+                  ),
+                  NebulaLook.expressive => Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: p.subtle,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Center(child: plus),
+                  ),
+                  _ => SizedBox.square(
+                    dimension: 44,
+                    child: Center(child: plus),
+                  ),
+                },
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Status line, state word, and the rows beneath them.
+/// The status hero and, while connected, the traffic line.
 ///
-/// Public because it is the part worth testing on its own: it is a pure
-/// function of a view and a state, so a test can drive all seven
-/// presentations without standing up a controller and a fake repository.
+/// Public because it is the part worth testing on its own: a pure function
+/// of a view and a state.
 class ConnectStateBlock extends StatelessWidget {
   const ConnectStateBlock({
     required this.view,
@@ -184,432 +231,283 @@ class ConnectStateBlock extends StatelessWidget {
     super.key,
     this.traffic,
     this.freeMode = false,
-    this.dnsResolvers,
   });
 
   final ConnectView view;
-
-  /// Over the DNS tunnel: the resolvers it uses now, shown where another
-  /// protocol shows the server's address. Null on any other protocol.
-  final List<String>? dnsResolvers;
   final DevicesState state;
 
-  /// No account and no server of one's own: there is no peer to register,
-  /// so the words for a signed-in failure ("Peer only", "Registered on")
-  /// say something untrue.
+  /// No account and no server of one's own: the words for a signed-in
+  /// failure ("Peer only", "Registered on") would say something untrue.
   final bool freeMode;
 
-  /// The live tunnel reading, or null when there is none yet.
-  ///
-  /// Null and zero are different and are drawn differently: null is "no
-  /// reading", which is what a tunnel that has just come up looks like for
-  /// the moment before its first report; zero is a reading that says nothing
-  /// has been carried.
+  /// The live reading; null (no reading yet) and zero are drawn apart.
   final TunnelTraffic? traffic;
 
   @override
   Widget build(BuildContext context) {
+    final AppText text = AppText.of(context);
+    final NebulaPalette p = context.palette;
+
+    if (view == ConnectView.loading) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 40),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            SkeletonBar(width: 120, height: 12),
+            SizedBox(height: 16),
+            SkeletonBar(width: 220, height: 40),
+            SizedBox(height: 12),
+            SkeletonBar(width: 160, height: 14),
+          ],
+        ),
+      );
+    }
+
+    final String? server =
+        state.selectedServer?.displayName ?? state.connectedServerCode;
+    final String? error = view == ConnectView.protected
+        ? null
+        : state.actionErrorMessage;
+
+    final (
+      Color dot,
+      String eyebrow,
+      String title,
+      Color? titleColor,
+    ) = switch (view) {
+      ConnectView.protected => (
+        p.ok,
+        server ?? text.statusConnected,
+        // Not "Protected" for a local proxy (only apps pointed at it go
+        // through) or sanctioned-services-only (everything else leaves
+        // directly): the largest word must not overstate it.
+        state.localProxy != null
+            ? text.wordProxyOn
+            : state.sanctionsOnly
+            ? text.wordOn
+            : view.word(text)!,
+        state.localProxy != null ? p.textPrimary : p.textMax,
+      ),
+      ConnectView.connecting => (
+        p.blue,
+        server ?? text.statusHandshake,
+        view.word(text)!,
+        null,
+      ),
+      ConnectView.notProtected => (
+        p.amber,
+        server ?? text.statusNoTunnel,
+        view.word(text)!,
+        p.amberText,
+      ),
+      ConnectView.off => (
+        p.amber,
+        server ?? text.statusDisconnected,
+        view.word(text)!,
+        null,
+      ),
+      ConnectView.unreachable => (
+        p.red,
+        text.statusNoConnection,
+        view.word(text)!,
+        null,
+      ),
+      ConnectView.noServers => (
+        p.dotOff,
+        text.statusNoServers,
+        text.nothingToConnect,
+        null,
+      ),
+      ConnectView.loading => throw StateError('handled above'),
+    };
+
+    final String subline =
+        error ??
+        switch (view) {
+          ConnectView.protected when state.localProxy != null =>
+            text.statusLocalProxy('127.0.0.1:${state.localProxy!.port}'),
+          ConnectView.protected when state.sanctionsOnly =>
+            text.statusSanctionsOnly(server ?? ''),
+          ConnectView.protected =>
+            // A clock only where this process saw the tunnel come up: one
+            // started at zero for a tunnel it did not start would lie.
+            traffic?.elapsed == null
+                ? text.statusConnected
+                : '${text.rowSession} · '
+                      '${formatTunnelDuration(traffic!.elapsed!)}',
+          ConnectView.connecting => text.statusHandshake,
+          ConnectView.notProtected =>
+            freeMode ? text.statusNoTunnel : text.statusPeerOnly,
+          ConnectView.off => text.statusDisconnected,
+          // The reason, not a guess at it: "check your network" over a
+          // working network sent the owner looking in the wrong place.
+          ConnectView.unreachable =>
+            state.loadErrorMessage ?? text.checkYourNetwork,
+          ConnectView.noServers => text.noServersPermitted,
+          ConnectView.loading => '',
+        };
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        const SizedBox(height: 56),
-        _statusLine(context),
-        const SizedBox(height: 12),
-        _word(context),
-        const SizedBox(height: 44),
-        _rows(context),
-        const SizedBox(height: 16),
+        NebulaStatusHero(
+          dotColor: dot,
+          eyebrow: eyebrow,
+          title: title,
+          titleColor: titleColor,
+          // The whole sentence: the copy ends in the one thing that fixes
+          // it, and an ellipsis would drop exactly that half.
+          subline: subline,
+          sublineColor: error != null ? p.redText : null,
+        ),
+        if (view == ConnectView.protected) _TrafficLine(traffic: traffic),
       ],
     );
   }
+}
 
-  Widget _statusLine(BuildContext context) {
+/// ↓ Downloaded and ↑ Uploaded, spelled out: one line, wrapping on narrow
+/// screens rather than cutting a figure off.
+class _TrafficLine extends StatelessWidget {
+  const _TrafficLine({required this.traffic});
+
+  final TunnelTraffic? traffic;
+
+  @override
+  Widget build(BuildContext context) {
+    final NebulaPalette p = context.palette;
     final AppText text = AppText.of(context);
-    switch (view) {
-      case ConnectView.loading:
-        return const SizedBox(
-          height: 16,
-          child: SkeletonBar(width: 120, height: 12),
-        );
-      case ConnectView.off:
-        return StatusLine(tone: StatusTone.off, text: text.statusDisconnected);
-      case ConnectView.connecting:
-        return StatusLine(tone: StatusTone.working, text: text.statusHandshake);
-      case ConnectView.protected when state.localProxy != null:
-        return StatusLine(
-          tone: StatusTone.live,
-          text: text.statusLocalProxy('127.0.0.1:${state.localProxy!.port}'),
-        );
-      case ConnectView.protected when state.sanctionsOnly:
-        return StatusLine(
-          tone: StatusTone.live,
-          text: text.statusSanctionsOnly(
-            state.selectedServer?.displayName ??
-                state.connectedServerCode ??
-                '',
-          ),
-        );
-      case ConnectView.protected:
-        return StatusLine(
-          tone: StatusTone.live,
-          // Elapsed session time needs a ticker the state does not carry
-          // yet, so this shows the server alone rather than a fake clock.
-          text: state.selectedServer?.displayName ?? text.statusConnected,
-        );
-      case ConnectView.notProtected:
-        return StatusLine(
-          tone: StatusTone.warning,
-          text: freeMode ? text.statusNoTunnel : text.statusPeerOnly,
-        );
-      case ConnectView.unreachable:
-        return StatusLine(
-          tone: StatusTone.error,
-          text: text.statusNoConnection,
-        );
-      case ConnectView.noServers:
-        return StatusLine(tone: StatusTone.off, text: text.statusNoServers);
-    }
-  }
-
-  Widget _word(BuildContext context) {
-    final AppText text = AppText.of(context);
-    final NebulaPalette palette = context.palette;
-    final NebulaTypography type = context.type;
-
-    if (view == ConnectView.loading) {
-      return const SizedBox(
-        height: 50,
-        child: Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: SkeletonBar(width: 200, height: 34),
+    Widget item(IconData icon, String label, int? bytes) => Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Icon(icon, size: 16, color: p.textMuted),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(fontSize: 13, height: 18 / 13, color: p.textMuted),
         ),
-      );
-    }
-    if (view == ConnectView.noServers) {
-      return Text(
-        text.nothingToConnect,
-        style: type.stateWord.copyWith(color: palette.textPrimary),
-      );
-    }
-
-    final Color color;
-    switch (view) {
-      case ConnectView.protected:
-        // The one place textMax is used -- and not for a local proxy, which
-        // protects only the apps pointed at it.
-        color = state.localProxy != null
-            ? palette.textPrimary
-            : palette.textMax;
-      case ConnectView.notProtected:
-        color = palette.amberText;
-      case ConnectView.off:
-      case ConnectView.connecting:
-      case ConnectView.unreachable:
-      case ConnectView.loading:
-      case ConnectView.noServers:
-        color = palette.textPrimary;
-    }
-
-    // Not "Protected" when only sanctioned services go through the server:
-    // everything else is leaving directly, and the largest word on the screen
-    // is the last place to overstate that.
-    // Nor "Protected" for a local proxy: nothing reaches it unless an app
-    // was pointed at it.
-    final String word = view != ConnectView.protected
-        ? view.word(text)!
-        : state.localProxy != null
-        ? text.wordProxyOn
-        : state.sanctionsOnly
-        ? text.wordOn
-        : view.word(text)!;
-    return Text(word, style: type.stateWord.copyWith(color: color));
-  }
-
-  static void _openServers(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (BuildContext context) => const ServersScreen(),
+        const SizedBox(width: 6),
+        Text(
+          bytes == null ? '—' : formatBytes(bytes),
+          style: TextStyle(
+            fontFamily: 'GeistMono',
+            fontSize: 15,
+            height: 20 / 15,
+            color: p.textPrimary,
+          ),
+        ),
+      ],
+    );
+    return Padding(
+      padding: EdgeInsets.only(
+        top: 16,
+        left: p.look == NebulaLook.minimal ? 0 : 4,
+      ),
+      child: Wrap(
+        spacing: 20,
+        runSpacing: 8,
+        children: <Widget>[
+          item(Icons.arrow_downward, text.rowDownloaded, traffic?.rxBytes),
+          item(Icons.arrow_upward, text.rowUploaded, traffic?.txBytes),
+        ],
       ),
     );
-  }
-
-  static void _showResolvers(BuildContext context, List<String> resolvers) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (BuildContext context) => SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-          children: <Widget>[
-            Text(
-              AppText.of(context).rowDnsResolvers,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            for (final String resolver in resolvers)
-              Text(
-                resolver,
-                textDirection: TextDirection.ltr,
-                style: const TextStyle(fontFamily: 'monospace', height: 1.6),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _rows(BuildContext context) {
-    final AppText text = AppText.of(context);
-    final NebulaPalette palette = context.palette;
-
-    switch (view) {
-      case ConnectView.loading:
-        return const Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[_SkeletonRow(), _SkeletonRow()],
-        );
-
-      case ConnectView.off:
-        return PanelRowGroup(
-          rows: <PanelRow>[
-            PanelRow(
-              label: text.rowServer,
-              value: state.selectedServer?.displayName ?? text.choose,
-              onTap: () => _openServers(context),
-            ),
-            PanelRow(
-              label: text.rowProtocol,
-              value: state.selectedProfileCode == automaticProfileCode
-                  ? text.protocolAutomatic
-                  : state.selectedProfileCode == null
-                  ? text.choose
-                  : state.profileLabel(state.selectedProfileCode!),
-              // Same destination: the protocol list is a property of the
-              // selected server, so there is nowhere separate to go.
-              onTap: () => _openServers(context),
-            ),
-          ],
-        );
-
-      case ConnectView.connecting:
-        // Deliberately not tappable: changing the target mid-handshake would
-        // leave the request and the screen disagreeing.
-        return PanelRowGroup(
-          rows: <PanelRow>[
-            PanelRow(
-              label: text.rowServer,
-              value: state.selectedServer?.displayName ?? '—',
-            ),
-            PanelRow(
-              label: text.rowProtocol,
-              // In Automatic, the protocol being tried right now.
-              value: state.selectedProfileCode == automaticProfileCode
-                  ? (state.activeProfileCode == null
-                        ? text.protocolAutomatic
-                        : state.profileLabel(state.activeProfileCode!))
-                  : state.selectedProfileCode == null
-                  ? '—'
-                  : state.profileLabel(state.selectedProfileCode!),
-            ),
-          ],
-        );
-
-      case ConnectView.protected when state.localProxy != null:
-        final LocalProxyRows proxyRows = LocalProxyRows(
-          context: context,
-          proxy: state.localProxy!,
-        );
-        return PanelRowGroup(
-          rows: <PanelRow>[
-            PanelRow(
-              label: text.rowServer,
-              value:
-                  state.selectedServer?.displayName ??
-                  state.connectedServerCode ??
-                  '—',
-            ),
-            PanelRow(
-              label: text.rowProtocol,
-              value: state.activeProfileCode != null
-                  ? state.profileLabel(state.activeProfileCode!)
-                  : state.activeProtocolCode ?? '—',
-            ),
-            ...proxyRows.rows(),
-            PanelRow(
-              label: text.rowDownloaded,
-              value: traffic == null ? '—' : formatBytes(traffic!.rxBytes),
-            ),
-            PanelRow(
-              label: text.rowUploaded,
-              value: traffic == null ? '—' : formatBytes(traffic!.txBytes),
-            ),
-          ],
-        );
-
-      case ConnectView.protected:
-        final List<String>? resolvers = dnsResolvers;
-        return PanelRowGroup(
-          rows: <PanelRow>[
-            if (resolvers != null)
-              PanelRow(
-                label: text.rowDnsResolvers,
-                value: resolvers.isEmpty
-                    ? '—'
-                    : text.dnsResolversInUse(
-                        resolvers.length,
-                        resolvers.take(2).join(', '),
-                      ),
-                onTap: resolvers.isEmpty
-                    ? null
-                    : () => _showResolvers(context, resolvers),
-              )
-            else
-              PanelRow(
-                label: text.rowAddress,
-                value:
-                    state.xrayClient?.serverAddress ??
-                    state.selectedServer?.publicHost ??
-                    '—',
-              ),
-            PanelRow(
-              label: text.rowProtocol,
-              value: state.activeProfileCode != null
-                  ? state.profileLabel(state.activeProfileCode!)
-                  : state.activeProtocolCode ?? '—',
-            ),
-            // Two rows rather than one. A row ellipsizes a value that does
-            // not fit, which is right for an address but not for a pair:
-            // "↓ 641 KB   ↑ …" dropped the upload figure entirely on a real
-            // phone. Split, neither figure can crowd the other out.
-            //
-            // Spelled out rather than arrowed, which also removes the only
-            // place a reader could mistake one direction for the other.
-            PanelRow(
-              label: text.rowDownloaded,
-              value: traffic == null ? '—' : formatBytes(traffic!.rxBytes),
-            ),
-            PanelRow(
-              label: text.rowUploaded,
-              value: traffic == null ? '—' : formatBytes(traffic!.txBytes),
-            ),
-            PanelRow(
-              label: text.rowSession,
-              // WireGuard counts bytes, not time, and this process cannot
-              // know when a tunnel it did not start came up. An em dash says
-              // that; a clock started at zero would be a plausible lie.
-              value: traffic?.elapsed == null
-                  ? '—'
-                  : formatTunnelDuration(traffic!.elapsed!),
-            ),
-          ],
-        );
-
-      case ConnectView.notProtected:
-        return PanelRowGroup(
-          rows: <PanelRow>[
-            PanelRow(
-              label: freeMode ? text.rowServer : text.rowRegisteredOn,
-              value:
-                  state.selectedServer?.displayName ??
-                  state.connectedServerCode ??
-                  '—',
-              // "Try another server" is what the error says when none of a
-              // server's protocols got through; this is where to do it.
-              valueColor: palette.amberText,
-              onTap: () => _openServers(context),
-            ),
-            // The way out of a protocol this network blocks: without it the
-            // only button retried the same one (Hysteria2 on a phone whose
-            // network drops UDP, 2026-10-17).
-            PanelRow(
-              label: text.rowProtocol,
-              value: state.selectedProfileCode == automaticProfileCode
-                  ? text.protocolAutomatic
-                  : state.selectedProfileCode == null
-                  ? text.choose
-                  : state.profileLabel(state.selectedProfileCode!),
-              valueColor: palette.amberText,
-              onTap: () => _openServers(context),
-            ),
-            PanelRow(
-              label: text.rowConfiguration,
-              value: text.view,
-              valueColor: palette.amberText,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (BuildContext context) =>
-                      const ConfigurationScreen(),
-                ),
-              ),
-            ),
-          ],
-        );
-
-      case ConnectView.unreachable:
-        // The reason, not a guess at it: "check your network" over a
-        // working network sent the owner looking in the wrong place while
-        // the API answered and something else had failed.
-        return Text(
-          state.loadErrorMessage ?? text.checkYourNetwork,
-          style: context.type.topBarMeta.copyWith(color: palette.textMuted),
-        );
-
-      case ConnectView.noServers:
-        return SizedBox(
-          width: 300,
-          child: Text(
-            text.noServersPermitted,
-            style: context.type.rowLabel.copyWith(color: palette.textMuted),
-          ),
-        );
-    }
   }
 }
 
-/// Why the last attempt failed, and where the screen's contents came from
-/// when that is not the server. Drawn between the rows and the button,
-/// never inside the scroll.
+/// The one server row: server, protocol, "Change". Not tappable while
+/// connecting: changing the target mid-handshake would leave the request
+/// and the screen disagreeing.
+class ConnectServerRow extends StatelessWidget {
+  const ConnectServerRow({super.key, required this.view, required this.state});
+
+  final ConnectView view;
+  final DevicesState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppText text = AppText.of(context);
+    final NebulaPalette p = context.palette;
+    final bool live =
+        view == ConnectView.protected || view == ConnectView.connecting;
+    final String? profile = live && state.activeProfileCode != null
+        ? state.activeProfileCode
+        : state.selectedProfileCode;
+    final String protocol = profile == null
+        ? text.choose
+        : profile == automaticProfileCode
+        ? text.protocolAutomatic
+        : state.profileLabel(profile);
+    final bool tappable = view != ConnectView.connecting;
+    return NebulaRowGroup(
+      children: <Widget>[
+        NebulaRow(
+          icon: Icons.public,
+          title:
+              state.selectedServer?.displayName ??
+              state.connectedServerCode ??
+              text.choose,
+          // "Try another server" is what the error says when none of a
+          // server's protocols got through: the row says where to do it.
+          titleColor: view == ConnectView.notProtected ? p.amberText : null,
+          subtitle: protocol,
+          trailing: tappable
+              ? NebulaRowTrailing.valueChevron(context, text.change)
+              : null,
+          onTap: tappable
+              ? () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (BuildContext context) => const ServersScreen(),
+                  ),
+                )
+              : null,
+        ),
+      ],
+    );
+  }
+}
+
+/// A failure while connected (the hero says it otherwise), and where the
+/// screen's contents came from when that is not the server.
 class ConnectMessages extends StatelessWidget {
   const ConnectMessages({
     required this.state,
     super.key,
+    this.view = ConnectView.protected,
     this.serverUnreachable = false,
   });
 
   final DevicesState state;
+  final ConnectView view;
 
-  /// A session is stored but the server did not answer, so what is on screen
+  /// A session is stored but the server did not answer: what is on screen
   /// comes from this device rather than from the server.
   final bool serverUnreachable;
 
   @override
   Widget build(BuildContext context) {
+    final AppText text = AppText.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        // Why a connect attempt did not work.
-        //
-        // The controller has always recorded this and nothing has ever drawn
-        // it, so every refusal the server makes -- an exhausted data
-        // allowance above all -- reached a person as a button that appeared
-        // to do nothing at all. Pressing it again is then the only
-        // reasonable thing to try, and it fails the same silent way.
-        if (state.actionErrorMessage != null) ...<Widget>[
-          _ActionError(message: state.actionErrorMessage!),
+        // A disconnect can fail too; the hero is busy saying Protected.
+        if (view == ConnectView.protected &&
+            state.actionErrorMessage != null) ...<Widget>[
+          NebulaNotice(
+            text: state.actionErrorMessage!,
+            kind: NebulaNoticeKind.error,
+          ),
           const SizedBox(height: 12),
         ],
-        // Where the screen's contents came from, when that is not the
-        // server. Saying nothing would present saved settings, and a tunnel
-        // raised from a saved credential, as though the server had just
-        // confirmed both.
         // Only while that connection is up: after it ended, "Connected with
-        // credentials saved on this device" sat under Off (seen 2026-10-18).
+        // credentials saved on this device" sat under Off (2026-10-18).
         if (serverUnreachable ||
             (state.fromSavedCredential && state.tunnelEstablished)) ...<Widget>[
-          _Notice(
-            message: state.fromSavedCredential && state.tunnelEstablished
-                ? AppText.of(context).savedCredentialNotice
-                : AppText.of(context).offlineNotice,
+          NebulaNotice(
+            text: state.fromSavedCredential && state.tunnelEstablished
+                ? text.savedCredentialNotice
+                : text.offlineNotice,
           ),
           const SizedBox(height: 12),
         ],
@@ -618,27 +516,7 @@ class ConnectMessages extends StatelessWidget {
   }
 }
 
-class _SkeletonRow extends StatelessWidget {
-  const _SkeletonRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: context.palette.hairline)),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 18),
-      child: const Row(
-        children: <Widget>[
-          SkeletonBar(width: 64, height: 12),
-          Spacer(),
-          SkeletonBar(width: 104, height: 12),
-        ],
-      ),
-    );
-  }
-}
-
+/// Disconnect (secondary), Cancel while connecting, Connect, or Try again.
 class _Action extends ConsumerWidget {
   const _Action({required this.view, required this.state});
 
@@ -648,182 +526,65 @@ class _Action extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (view == ConnectView.loading) {
-      return const PanelCtaPlaceholder();
+      return const SizedBox(height: 52);
     }
-
     final String? deviceId = ref.watch(deviceIdStoreProvider).read();
     final DevicesController controller = ref.read(
       devicesControllerProvider.notifier,
     );
-
-    CtaStyle style;
-    VoidCallback? onPressed;
-
+    final String label = view.ctaLabel(AppText.of(context))!;
     switch (view) {
       case ConnectView.off:
-        style = CtaStyle.primary;
-        // Disabled until there is something to connect to. The controller
-        // ignores a connect with no server or profile selected, so an enabled
-        // button here would do nothing at all when pressed -- worse than one
-        // that plainly cannot be pressed yet.
+        // Disabled until there is something to connect to: the controller
+        // ignores a connect with nothing selected.
         final bool ready =
             state.selectedServerCode != null &&
             state.selectedProfileCode != null;
-        onPressed = deviceId == null || !ready
-            ? null
-            : () => controller.connect(deviceId);
+        return NebulaButton(
+          label: label,
+          icon: Icons.power_settings_new,
+          onPressed: deviceId == null || !ready
+              ? null
+              : () => controller.connect(deviceId),
+        );
       case ConnectView.connecting:
-        style = CtaStyle.secondary;
-        // Live while a connect is in flight. The same view covers a
-        // disconnect finishing, which has nothing to cancel.
-        onPressed = controller.canCancelConnect
-            ? controller.cancelConnect
-            : null;
+        // Live while a connect is in flight; a disconnect finishing has
+        // nothing to cancel.
+        return NebulaButton.secondary(
+          label: label,
+          icon: Icons.power_settings_new,
+          onPressed: controller.canCancelConnect
+              ? controller.cancelConnect
+              : null,
+        );
       case ConnectView.protected:
-        style = CtaStyle.secondary;
-        onPressed = deviceId == null
-            ? null
-            : () => controller.disconnect(deviceId);
+        return NebulaButton.secondary(
+          label: label,
+          icon: Icons.power_settings_new,
+          onPressed: deviceId == null
+              ? null
+              : () => controller.disconnect(deviceId),
+        );
       case ConnectView.notProtected:
-        style = CtaStyle.warning;
-        onPressed = deviceId == null
-            ? null
-            : () => controller.connect(deviceId);
+        return NebulaButton(
+          label: label,
+          icon: Icons.power_settings_new,
+          onPressed: deviceId == null
+              ? null
+              : () => controller.connect(deviceId),
+        );
       case ConnectView.unreachable:
+        return NebulaButton(label: label, onPressed: controller.load);
       case ConnectView.noServers:
-        style = view == ConnectView.unreachable
-            ? CtaStyle.primary
-            : CtaStyle.secondary;
-        onPressed = controller.load;
+        return NebulaButton.secondary(label: label, onPressed: controller.load);
       case ConnectView.loading:
         throw StateError('handled above');
     }
-
-    return PanelCta(
-      label: view.ctaLabel(AppText.of(context))!,
-      onPressed: onPressed,
-      style: style,
-    );
   }
 }
 
-/// The reason the last attempt failed, shown where the attempt was made.
-///
-/// Deliberately not a snackbar. A refusal like a spent data allowance is not
-/// transient information to be glanced at and lost -- it is the state the
-/// screen is in until somebody else changes it, and it has to still be there
-/// when the person looks back at the screen wondering why nothing happened.
-/// The neutral sibling of [_ActionError]: nothing has gone wrong, the app is
-/// just saying which of the two it is working from.
-class _Notice extends StatelessWidget {
-  const _Notice({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final NebulaPalette palette = context.palette;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: palette.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: palette.border),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Icon(Icons.info_outline, size: 18, color: palette.textMuted),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: context.type.rowValue.copyWith(color: palette.textMuted),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActionError extends StatelessWidget {
-  const _ActionError({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final NebulaPalette palette = context.palette;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: palette.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: palette.border),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Icon(Icons.error_outline, size: 18, color: palette.redText),
-          const SizedBox(width: 10),
-          Expanded(
-            // Wraps rather than ellipsizes. The copy is a whole sentence
-            // ending in the one thing that will actually fix it, and a row
-            // that clipped it would drop exactly that half.
-            child: Text(
-              message,
-              style: TextStyle(
-                color: palette.textPrimary,
-                fontSize: 13,
-                height: 1.4,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// What an app is set up with to use the local proxy, each tap-to-copy.
-///
-/// The password is shown rather than hidden: the whole point of the screen is
-/// to be copied from, and it only opens this phone's own loopback proxy.
-class LocalProxyRows {
-  const LocalProxyRows({required this.context, required this.proxy});
-
-  final BuildContext context;
-  final LocalProxy proxy;
-
-  List<PanelRow> rows() {
-    final AppText text = AppText.of(context);
-    return <PanelRow>[
-      PanelRow(
-        label: text.rowAddress,
-        value: '127.0.0.1:${proxy.port}',
-        onTap: () => _copy('127.0.0.1:${proxy.port}'),
-      ),
-      PanelRow(
-        label: text.rowUsername,
-        value: proxy.username,
-        onTap: () => _copy(proxy.username),
-      ),
-      PanelRow(
-        label: text.rowPassword,
-        value: proxy.password,
-        onTap: () => _copy(proxy.password),
-      ),
-    ];
-  }
-
-  Future<void> _copy(String value) async {
-    await Clipboard.setData(ClipboardData(text: value));
-    if (!context.mounted) {
-      return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppText.of(context).copiedToClipboard)),
-    );
-  }
-}
+/// Over the DNS tunnel, the resolvers in use; null on any other protocol.
+List<String>? activeDnsResolvers(WidgetRef ref, DevicesState state) =>
+    state.activeProfileCode == kDnsTunnelProfileCode
+    ? ref.watch(dnsTunnelActiveResolversProvider).value
+    : null;
