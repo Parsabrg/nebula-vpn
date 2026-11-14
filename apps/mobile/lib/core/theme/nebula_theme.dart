@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'color_tokens.dart';
+import 'look.dart';
 import 'type_scale.dart';
 
 /// Theme builders for the Panel design language.
@@ -15,6 +16,18 @@ import 'type_scale.dart';
 /// on purple defaults.
 abstract final class NebulaTheme {
   static ThemeData light() => _themeFrom(NebulaPalette.light, Brightness.light);
+
+  /// The theme for a look, mode and accent chosen in Settings, Appearance.
+  static ThemeData resolve(Brightness brightness, AppearanceChoice choice) =>
+      _themeFrom(
+        NebulaPalette.resolve(
+          look: choice.look,
+          brightness: brightness,
+          accent: choice.accent,
+          reduceTransparency: choice.reduceTransparency,
+        ),
+        brightness,
+      );
 
   /// Dark is the primary theme.
   static ThemeData dark() => _themeFrom(NebulaPalette.dark, Brightness.dark);
@@ -45,7 +58,7 @@ abstract final class NebulaTheme {
       // Not scheme.surface via Material's own derivation: the design wants the
       // screen to be exactly `bg`, with no elevation tint anywhere.
       scaffoldBackgroundColor: palette.bg,
-      canvasColor: palette.bg,
+      canvasColor: palette.canvas,
       fontFamily: 'Geist',
       extensions: <ThemeExtension<dynamic>>[palette, type],
       textTheme: _textTheme(palette, type),

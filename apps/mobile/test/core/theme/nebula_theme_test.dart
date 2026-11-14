@@ -8,20 +8,18 @@ import 'package:nebula_mobile/core/theme/type_scale.dart';
 
 void main() {
   group('palette', () {
-    test('dark carries the handoff values exactly', () {
-      // Spot-checked against the handoff table rather than every token: these
-      // are the ones a mistake would be hardest to see, because hairline,
-      // border and borderStrong are three greys within 0x20 of each other and
-      // a transposition between them looks plausible on screen.
+    test('dark carries the redesign values exactly', () {
+      // Minimal, dark, blue: nebula-redesign/reference/source/app_tokens.js.
       const NebulaPalette dark = NebulaPalette.dark;
       expect(dark.bg, const Color(0xFF0B0B0F));
       expect(dark.surface, const Color(0xFF14141A));
-      expect(dark.hairline, const Color(0xFF1B1B23));
-      expect(dark.border, const Color(0xFF26262F));
-      expect(dark.borderStrong, const Color(0xFF3A3A46));
-      expect(dark.blue, const Color(0xFF6E8BFF));
-      expect(dark.amber, const Color(0xFFE8B24A));
-      expect(dark.amberText, const Color(0xFFF2E3C6));
+      expect(dark.hairline, const Color(0xFF22222B));
+      expect(dark.borderStrong, const Color(0xFF6A6A78));
+      expect(dark.textMuted, const Color(0xFF9A9AA6));
+      expect(dark.blue, const Color(0xFF8CA4FF));
+      expect(dark.amberText, const Color(0xFFE8B24A));
+      expect(dark.ok, const Color(0xFF6FD3A0));
+      expect(dark.red, const Color(0xFFFF8A80));
     });
 
     test('text on an accent fill is the background colour, never white', () {
@@ -30,26 +28,16 @@ void main() {
       expect(NebulaPalette.dark.onAccent, NebulaPalette.dark.bg);
     });
 
-    test('the three greys stay ordered, in both themes', () {
+    test('the line sits closer to the background than the outline', () {
       for (final NebulaPalette palette in <NebulaPalette>[
         NebulaPalette.dark,
         NebulaPalette.light,
       ]) {
-        final double hairline = _luminanceDistanceFromBg(
-          palette,
-          palette.hairline,
-        );
-        final double border = _luminanceDistanceFromBg(palette, palette.border);
-        final double strong = _luminanceDistanceFromBg(
-          palette,
-          palette.borderStrong,
-        );
         expect(
-          hairline < border && border < strong,
+          _luminanceDistanceFromBg(palette, palette.hairline) <
+              _luminanceDistanceFromBg(palette, palette.borderStrong),
           isTrue,
-          reason:
-              'hairline must sit closest to the background and '
-              'borderStrong furthest, or the hierarchy inverts',
+          reason: 'a row rule must be quieter than a control outline',
         );
       }
     });
