@@ -36,6 +36,9 @@ try {
     if (-not (Test-Path -LiteralPath (Join-Path $destination 'wintun.dll'))) {
         throw 'The official Xray Windows archive did not contain wintun.dll.'
     }
+    # Its routing data, cut to what the app names (26 MB of every country).
+    python (Join-Path $root 'tool\trim_geodata.py') $destination
+    if ($LASTEXITCODE -ne 0) { throw 'Trimming the Xray routing data failed.' }
     Get-VerifiedAsset 'https://github.com/HyNetworks/hysteria/releases/download/app/v2.12.2/hysteria-windows-amd64.exe' (Join-Path $destination 'hysteria.exe') $hysteriaHash
     Get-VerifiedAsset "https://github.com/WhiteDNS/CottenDNS/releases/download/$cottenVersion/CottenDns_Client_Windows_AMD64.zip" $cottenZip $cottenHash
     $cottenFolder = Join-Path $env:TEMP 'nebula-cottendns-windows'

@@ -35,6 +35,8 @@ fetch() { # url, file, expected sha256
 fetch "https://github.com/XTLS/Xray-core/releases/download/$xray_version/Xray-linux-64.zip" \
   "$temporary/xray.zip" "$xray_hash"
 unzip -qo "$temporary/xray.zip" xray geoip.dat geosite.dat LICENSE -d "$destination"
+# Its routing data, cut to what the app names (26 MB of every country).
+python3 "$root/tool/trim_geodata.py" "$destination"
 
 fetch "https://github.com/HyNetworks/hysteria/releases/download/app/$hysteria_version/hysteria-linux-amd64" \
   "$destination/hysteria" "$hysteria_hash"

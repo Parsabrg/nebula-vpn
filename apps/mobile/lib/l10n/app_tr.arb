@@ -505,5 +505,9 @@
   "privacyPolicyMeta": "Neyin saklandığı ve neyin nereye gönderildiği",
   "termsOfUse": "Kullanım koşulları",
   "termsOfUseMeta": "Nebula'yı ve ulaştığı sunucuları kullanmak",
-  "legalEnglishOnly": "Bu metin yalnızca İngilizcedir."
+  "legalEnglishOnly": "Bu metin yalnızca İngilizcedir.",
+  "sectionStartup": "Başlangıç",
+  "sectionRouting": "Yönlendirme",
+  "sectionDetails": "Ayrıntılar",
+  "sectionManage": "Yönet"
 }

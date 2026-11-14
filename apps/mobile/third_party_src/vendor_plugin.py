@@ -313,6 +313,13 @@ def main() -> None:
     print("fetching the Aether WARP client (pinned by digest)")
     fetch_aether(TARGET / "android/src/main/jniLibs")
 
+    # Xray's routing data in the plugin's AAR, cut to what the app names
+    # (tool/trim_geodata.py): 27 MB of every country and category, otherwise.
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tool"))
+    import trim_geodata
+
+    trim_geodata.trim_path(TARGET / "android/libs/libv2ray.aar")
+
     print()
     print("done. `flutter build apk` will now use the patched plugin via")
     print("pubspec_overrides.yaml.")

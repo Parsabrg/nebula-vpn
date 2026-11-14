@@ -505,5 +505,9 @@
   "privacyPolicyMeta": "Wat bewaard wordt, en wat waarheen gaat",
   "termsOfUse": "Gebruiksvoorwaarden",
   "termsOfUseMeta": "Nebula gebruiken en de servers die het bereikt",
-  "legalEnglishOnly": "Deze tekst is alleen in het Engels."
+  "legalEnglishOnly": "Deze tekst is alleen in het Engels.",
+  "sectionStartup": "Opstarten",
+  "sectionRouting": "Routering",
+  "sectionDetails": "Gegevens",
+  "sectionManage": "Beheren"
 }

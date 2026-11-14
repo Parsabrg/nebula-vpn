@@ -505,5 +505,9 @@
   "privacyPolicyMeta": "ما يُخزَّن وما يُرسَل وإلى أين",
   "termsOfUse": "شروط الاستخدام",
   "termsOfUseMeta": "استخدام Nebula والخوادم التي يصل إليها",
-  "legalEnglishOnly": "هذا النص بالإنجليزية فقط."
+  "legalEnglishOnly": "هذا النص بالإنجليزية فقط.",
+  "sectionStartup": "بدء التشغيل",
+  "sectionRouting": "التوجيه",
+  "sectionDetails": "التفاصيل",
+  "sectionManage": "الإدارة"
 }

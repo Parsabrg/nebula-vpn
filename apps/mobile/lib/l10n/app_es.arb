@@ -505,5 +505,9 @@
   "privacyPolicyMeta": "Qué se guarda y qué se envía adónde",
   "termsOfUse": "Condiciones de uso",
   "termsOfUseMeta": "Usar Nebula y los servidores a los que llega",
-  "legalEnglishOnly": "Este texto solo está en inglés."
+  "legalEnglishOnly": "Este texto solo está en inglés.",
+  "sectionStartup": "Inicio",
+  "sectionRouting": "Enrutamiento",
+  "sectionDetails": "Detalles",
+  "sectionManage": "Gestionar"
 }

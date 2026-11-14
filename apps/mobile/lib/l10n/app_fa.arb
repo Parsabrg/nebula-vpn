@@ -509,5 +509,9 @@
   "privacyPolicyMeta": "چه چیزی ذخیره و به کجا فرستاده می‌شود",
   "termsOfUse": "شرایط استفاده",
   "termsOfUseMeta": "استفاده از نبولا و سرورهایی که به آن‌ها وصل می‌شود",
-  "legalEnglishOnly": "این متن فقط به انگلیسی است."
+  "legalEnglishOnly": "این متن فقط به انگلیسی است.",
+  "sectionStartup": "راه‌اندازی",
+  "sectionRouting": "مسیریابی",
+  "sectionDetails": "جزئیات",
+  "sectionManage": "مدیریت"
 }

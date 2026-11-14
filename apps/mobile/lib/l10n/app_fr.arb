@@ -505,5 +505,9 @@
   "privacyPolicyMeta": "Ce qui est conservé, et ce qui est envoyé où",
   "termsOfUse": "Conditions d'utilisation",
   "termsOfUseMeta": "Utiliser Nebula et les serveurs qu'il joint",
-  "legalEnglishOnly": "Ce texte n'existe qu'en anglais."
+  "legalEnglishOnly": "Ce texte n'existe qu'en anglais.",
+  "sectionStartup": "Démarrage",
+  "sectionRouting": "Routage",
+  "sectionDetails": "Détails",
+  "sectionManage": "Gérer"
 }

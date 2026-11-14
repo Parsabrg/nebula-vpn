@@ -505,5 +505,9 @@
   "privacyPolicyMeta": "存储什么，以及发送到哪里",
   "termsOfUse": "使用条款",
   "termsOfUseMeta": "使用 Nebula 及其连接的服务器",
-  "legalEnglishOnly": "此文本仅有英文版。"
+  "legalEnglishOnly": "此文本仅有英文版。",
+  "sectionStartup": "启动",
+  "sectionRouting": "路由",
+  "sectionDetails": "详情",
+  "sectionManage": "管理"
 }
