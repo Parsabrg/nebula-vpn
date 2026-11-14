@@ -509,5 +509,8 @@
   "sectionStartup": "Inicio",
   "sectionRouting": "Enrutamiento",
   "sectionDetails": "Detalles",
-  "sectionManage": "Gestionar"
+  "sectionManage": "Gestionar",
+  "renameDevice": "Renombrar dispositivo",
+  "deviceNameLabel": "Nombre del dispositivo",
+  "devicesRenameHint": "Toca un dispositivo para cambiarle el nombre."
 }

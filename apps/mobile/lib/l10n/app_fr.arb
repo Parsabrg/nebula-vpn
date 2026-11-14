@@ -509,5 +509,8 @@
   "sectionStartup": "Démarrage",
   "sectionRouting": "Routage",
   "sectionDetails": "Détails",
-  "sectionManage": "Gérer"
+  "sectionManage": "Gérer",
+  "renameDevice": "Renommer l'appareil",
+  "deviceNameLabel": "Nom de l'appareil",
+  "devicesRenameHint": "Touchez un appareil pour le renommer."
 }

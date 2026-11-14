@@ -509,5 +509,8 @@
   "sectionStartup": "Opstarten",
   "sectionRouting": "Routering",
   "sectionDetails": "Gegevens",
-  "sectionManage": "Beheren"
+  "sectionManage": "Beheren",
+  "renameDevice": "Apparaat hernoemen",
+  "deviceNameLabel": "Apparaatnaam",
+  "devicesRenameHint": "Tik op een apparaat om het te hernoemen."
 }

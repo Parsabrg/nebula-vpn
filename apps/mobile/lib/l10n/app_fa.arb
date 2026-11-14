@@ -513,5 +513,8 @@
   "sectionStartup": "راه‌اندازی",
   "sectionRouting": "مسیریابی",
   "sectionDetails": "جزئیات",
-  "sectionManage": "مدیریت"
+  "sectionManage": "مدیریت",
+  "renameDevice": "تغییر نام دستگاه",
+  "deviceNameLabel": "نام دستگاه",
+  "devicesRenameHint": "برای تغییر نام، روی دستگاه بزنید."
 }

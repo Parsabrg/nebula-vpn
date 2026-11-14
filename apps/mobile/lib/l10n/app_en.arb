@@ -642,5 +642,8 @@
   "sectionStartup": "Startup",
   "sectionRouting": "Routing",
   "sectionDetails": "Details",
-  "sectionManage": "Manage"
+  "sectionManage": "Manage",
+  "renameDevice": "Rename device",
+  "deviceNameLabel": "Device name",
+  "devicesRenameHint": "Tap a device to rename it."
 }

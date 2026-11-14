@@ -28,7 +28,7 @@ data, and the one to ask about it. The terms of use are in
 | Email address, optional username | To sign in, and to send the emails you ask for |
 | Password hash (Argon2id) | To check your password |
 | Account state, device limit, data allowance, expiry | The limits your account has |
-| Each device: the name you see in Devices, its platform (Android, Windows, Linux), the app version, and whether it is revoked | So you can see and revoke your devices |
+| Each device: the name you see in Devices (at first the phone's maker and model or the computer's name; you can rename it), its platform (Android, Windows, Linux), the app version, and whether it is revoked | So you can tell your devices apart, and revoke them |
 | Sessions: which device, when it expires, when it was last used | To keep you signed in, and to sign a device out when it is revoked |
 | Each device's VPN keys and credentials (WireGuard public key, Xray/Hysteria2 credentials, encrypted) | So the server lets that device connect |
 | Traffic counters per device and protocol: bytes received and sent, and when they were last read | Data allowances and the usage you see; amounts only, never where they went |

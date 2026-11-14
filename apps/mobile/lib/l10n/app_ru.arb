@@ -509,5 +509,8 @@
   "sectionStartup": "Запуск",
   "sectionRouting": "Маршрутизация",
   "sectionDetails": "Сведения",
-  "sectionManage": "Управление"
+  "sectionManage": "Управление",
+  "renameDevice": "Переименовать устройство",
+  "deviceNameLabel": "Имя устройства",
+  "devicesRenameHint": "Нажмите на устройство, чтобы переименовать его."
 }

@@ -509,5 +509,8 @@
   "sectionStartup": "Start",
   "sectionRouting": "Routing",
   "sectionDetails": "Details",
-  "sectionManage": "Verwalten"
+  "sectionManage": "Verwalten",
+  "renameDevice": "Gerät umbenennen",
+  "deviceNameLabel": "Gerätename",
+  "devicesRenameHint": "Tippe auf ein Gerät, um es umzubenennen."
 }

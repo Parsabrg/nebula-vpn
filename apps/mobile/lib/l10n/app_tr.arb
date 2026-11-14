@@ -509,5 +509,8 @@
   "sectionStartup": "Başlangıç",
   "sectionRouting": "Yönlendirme",
   "sectionDetails": "Ayrıntılar",
-  "sectionManage": "Yönet"
+  "sectionManage": "Yönet",
+  "renameDevice": "Cihazı yeniden adlandır",
+  "deviceNameLabel": "Cihaz adı",
+  "devicesRenameHint": "Yeniden adlandırmak için bir cihaza dokunun."
 }

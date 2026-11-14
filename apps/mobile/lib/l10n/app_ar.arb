@@ -509,5 +509,8 @@
   "sectionStartup": "بدء التشغيل",
   "sectionRouting": "التوجيه",
   "sectionDetails": "التفاصيل",
-  "sectionManage": "الإدارة"
+  "sectionManage": "الإدارة",
+  "renameDevice": "إعادة تسمية الجهاز",
+  "deviceNameLabel": "اسم الجهاز",
+  "devicesRenameHint": "اضغط على جهاز لإعادة تسميته."
 }

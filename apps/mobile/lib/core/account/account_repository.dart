@@ -108,6 +108,9 @@ abstract interface class AccountRepository {
   Future<List<AccountDevice>> listDevices();
   Future<void> revokeDevice(String deviceId);
 
+  /// Renames one of the account's devices.
+  Future<void> renameDevice(String deviceId, String name);
+
   /// Changes the password; the server signs out every other device.
   Future<void> changePassword({
     required String currentPassword,
@@ -180,6 +183,18 @@ class DioAccountRepository implements AccountRepository {
   Future<void> revokeDevice(String deviceId) async {
     try {
       await _dio.post<dynamic>('/v1/account/devices/$deviceId/revoke');
+    } on DioException catch (error) {
+      throw translateDioException(error);
+    }
+  }
+
+  @override
+  Future<void> renameDevice(String deviceId, String name) async {
+    try {
+      await _dio.post<dynamic>(
+        '/v1/account/devices/$deviceId/name',
+        data: <String, String>{'name': name},
+      );
     } on DioException catch (error) {
       throw translateDioException(error);
     }

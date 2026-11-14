@@ -509,5 +509,8 @@
   "sectionStartup": "启动",
   "sectionRouting": "路由",
   "sectionDetails": "详情",
-  "sectionManage": "管理"
+  "sectionManage": "管理",
+  "renameDevice": "重命名设备",
+  "deviceNameLabel": "设备名称",
+  "devicesRenameHint": "点按设备即可重命名。"
 }
