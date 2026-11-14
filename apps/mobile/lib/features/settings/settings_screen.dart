@@ -185,13 +185,14 @@ class SettingsScreen extends ConsumerWidget {
             if (warpSupported)
               PanelExternalRow(
                 title: text.warpTitle,
-                meta:
-                    ref
-                        .watch(advancedSettingsControllerProvider)
-                        .warp
-                        .throughWarp
-                    ? text.warpThroughOn
-                    : text.warpRowMeta,
+                meta: switch (ref
+                    .watch(advancedSettingsControllerProvider)
+                    .warp) {
+                  WarpSettings(throughWarp: true) => text.warpThroughOn,
+                  WarpSettings(leaveOutsideIran: true) =>
+                    text.warpOutsideIranOn,
+                  _ => text.warpRowMeta,
+                },
                 onTap: () => context.push(RoutePaths.homeWarp),
               ),
             PanelExternalRow(
