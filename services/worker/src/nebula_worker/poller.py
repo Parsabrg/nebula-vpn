@@ -213,7 +213,10 @@ async def deliver_one(
         return
     try:
         provider_message_id = await adapter.send(
-            to=delivery.recipient_address, subject=rendered.subject, body=rendered.body
+            to=delivery.recipient_address,
+            subject=rendered.subject,
+            body=rendered.body,
+            html=rendered.html,
         )
     except EmailSendError:
         _LOGGER.warning("Email delivery attempt failed", extra={"delivery_id": str(delivery.id)})

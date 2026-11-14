@@ -91,7 +91,7 @@ class FakeAdapter:
         self.error = error
         self.calls: list[tuple[str, str, str]] = []
 
-    async def send(self, *, to: str, subject: str, body: str) -> str:
+    async def send(self, *, to: str, subject: str, body: str, html: str | None = None) -> str:
         self.calls.append((to, subject, body))
         if self.error is not None:
             raise self.error
@@ -401,7 +401,7 @@ def test_poll_once_continues_after_one_delivery_raises() -> None:
     engine = FakeEngine(claim_rows=list(rows))
 
     class ExplodingOnFirstAdapter(FakeAdapter):
-        async def send(self, *, to: str, subject: str, body: str) -> str:
+        async def send(self, *, to: str, subject: str, body: str, html: str | None = None) -> str:
             self.calls.append((to, subject, body))
             if len(self.calls) == 1:
                 raise RuntimeError("unexpected boom")

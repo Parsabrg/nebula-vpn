@@ -14,13 +14,13 @@ class SmtpAdapter:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
 
-    async def send(self, *, to: str, subject: str, body: str) -> str:
+    async def send(self, *, to: str, subject: str, body: str, html: str | None = None) -> str:
         try:
-            return await asyncio.to_thread(self._send_sync, to, subject, body)
+            return await asyncio.to_thread(self._send_sync, to, subject, body, html)
         except (OSError, smtplib.SMTPException) as error:
             raise EmailSendError("SMTP delivery failed") from error
 
-    def _send_sync(self, to: str, subject: str, body: str) -> str:
+    def _send_sync(self, to: str, subject: str, body: str, html: str | None = None) -> str:
         message = EmailMessage()
         message["Subject"] = subject
         message["From"] = self._settings.email_from
@@ -28,6 +28,9 @@ class SmtpAdapter:
         message_id = f"<{uuid.uuid4()}@nebula-worker>"
         message["Message-ID"] = message_id
         message.set_content(body)
+        if html is not None:
+            # multipart/alternative: the plain text stays the fallback part.
+            message.add_alternative(html, subtype="html")
 
         settings = self._settings
         connection: smtplib.SMTP
