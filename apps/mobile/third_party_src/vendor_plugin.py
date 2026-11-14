@@ -89,8 +89,8 @@ COTTENDNS_ZIP = (
 
 # Aether, the Cloudflare WARP client (patterniha/Aether, AGPL-3.0): WARP mode
 # and the way in to our servers through WARP. Run as a child process like
-# Hysteria2; only the `aether` binary of each release archive is taken (the
-# archives also carry Tor's and Psiphon's, which the app does not use). No x86
+# Hysteria2; the `aether` binary of each release archive is taken, and its
+# Psiphon for "Leave outside Iran" (the archives also carry Tor's, unused). No x86
 # build is published, so 32-bit emulators have no WARP.
 AETHER_RELEASE = "https://github.com/patterniha/Aether/releases/download/v2.4.0/"
 AETHER_ARCHIVES = {
@@ -204,13 +204,17 @@ def fetch_aether(jni_libs: Path) -> None:
             raise SystemExit(
                 f"{archive_name} digest mismatch\n  expected {digest}\n  got      {actual}"
             )
+        # Psiphon too: "Leave outside Iran" runs WARP mode out through it.
         with tarfile.open(fileobj=io.BytesIO(payload), mode="r:gz") as archive:
-            member = archive.getmember("aether")
-            extracted = archive.extractfile(member)
-            if extracted is None:
-                raise SystemExit(f"{archive_name} has no aether binary")
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(extracted.read())
+            for member_name, library in (
+                ("aether", "libaether.so"),
+                ("pt/psiphon-tunnel-core", "libpsiphon.so"),
+            ):
+                extracted = archive.extractfile(archive.getmember(member_name))
+                if extracted is None:
+                    raise SystemExit(f"{archive_name} has no {member_name}")
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                (destination.parent / library).write_bytes(extracted.read())
 
 
 def android_ndk() -> Path:

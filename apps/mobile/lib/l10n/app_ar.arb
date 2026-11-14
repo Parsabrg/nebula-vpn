@@ -497,5 +497,13 @@
   "warpNewKeys": "الحصول على مفاتيح WARP جديدة",
   "warpNewKeysMeta": "عند الاتصال التالي",
   "warpNewKeysDone": "ستُنشأ مفاتيح جديدة عند الاتصال التالي.",
-  "warpNewKeysExplain": "هذه المفاتيح هي تسجيل WARP المجاني لهذا الجهاز. احصل على مفاتيح جديدة إن اتصل WARP دون أن ينقل شيئًا."
+  "warpNewKeysExplain": "هذه المفاتيح هي تسجيل WARP المجاني لهذا الجهاز. احصل على مفاتيح جديدة إن اتصل WARP دون أن ينقل شيئًا.",
+  "warpOutsideIranTitle": "الخروج من خارج إيران",
+  "warpOutsideIranOn": "تشغيل: الخروج عبر Psiphon",
+  "warpOutsideIranExplain": "لخادم Cloudflare WARP. تضع Cloudflare مخرج WARP لكل من في إيران داخل إيران، لذا فالمواقع التي ترفض إيران ترفض WARP أيضًا. عند التشغيل، يوصلك WARP إلى Psiphon، وترى المواقع عنوان Psiphon خارج إيران. أبطأ، ويستغرق الاتصال وقتًا أطول قليلًا. خوادمك التي تصل إليها عبر WARP تخرج من الخادم أصلًا.",
+  "privacyPolicy": "سياسة الخصوصية",
+  "privacyPolicyMeta": "ما يُخزَّن وما يُرسَل وإلى أين",
+  "termsOfUse": "شروط الاستخدام",
+  "termsOfUseMeta": "استخدام Nebula والخوادم التي يصل إليها",
+  "legalEnglishOnly": "هذا النص بالإنجليزية فقط."
 }

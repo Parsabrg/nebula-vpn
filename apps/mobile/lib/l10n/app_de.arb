@@ -497,5 +497,13 @@
   "warpNewKeys": "Neue WARP-Schlüssel holen",
   "warpNewKeysMeta": "Bei der nächsten Verbindung",
   "warpNewKeysDone": "Neue Schlüssel entstehen bei der nächsten Verbindung.",
-  "warpNewKeysExplain": "Die Schlüssel sind die kostenlose WARP-Anmeldung dieses Geräts. Hol neue, wenn WARP verbindet, aber nichts überträgt."
+  "warpNewKeysExplain": "Die Schlüssel sind die kostenlose WARP-Anmeldung dieses Geräts. Hol neue, wenn WARP verbindet, aber nichts überträgt.",
+  "warpOutsideIranTitle": "Außerhalb des Iran herauskommen",
+  "warpOutsideIranOn": "Ein: hinaus über Psiphon",
+  "warpOutsideIranExplain": "Für den Server Cloudflare WARP. Cloudflare verortet jeden WARP-Ausgang für Menschen im Iran im Iran, daher lehnen Seiten, die den Iran ablehnen, auch WARP ab. Ist dies an, bringt WARP dich zu Psiphon, und Seiten sehen eine Psiphon-Adresse außerhalb des Iran. Langsamer, und das Verbinden dauert etwas länger. Deine über WARP erreichten Server kommen ohnehin beim Server heraus.",
+  "privacyPolicy": "Datenschutzerklärung",
+  "privacyPolicyMeta": "Was gespeichert und wohin was gesendet wird",
+  "termsOfUse": "Nutzungsbedingungen",
+  "termsOfUseMeta": "Nebula und die erreichten Server nutzen",
+  "legalEnglishOnly": "Dieser Text ist nur auf Englisch."
 }

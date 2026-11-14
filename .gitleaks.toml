@@ -65,6 +65,9 @@ regexes = [
   '''f851110beaff16e78d643f0ccfd9524b4a44dfd59bae3e34bb52bba378f7690e''',
   # And Hysteria2's Linux release, pinned in the same script.
   '''6493dfffd55b5883f64c76c63880ecc32988f0c568c9ca9014907877b4d55f94''',
+  # Aether (Cloudflare WARP) for Windows and Linux, pinned in both scripts.
+  '''84ABF564B5549D4FEC2E6B8ECDE17A8309FFD4A829B3F96A412322CFB0E5E3BE''',
+  '''35d56f3a30976da825c5fc0725eb76817e430182925b194284912bbbec98aa06''',
   # appimagetool 1.9.0 and the AppImage type2 runtime, pinned in
   # apps/mobile/tool/build_linux_packages.sh.
   '''46fdd785094c7f6e545b61afcfb0f3d98d8eab243f644b4b17698c01d06083d1''',

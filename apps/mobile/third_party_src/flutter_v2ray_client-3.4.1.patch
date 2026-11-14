@@ -358,7 +358,7 @@ index 14830fd..3b5c5be 100644
  
      public static AppConfigs.V2RAY_CONNECTION_MODES getConnectionMode() {
 diff --git a/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/core/V2rayCoreManager.java b/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/core/V2rayCoreManager.java
-index 98a666e..f8a9df0 100644
+index 98a666e..9502e88 100644
 --- a/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/core/V2rayCoreManager.java
 +++ b/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/core/V2rayCoreManager.java
 @@ -13,6 +13,7 @@ import android.content.Context;
@@ -680,7 +680,7 @@ index 98a666e..f8a9df0 100644
              coreController.startLoop(v2rayConfig.V2RAY_FULL_JSON_CONFIG, 0);
              V2RAY_STATE = AppConfigs.V2RAY_STATES.V2RAY_CONNECTED;
              if (isV2rayCoreRunning()) {
-@@ -217,7 +393,344 @@ public final class V2rayCoreManager {
+@@ -217,7 +393,388 @@ public final class V2rayCoreManager {
          return true;
      }
  
@@ -749,7 +749,7 @@ index 98a666e..f8a9df0 100644
 +                    new java.util.concurrent.CountDownLatch(1);
 +            aetherReady = ready;
 +            aetherProcess = startAetherProcess(service, run.getJSONArray("args"),
-+                    ready::countDown);
++                    run.optString("ready", "socks5 server listening"), ready::countDown);
 +            if (aetherProcess != null) {
 +                // Its exit ends the wait at once rather than at the deadline.
 +                final Process started = aetherProcess;
@@ -775,7 +775,8 @@ index 98a666e..f8a9df0 100644
 +     * and the last working endpoint. Its output goes to logcat.
 +     */
 +    public static Process startAetherProcess(final Context context,
-+            final org.json.JSONArray args, final Runnable onServing) throws Exception {
++            final org.json.JSONArray args, final String readyLine,
++            final Runnable onServing) throws Exception {
 +        final File folder = new File(context.getFilesDir(), "aether");
 +        folder.mkdirs();
 +        final File binary = new File(context.getApplicationInfo().nativeLibraryDir, "libaether.so");
@@ -788,6 +789,12 @@ index 98a666e..f8a9df0 100644
 +        for (int i = 0; i < args.length(); i++) {
 +            command.add(args.getString(i));
 +        }
++        if (command.contains("--psiphon")) {
++            // "Leave outside Iran": Psiphon ships beside it in jniLibs.
++            command.add("--psiphon-bin");
++            command.add(new File(context.getApplicationInfo().nativeLibraryDir,
++                    "libpsiphon.so").getAbsolutePath());
++        }
 +        final ProcessBuilder builder = new ProcessBuilder(command);
 +        builder.redirectErrorStream(true);
 +        builder.directory(folder);
@@ -798,7 +805,10 @@ index 98a666e..f8a9df0 100644
 +                String line;
 +                while ((line = reader.readLine()) != null) {
 +                    Log.i("Aether", line);
-+                    if (line.contains("socks5 server listening")) {
++                    // The line naming the port Xray dials: WireGuard inside
++                    // MASQUE logs "socks5 server listening" for an inner port
++                    // first, before its tunnel exists.
++                    if (line.contains(readyLine)) {
 +                        onServing.run();
 +                    }
 +                }
@@ -814,6 +824,40 @@ index 98a666e..f8a9df0 100644
 +        aetherProcess = null;
 +        if (process != null) {
 +            process.destroy();
++            killStrayPsiphon();
++        }
++    }
++
++    /** Psiphon, which Aether starts, outlives a killed Aether (measured). */
++    private static void killStrayPsiphon() {
++        final File[] entries = new File("/proc").listFiles();
++        if (entries == null) {
++            return;
++        }
++        for (final File entry : entries) {
++            final int pid;
++            try {
++                pid = Integer.parseInt(entry.getName());
++            } catch (NumberFormatException notProcess) {
++                continue;
++            }
++            try (java.io.FileInputStream in = new java.io.FileInputStream(
++                    new File(entry, "cmdline"))) {
++                final byte[] buffer = new byte[512];
++                final int read = in.read(buffer);
++                if (read <= 0) {
++                    continue;
++                }
++                int end = 0;
++                while (end < read && buffer[end] != 0) {
++                    end++;
++                }
++                if (new String(buffer, 0, end, "UTF-8").endsWith("/libpsiphon.so")) {
++                    android.os.Process.killProcess(pid);
++                }
++            } catch (Exception ignored) {
++                // Gone, or another app's.
++            }
 +        }
 +    }
 +
@@ -1025,7 +1069,7 @@ index 98a666e..f8a9df0 100644
          try {
              // Safely cancel notification - handle cases where service might be null
              if (v2rayServicesListener != null && v2rayServicesListener.getService() != null) {
-@@ -232,14 +745,18 @@ public final class V2rayCoreManager {
+@@ -232,14 +789,18 @@ public final class V2rayCoreManager {
          }
  
          try {
@@ -1049,7 +1093,7 @@ index 98a666e..f8a9df0 100644
              }
              sendDisconnectedBroadCast();
          } catch (Exception e) {
-@@ -307,6 +824,63 @@ public final class V2rayCoreManager {
+@@ -307,6 +868,63 @@ public final class V2rayCoreManager {
          return "";
      }
  
@@ -1113,7 +1157,7 @@ index 98a666e..f8a9df0 100644
      private void showNotification(final V2rayConfig v2rayConfig) {
          Service context = v2rayServicesListener.getService();
          if (context == null) {
-@@ -321,20 +895,46 @@ public final class V2rayCoreManager {
+@@ -321,20 +939,46 @@ public final class V2rayCoreManager {
              }
          }
  
@@ -1167,7 +1211,7 @@ index 98a666e..f8a9df0 100644
  
          String notificationChannelID = createNotificationChannelID(v2rayConfig.APPLICATION_NAME);
  
-@@ -357,7 +957,7 @@ public final class V2rayCoreManager {
+@@ -357,7 +1001,7 @@ public final class V2rayCoreManager {
                      notificationChannelID)
                      .setSmallIcon(v2rayConfig.APPLICATION_ICON)
                      .setContentTitle(v2rayConfig.REMARK)
@@ -1176,7 +1220,7 @@ index 98a666e..f8a9df0 100644
                      .setPriority(NotificationCompat.PRIORITY_MIN)
                      .setShowWhen(false)
                      .setOnlyAlertOnce(true)
-@@ -366,6 +966,10 @@ public final class V2rayCoreManager {
+@@ -366,6 +1010,10 @@ public final class V2rayCoreManager {
                      .setOngoing(true);
  
              context.startForeground(NOTIFICATION_ID, notificationBuilder.build());
@@ -1187,7 +1231,7 @@ index 98a666e..f8a9df0 100644
          } catch (Exception e) {
              Log.w("V2rayCoreManager", "Failed to show notification, continuing without notification", e);
              // VPN/Proxy continues to work even if notification fails
-@@ -373,6 +977,14 @@ public final class V2rayCoreManager {
+@@ -373,6 +1021,14 @@ public final class V2rayCoreManager {
      }
  
      public boolean isV2rayCoreRunning() {
@@ -1202,7 +1246,7 @@ index 98a666e..f8a9df0 100644
          if (coreController != null) {
              return coreController.getIsRunning();
          }
-@@ -389,22 +1001,220 @@ public final class V2rayCoreManager {
+@@ -389,23 +1045,221 @@ public final class V2rayCoreManager {
          }
      }
  
@@ -1212,21 +1256,31 @@ index 98a666e..f8a9df0 100644
 +        if (hysteriaYaml != null) {
 +            return getHysteriaServerDelay(context, config, hysteriaYaml, url);
 +        }
-+        try {
+         try {
+-            try {
+-                JSONObject config_json = new JSONObject(config);
+-                JSONObject new_routing_json = config_json.getJSONObject("routing");
+-                new_routing_json.remove("rules");
+-                config_json.remove("routing");
+-                config_json.put("routing", new_routing_json);
+-                return Libv2ray.measureOutboundDelay(config_json.toString(), url);
+-            } catch (Exception json_error) {
+-                Log.e("getV2rayServerDelay", json_error.toString());
+-                return Libv2ray.measureOutboundDelay(config, url);
 +            final JSONObject config_json = new JSONObject(config);
 +            // Everything to the proxy: the tunnel's own rules would send the
 +            // test's request direct.
 +            final JSONObject routing = config_json.optJSONObject("routing");
 +            if (routing != null) {
 +                routing.remove("rules");
-+            }
+             }
 +            return measureThroughCore(config_json, url);
-+        } catch (Exception e) {
-+            Log.e("getV2rayServerDelayCore", e.toString());
-+            return -1L;
-+        }
-+    }
-+
+         } catch (Exception e) {
+             Log.e("getV2rayServerDelayCore", e.toString());
+             return -1L;
+         }
+     }
+ 
 +    /**
 +     * The delay to [url] through [config], counted only if the whole answer
 +     * then arrives. Xray's own measureOutboundDelay stops at the response
@@ -1264,23 +1318,14 @@ index 98a666e..f8a9df0 100644
 +            }
 +        });
 +        core.startLoop(config.toString(), 0);
-         try {
++        try {
 +            return twiceThrough(url, port);
 +        } finally {
-             try {
--                JSONObject config_json = new JSONObject(config);
--                JSONObject new_routing_json = config_json.getJSONObject("routing");
--                new_routing_json.remove("rules");
--                config_json.remove("routing");
--                config_json.put("routing", new_routing_json);
--                return Libv2ray.measureOutboundDelay(config_json.toString(), url);
--            } catch (Exception json_error) {
--                Log.e("getV2rayServerDelay", json_error.toString());
--                return Libv2ray.measureOutboundDelay(config, url);
++            try {
 +                core.stopLoop();
 +            } catch (Exception ignored) {
 +                // already stopped
-             }
++            }
 +        }
 +    }
 +
@@ -1332,10 +1377,9 @@ index 98a666e..f8a9df0 100644
 +                }
 +            }
 +            return expected > 0 && received < expected ? -1L : delay;
-         } catch (Exception e) {
--            Log.e("getV2rayServerDelayCore", e.toString());
++        } catch (Exception e) {
 +            Log.w("timedGet", e.toString());
-             return -1L;
++            return -1L;
 +        } finally {
 +            if (connection != null) {
 +                connection.disconnect();
@@ -1431,9 +1475,10 @@ index 98a666e..f8a9df0 100644
 +            if (configFile != null) {
 +                configFile.delete();
 +            }
-         }
-     }
- 
++        }
++    }
++
+ }
 diff --git a/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/services/DelayProbeService.java b/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/services/DelayProbeService.java
 new file mode 100644
 index 0000000..1df187f

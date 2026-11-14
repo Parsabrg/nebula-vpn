@@ -220,7 +220,12 @@ String renderXrayClientConfigJson(
       // First outbound is Xray's default route, so the real one stays first
       // and the blackhole is only ever reached by an explicit rule below.
       if (result.transport == kWarpTransport)
-        _aetherSocksOutbound('proxy', warpPortFor(localProxy))
+        _aetherSocksOutbound(
+          'proxy',
+          leavesThroughPsiphon(result, settings)
+              ? psiphonPortFor(warpPortFor(localProxy))
+              : warpPortFor(localProxy),
+        )
       else
         _withWarpEntry(
           _withFragment(
@@ -330,9 +335,24 @@ String renderXrayClientConfigJson(
   };
   if (result.transport == kWarpTransport ||
       reachesServerThroughWarp(result, settings)) {
+    final bool psiphon = leavesThroughPsiphon(result, settings);
+    if (psiphon) {
+      // Psiphon reaches no IPv6 address (refused at once, measured): apps
+      // trying a site's IPv6 first got nothing, and the traffic watch took
+      // the tunnel down within a minute. Answered IPv4 only, they use that.
+      config['dns'] = <String, dynamic>{
+        ...config['dns'] as Map<String, dynamic>,
+        'queryStrategy': 'UseIPv4',
+      };
+    }
     config['nebulaAether'] = <String, dynamic>{
-      'args': aetherArguments(settings.warp, warpPortFor(localProxy)),
+      'args': aetherArguments(
+        settings.warp,
+        warpPortFor(localProxy),
+        psiphon: psiphon,
+      ),
       'port': warpPortFor(localProxy),
+      'ready': aetherReadyLine(warpPortFor(localProxy), psiphon: psiphon),
     };
   }
   // A clean Cloudflare address chosen for this very route: the tunnel dials
@@ -1152,6 +1172,11 @@ bool reachesServerThroughWarp(
     settings.warp.throughWarp &&
     result.transport != kWarpTransport &&
     result.transport != 'hysteria';
+
+/// WARP mode with "Leave outside Iran": out through Psiphon. A server of
+/// ours reached through WARP leaves from that server already.
+bool leavesThroughPsiphon(XrayClientResult result, AdvancedSettings settings) =>
+    result.transport == kWarpTransport && settings.warp.leaveOutsideIran;
 
 /// Aether serves SOCKS5 with no account: it binds loopback only, on a port
 /// chosen per connection.

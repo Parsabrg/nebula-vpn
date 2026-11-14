@@ -497,5 +497,13 @@
   "warpNewKeys": "获取新的 WARP 密钥",
   "warpNewKeysMeta": "下次连接时",
   "warpNewKeysDone": "下次连接时将生成新密钥。",
-  "warpNewKeysExplain": "这些密钥是本设备的免费 WARP 注册。若 WARP 已连接却不传数据，请获取新密钥。"
+  "warpNewKeysExplain": "这些密钥是本设备的免费 WARP 注册。若 WARP 已连接却不传数据，请获取新密钥。",
+  "warpOutsideIranTitle": "从伊朗境外出口",
+  "warpOutsideIranOn": "开：经 Psiphon 出口",
+  "warpOutsideIranExplain": "用于 Cloudflare WARP 服务器。Cloudflare 会把伊朗用户的每个 WARP 出口都定位在伊朗，因此拒绝伊朗的网站也会拒绝 WARP。开启后，WARP 会把你带到 Psiphon，网站看到的是伊朗境外的 Psiphon 地址。速度较慢，连接也会稍久一些。通过 WARP 连接的你的服务器本来就从服务器出口。",
+  "privacyPolicy": "隐私政策",
+  "privacyPolicyMeta": "存储什么，以及发送到哪里",
+  "termsOfUse": "使用条款",
+  "termsOfUseMeta": "使用 Nebula 及其连接的服务器",
+  "legalEnglishOnly": "此文本仅有英文版。"
 }

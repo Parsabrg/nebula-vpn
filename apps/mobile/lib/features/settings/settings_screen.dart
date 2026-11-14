@@ -23,6 +23,7 @@ import '../../core/widgets/panel/panel_controls.dart';
 import '../../core/window/login_item.dart';
 import '../../core/wireguard/native_tunnel_channel.dart';
 import '../../l10n/app_localizations.dart';
+import 'legal_document_screen.dart';
 
 /// Three sections: appearance, protection, about.
 ///
@@ -269,6 +270,29 @@ class SettingsScreen extends ConsumerWidget {
                 applicationLegalese: 'GPL-3.0-or-later',
               ),
             ),
+            for (final (String title, String meta, String asset)
+                in <(String, String, String)>[
+                  (
+                    text.privacyPolicy,
+                    text.privacyPolicyMeta,
+                    LegalDocumentScreen.privacyAsset,
+                  ),
+                  (
+                    text.termsOfUse,
+                    text.termsOfUseMeta,
+                    LegalDocumentScreen.termsAsset,
+                  ),
+                ])
+              PanelExternalRow(
+                title: title,
+                meta: meta,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (BuildContext context) =>
+                        LegalDocumentScreen(title: title, asset: asset),
+                  ),
+                ),
+              ),
             const _VersionRow(),
             const SizedBox(height: 24),
           ],

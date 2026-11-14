@@ -497,5 +497,13 @@
   "warpNewKeys": "Nieuwe WARP-sleutels halen",
   "warpNewKeysMeta": "Bij de volgende verbinding",
   "warpNewKeysDone": "Bij de volgende verbinding worden nieuwe sleutels gemaakt.",
-  "warpNewKeysExplain": "De sleutels zijn de gratis WARP-registratie van dit apparaat. Haal nieuwe als WARP verbindt maar niets doorgeeft."
+  "warpNewKeysExplain": "De sleutels zijn de gratis WARP-registratie van dit apparaat. Haal nieuwe als WARP verbindt maar niets doorgeeft.",
+  "warpOutsideIranTitle": "Buiten Iran naar buiten",
+  "warpOutsideIranOn": "Aan: naar buiten via Psiphon",
+  "warpOutsideIranExplain": "Voor de server Cloudflare WARP. Cloudflare plaatst elke WARP-uitgang van iemand in Iran in Iran, dus sites die Iran weigeren, weigeren WARP ook. Staat dit aan, dan brengt WARP je naar Psiphon en zien sites een Psiphon-adres buiten Iran. Trager, en verbinden duurt iets langer. Je servers die je via WARP bereikt, komen al bij de server naar buiten.",
+  "privacyPolicy": "Privacybeleid",
+  "privacyPolicyMeta": "Wat bewaard wordt, en wat waarheen gaat",
+  "termsOfUse": "Gebruiksvoorwaarden",
+  "termsOfUseMeta": "Nebula gebruiken en de servers die het bereikt",
+  "legalEnglishOnly": "Deze tekst is alleen in het Engels."
 }

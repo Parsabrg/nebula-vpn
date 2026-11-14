@@ -5,6 +5,7 @@ import 'dart:io';
 import '../network/dns_tunnel_engine.dart';
 import '../routing/tunnel_routes.dart';
 import '../tunnel/tunnel_traffic.dart';
+import '../warp/desktop_aether.dart';
 import 'windows_network_monitor.dart';
 import 'windows_system_proxy.dart';
 import 'windows_tunnel_config.dart';
@@ -76,12 +77,26 @@ class WindowsXrayTunnelController implements XrayTunnelController {
 /// app can run, only generated config paths are passed, and the UAC command is
 /// a fixed PowerShell script written by this class.
 class WindowsXrayRuntime {
+  WindowsXrayRuntime({String? runtimeDirectory})
+    : _runtimeDirectory =
+          runtimeDirectory ??
+          '${File(Platform.resolvedExecutable).parent.path}\\data\\flutter_assets\\assets\\windows_runtime';
+
+  final String _runtimeDirectory;
   Directory? _stateDirectory;
   int? _xraySupervisorPid;
   int? _xrayPid;
   int? _hysteriaPid;
   int? _dnsTunnelPid;
+  int? _aetherPid;
   final List<String> _logs = <String>[];
+
+  void _log(String line) {
+    _logs.add(line);
+    if (_logs.length > 500) {
+      _logs.removeRange(0, _logs.length - 500);
+    }
+  }
 
   final StreamController<TunnelTraffic> _trafficController =
       StreamController<TunnelTraffic>.broadcast();
@@ -124,11 +139,43 @@ class WindowsXrayRuntime {
         }
         _dnsTunnelPid = await _startDnsTunnel(dnsTunnel, state);
       }
+      // Cloudflare WARP (desktop_aether.dart): the identity is registered
+      // before the tunnel exists. In a full tunnel Aether starts after it,
+      // dialling out through the bridge; as a local proxy, before Xray.
+      final Map<String, dynamic>? aether =
+          source.remove('nebulaAether') as Map<String, dynamic>?;
+      final List<String> aetherArgs = <String>[
+        for (final dynamic arg in (aether?['args'] as List<dynamic>?) ?? [])
+          arg as String,
+      ];
+      final String aetherReady =
+          aether?['ready'] as String? ?? 'socks5 server listening';
+      final String? aetherEngine = aether == null
+          ? null
+          : _runtimeBinary('aether.exe');
+      final AetherBridge? bridge = aether == null || proxyOnly
+          ? null
+          : AetherBridge((aether['port'] as int) + 1);
+      if (aetherEngine != null) {
+        await registerAether(aetherEngine, aetherArgs, _log);
+        if (proxyOnly) {
+          _aetherPid = await startAetherHidden(
+            aetherEngine,
+            aetherArgs,
+            aetherReady,
+            _log,
+          );
+        }
+      }
 
       // Always resolve upstream server address to IPv4 first.
       // This is crucial to prevent the routing loop on Windows.
       final String? upstreamAddress = _upstreamAddress(source, isHysteria);
-      final String? upstreamIp = dnsTunnel != null
+      // Over WARP no server address is dialled directly: the bridge leaves
+      // by the real network whatever it reaches, so none is pinned ('').
+      final String? upstreamIp = aether != null
+          ? ''
+          : dnsTunnel != null
           ? (bypass.isEmpty ? '127.0.0.1' : bypass.first)
           : pinnedUpstream(source, upstreamAddress) ??
                 await _resolveIpv4(upstreamAddress);
@@ -191,6 +238,11 @@ class WindowsXrayRuntime {
       final String xray = _runtimeBinary('xray.exe');
       final Map<String, dynamic> config = proxyOnly
           ? source
+          : bridge != null
+          ? withAetherBridge(
+              _xrayTunConfig(source, proxyOnly, localNetworkDirect),
+              bridge,
+            )
           : dnsTunnel != null
           ? _xrayTunConfig(source, proxyOnly, localNetworkDirect)
           : windowsXrayPinnedUpstream(
@@ -223,7 +275,9 @@ class WindowsXrayRuntime {
         isXray: true,
         // Its resolvers are many and change: a kill switch allowing them all
         // would not be one. Off over the DNS tunnel.
-        killSwitch: killSwitch && dnsTunnel == null,
+        // Over WARP too: the gateway Aether finds is not known beforehand,
+        // and the firewall rules allow one address.
+        killSwitch: killSwitch && dnsTunnel == null && aether == null,
         bypass: bypass,
       );
 
@@ -232,6 +286,15 @@ class WindowsXrayRuntime {
       }
       if (!await _tunAdapterIsUp()) {
         throw StateError('Windows did not create the Nebula VPN adapter.');
+      }
+      if (aetherEngine != null) {
+        _aetherPid = await startAetherHidden(
+          aetherEngine,
+          aetherArgs,
+          aetherReady,
+          _log,
+          upstream: bridge!.upstream,
+        );
       }
       _startTrafficMonitoring();
     } catch (_) {
@@ -269,6 +332,13 @@ class WindowsXrayRuntime {
     _dnsTunnelPid = null;
     if (dnsTunnelPid != null) {
       await _stopHidden(dnsTunnelPid);
+    }
+    final int? aether = _aetherPid;
+    _aetherPid = null;
+    if (aether != null) {
+      // With its tree: Psiphon, which Aether starts, outlives a killed
+      // parent on Windows (measured).
+      await _stopHidden(aether, tree: true);
     }
     final Directory? state = _stateDirectory;
     _stateDirectory = null;
@@ -465,8 +535,7 @@ class WindowsXrayRuntime {
       ));
 
   String? _runtimeBinaryOrNull(String name) {
-    final String path =
-        '${File(Platform.resolvedExecutable).parent.path}\\data\\flutter_assets\\assets\\windows_runtime\\$name';
+    final String path = '$_runtimeDirectory\\$name';
     return File(path).existsSync() ? path : null;
   }
 
@@ -607,7 +676,12 @@ class WindowsXrayRuntime {
   /// it started none (nothing running, or a tunnel adopted from an earlier
   /// run whose processes this instance never learned).
   Future<bool?> engineRunning() async {
-    final List<int> pids = <int>[?_xraySupervisorPid, ?_xrayPid, ?_hysteriaPid];
+    final List<int> pids = <int>[
+      ?_xraySupervisorPid,
+      ?_xrayPid,
+      ?_hysteriaPid,
+      ?_aetherPid,
+    ];
     if (pids.isEmpty) {
       return null;
     }
@@ -710,8 +784,13 @@ class WindowsXrayRuntime {
     return false;
   }
 
-  Future<void> _stopHidden(int pid) async {
-    await Process.run('taskkill.exe', <String>['/PID', '$pid', '/F']);
+  Future<void> _stopHidden(int pid, {bool tree = false}) async {
+    await Process.run('taskkill.exe', <String>[
+      '/PID',
+      '$pid',
+      if (tree) '/T',
+      '/F',
+    ]);
     for (int attempt = 0; attempt < 12; attempt++) {
       final ProcessResult status = await Process.run('tasklist.exe', <String>[
         '/FI',
