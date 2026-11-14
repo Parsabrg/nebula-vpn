@@ -10,6 +10,7 @@ import '../../core/diagnostics/leak_test.dart';
 import '../../core/diagnostics/packet_loss.dart';
 import '../../core/diagnostics/speed_test.dart';
 import '../../core/theme/color_tokens.dart';
+import '../../core/widgets/nebula/nebula_page.dart';
 import '../../core/wireguard/tunnel_controller.dart';
 import '../../core/xray/local_proxy.dart';
 import '../../l10n/app_localizations.dart';
@@ -187,10 +188,8 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
     return Scaffold(
       backgroundColor: palette.bg,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
+        leading: const Center(child: NebulaBackButton()),
+        leadingWidth: 64,
         title: Text(text.sectionDiagnostics),
         actions: <Widget>[
           IconButton(

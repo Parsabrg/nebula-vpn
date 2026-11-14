@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../format/case.dart';
 import '../../theme/color_tokens.dart';
 import '../../theme/look.dart';
 import 'nebula_surface.dart';
@@ -50,7 +51,7 @@ class NebulaStatusHero extends StatelessWidget {
             const SizedBox(width: 8),
             Flexible(
               child: Text(
-                minimal ? eyebrow.toUpperCase() : eyebrow,
+                minimal ? upperCaseFor(context, eyebrow) : eyebrow,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: minimal

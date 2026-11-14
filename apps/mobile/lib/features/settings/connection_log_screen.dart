@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/color_tokens.dart';
+import '../../core/widgets/nebula/nebula_page.dart';
 import '../../core/xray/xray_tunnel_controller.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -69,10 +70,8 @@ class _ConnectionLogScreenState extends ConsumerState<ConnectionLogScreen> {
     return Scaffold(
       backgroundColor: palette.bg,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
+        leading: const Center(child: NebulaBackButton()),
+        leadingWidth: 64,
         title: Text(AppText.of(context).connectionLog),
         actions: <Widget>[
           IconButton(

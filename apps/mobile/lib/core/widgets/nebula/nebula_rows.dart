@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../format/case.dart';
 import '../../theme/color_tokens.dart';
 import '../../theme/look.dart';
 import 'nebula_surface.dart';
@@ -30,7 +31,7 @@ class NebulaSectionLabel extends StatelessWidget {
       child: Semantics(
         header: true,
         child: Text(
-          minimal ? label.toUpperCase() : label,
+          minimal ? upperCaseFor(context, label) : label,
           style: minimal
               ? TextStyle(
                   fontFamily: 'GeistMono',

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/dns_tunnel_resolvers.dart';
 import '../../core/network/dns_tunnel_sync.dart';
 import '../../core/theme/color_tokens.dart';
+import '../../core/widgets/nebula/nebula_page.dart';
 import '../../l10n/app_localizations.dart';
 
 /// "Wi-Fi", "mobile data (43211)" or "this network", for a network key.
@@ -180,10 +181,8 @@ class _DnsTunnelResolversScreenState
     return Scaffold(
       backgroundColor: palette.bg,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
+        leading: const Center(child: NebulaBackButton()),
+        leadingWidth: 64,
         title: Text(text.dnsTunnelResolvers),
       ),
       body: SafeArea(

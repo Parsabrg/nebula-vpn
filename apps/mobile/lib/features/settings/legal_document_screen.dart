@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme/color_tokens.dart';
+import '../../core/widgets/nebula/nebula_page.dart';
 import '../../l10n/app_localizations.dart';
 
 /// The privacy policy and the terms of use, as bundled with this build:
@@ -26,10 +27,8 @@ class LegalDocumentScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: palette.bg,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
+        leading: const Center(child: NebulaBackButton()),
+        leadingWidth: 64,
         title: Text(title),
       ),
       body: SafeArea(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nebula_mobile/core/theme/color_tokens.dart';
 import 'package:nebula_mobile/core/theme/look.dart';
@@ -11,6 +12,25 @@ import 'package:nebula_mobile/core/widgets/nebula/nebula_rows.dart';
 /// Every shared widget, drawn in every look and mode: one set of widgets
 /// whose look is only token values, so none may fail in any of them.
 void main() {
+  testWidgets('a Minimal section label capitalises as its language does', (
+    WidgetTester tester,
+  ) async {
+    // Turkish keeps the dot: değil is DEĞİL, not the misspelt DEĞIL.
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('tr'),
+        supportedLocales: const <Locale>[Locale('tr')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        theme: NebulaTheme.resolve(
+          Brightness.dark,
+          const AppearanceChoice(look: NebulaLook.minimal),
+        ),
+        home: const Scaffold(body: NebulaSectionLabel('değil')),
+      ),
+    );
+    expect(find.text('DEĞİL'), findsOneWidget);
+  });
+
   for (final NebulaLook look in NebulaLook.values) {
     for (final Brightness brightness in Brightness.values) {
       testWidgets(

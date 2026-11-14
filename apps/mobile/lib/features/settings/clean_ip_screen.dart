@@ -8,6 +8,7 @@ import '../../core/cdn/clean_ip.dart';
 import '../../core/settings/advanced_settings_controller.dart';
 import '../../core/storage/advanced_settings_store.dart';
 import '../../core/theme/color_tokens.dart';
+import '../../core/widgets/nebula/nebula_page.dart';
 import '../../core/xray/xray_config.dart';
 import '../../l10n/app_localizations.dart';
 import '../devices/devices_controller.dart';
@@ -136,10 +137,8 @@ class _CleanIpScreenState extends ConsumerState<CleanIpScreen> {
     return Scaffold(
       backgroundColor: palette.bg,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
+        leading: const Center(child: NebulaBackButton()),
+        leadingWidth: 64,
         title: Text(text.cleanIp),
       ),
       body: SafeArea(

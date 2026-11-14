@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/split_tunnel/installed_apps.dart';
 import '../../core/split_tunnel/split_tunnel_controller.dart';
 import '../../core/theme/color_tokens.dart';
+import '../../core/widgets/nebula/nebula_page.dart';
 import '../../l10n/app_localizations.dart';
 
 /// Choose which apps go around the tunnel instead of through it.
@@ -41,10 +42,8 @@ class _SplitTunnelScreenState extends ConsumerState<SplitTunnelScreen> {
     return Scaffold(
       backgroundColor: palette.bg,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
+        leading: const Center(child: NebulaBackButton()),
+        leadingWidth: 64,
         title: Text(AppText.of(context).splitTunneling),
         actions: <Widget>[
           if (excluded.isNotEmpty)
