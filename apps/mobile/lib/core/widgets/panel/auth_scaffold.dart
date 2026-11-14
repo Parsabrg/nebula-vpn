@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../theme/color_tokens.dart';
 import '../../theme/type_scale.dart';
+import '../nebula/nebula_controls.dart';
+import '../nebula/nebula_page.dart';
 
 /// The shape every auth screen shares.
 ///
@@ -26,7 +28,11 @@ class AuthScaffold extends StatelessWidget {
     this.footer,
     this.errorMessage,
     this.aboveAction,
+    this.notice,
   });
+
+  /// A notice above the title: why this screen is showing (the session ended).
+  final Widget? notice;
 
   /// Rendered as given, so a screen can break it across lines the way the
   /// design does ("Check\nyour email").
@@ -58,6 +64,7 @@ class AuthScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final NebulaPalette palette = context.palette;
     final NebulaTypography type = context.type;
+    final EdgeInsets pad = nebulaPagePadding(context);
 
     return Scaffold(
       backgroundColor: palette.bg,
@@ -66,27 +73,28 @@ class AuthScaffold extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             SizedBox(
-              height: 56,
+              height: 60,
               child: showBack && Navigator.of(context).canPop()
-                  ? Align(
-                      alignment: Alignment.centerLeft,
-                      child: IconButton(
-                        icon: Icon(
-                          Icons.arrow_back,
-                          color: palette.textPrimary,
-                        ),
-                        onPressed: () => Navigator.of(context).maybePop(),
+                  ? Padding(
+                      padding: EdgeInsets.only(left: pad.left, top: 16),
+                      child: const Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: NebulaBackButton(),
                       ),
                     )
                   : null,
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: EdgeInsets.symmetric(horizontal: pad.left),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
                     const SizedBox(height: 8),
+                    if (notice != null) ...<Widget>[
+                      notice!,
+                      const SizedBox(height: 20),
+                    ],
                     Text(
                       title,
                       style: type.authTitle.copyWith(
@@ -113,9 +121,9 @@ class AuthScaffold extends StatelessWidget {
                     ],
                     if (errorMessage != null) ...<Widget>[
                       const SizedBox(height: 16),
-                      Text(
-                        errorMessage!,
-                        style: type.listMeta.copyWith(color: palette.redText),
+                      NebulaNotice(
+                        text: errorMessage!,
+                        kind: NebulaNoticeKind.error,
                       ),
                     ],
                     const SizedBox(height: 28),

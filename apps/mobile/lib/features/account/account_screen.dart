@@ -329,7 +329,10 @@ class _Details extends ConsumerWidget {
         ),
         if (expired) ...<Widget>[
           const SizedBox(height: 16),
-          NebulaNotice(text: text.accessExpired, kind: NebulaNoticeKind.warning),
+          NebulaNotice(
+            text: text.accessExpired,
+            kind: NebulaNoticeKind.warning,
+          ),
         ],
         const SizedBox(height: 8),
       ],

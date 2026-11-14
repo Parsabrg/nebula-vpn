@@ -70,16 +70,19 @@ void main() {
       expect(dark.appBarTheme.elevation, 0);
     });
 
-    test('the CTA is 60 tall with a 14 radius', () {
+    test('Material buttons take NebulaButton geometry for the look', () {
       final ThemeData theme = NebulaTheme.dark();
       final ButtonStyle? style = theme.filledButtonTheme.style;
       expect(
         style?.minimumSize?.resolve(<WidgetState>{}),
-        const Size.fromHeight(60),
+        const Size.fromHeight(52),
       );
       final RoundedRectangleBorder shape =
           style!.shape!.resolve(<WidgetState>{})! as RoundedRectangleBorder;
-      expect(shape.borderRadius, BorderRadius.circular(14));
+      expect(
+        shape.borderRadius,
+        BorderRadius.circular(NebulaPalette.dark.radiusButton),
+      );
     });
 
     test('nothing falls back to Roboto', () {

@@ -574,5 +574,7 @@
   "freeSubscriptionAddress": "Subscription address",
   "@freeSubscriptionAddress": {"description": "NEEDS TRANSLATION (English placeholder). Free mode / Your links: the label of the field a subscription's https address is typed into."},
   "bypassDomainsField": "Website or address",
-  "@bypassDomainsField": {"description": "NEEDS TRANSLATION (English placeholder). Websites that skip the VPN: the label of the field a domain is typed into."}
+  "@bypassDomainsField": {"description": "NEEDS TRANSLATION (English placeholder). Websites that skip the VPN: the label of the field a domain is typed into."},
+  "signInNoAccountYet": "No account yet",
+  "@signInNoAccountYet": {"description": "NEEDS TRANSLATION (English placeholder). Sign in: the section with Request access and I have a code."}
 }

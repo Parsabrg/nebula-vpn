@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/routing/route_paths.dart';
-import '../../core/theme/color_tokens.dart';
 import '../../core/widgets/panel/auth_scaffold.dart';
 import '../../core/widgets/panel/panel_cta.dart';
 import '../../core/widgets/submission_state.dart';
@@ -51,13 +50,7 @@ class _PasswordResetRequestScreenState
       return AuthScaffold(
         title: text.checkEmailTitle,
         subline: text.checkEmailSubline,
-        fields: <Widget>[
-          Icon(
-            Icons.mark_email_read_outlined,
-            size: 32,
-            color: context.palette.blueText,
-          ),
-        ],
+        fields: const <Widget>[],
         action: PanelCta(
           label: text.haveACode,
           style: CtaStyle.secondary,

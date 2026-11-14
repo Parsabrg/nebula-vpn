@@ -91,13 +91,15 @@ class PanelCta extends StatelessWidget {
     return _Pressable(
       onPressed: onPressed,
       builder: (VoidCallback? press) => SizedBox(
-        height: 60,
+        height: 52,
         width: double.infinity,
         child: FilledButton(
           onPressed: press,
           style: buttonStyle.copyWith(
             shape: WidgetStatePropertyAll<OutlinedBorder>(
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(palette.radiusButton),
+              ),
             ),
             // Flat by design: elevation would put a shadow on a near-black
             // background, which reads as a smudge rather than as depth.
@@ -176,11 +178,11 @@ class PanelCtaPlaceholder extends StatelessWidget {
   Widget build(BuildContext context) {
     return ExcludeSemantics(
       child: Container(
-        height: 60,
+        height: 52,
         width: double.infinity,
         decoration: BoxDecoration(
           color: context.palette.surface,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(context.palette.radiusButton),
         ),
       ),
     );

@@ -9,6 +9,7 @@ import '../../core/network/error_copy.dart';
 import '../../core/settings/locale_controller.dart';
 import '../../core/theme/color_tokens.dart';
 import '../../core/theme/type_scale.dart';
+import '../../core/widgets/nebula/nebula_controls.dart';
 import '../../core/widgets/panel/auth_scaffold.dart';
 import '../../core/widgets/panel/panel_cta.dart';
 import '../../core/widgets/password_field.dart';
@@ -166,12 +167,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
           ),
           if (_error != null) ...<Widget>[
             const SizedBox(height: 16),
-            Text(
-              _error!,
-              style: context.type.listMeta.copyWith(
-                color: context.palette.redText,
-              ),
-            ),
+            NebulaNotice(text: _error!, kind: NebulaNoticeKind.error),
           ],
         ],
         action: PanelCta(
@@ -241,9 +237,9 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
       child: _Frame(
         title: text.deleteAccountTitle,
         fields: <Widget>[
-          Text(
-            text.deleteAccountIntro,
-            style: context.type.listMeta.copyWith(color: palette.redText),
+          NebulaNotice(
+            text: text.deleteAccountIntro,
+            kind: NebulaNoticeKind.error,
           ),
           const SizedBox(height: 12),
           Text(
@@ -260,15 +256,11 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
           ),
           if (_error != null) ...<Widget>[
             const SizedBox(height: 16),
-            Text(
-              _error!,
-              style: context.type.listMeta.copyWith(color: palette.redText),
-            ),
+            NebulaNotice(text: _error!, kind: NebulaNoticeKind.error),
           ],
         ],
-        action: PanelCta(
+        action: NebulaButton.danger(
           label: _busy ? text.deletingAccount : text.deleteAccountAction,
-          style: CtaStyle.secondary,
           onPressed: _busy ? null : _submit,
         ),
       ),

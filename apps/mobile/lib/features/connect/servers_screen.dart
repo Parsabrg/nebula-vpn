@@ -140,9 +140,8 @@ class _ServersScreenState extends ConsumerState<ServersScreen> {
           busy: latency.isMeasuring,
           tested: latency.hasResults,
           canMeasure: canMeasure,
-          onTest: () => ref
-              .read(serverLatencyProvider.notifier)
-              .measure(state.servers),
+          onTest: () =>
+              ref.read(serverLatencyProvider.notifier).measure(state.servers),
         ),
         RadioGroup<String>(
           groupValue: serverCode,

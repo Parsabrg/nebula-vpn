@@ -279,6 +279,7 @@ void main() {
         reason: 'kept for the next launch',
       );
 
+      await tester.ensureVisible(find.text('Change server'));
       await tester.tap(find.text('Change server'));
       await tester.pumpAndSettle();
 
