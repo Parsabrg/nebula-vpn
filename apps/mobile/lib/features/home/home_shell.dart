@@ -7,12 +7,13 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_notifier.dart';
 import '../../core/auth/auth_state.dart';
 import '../../core/free/free_mode.dart';
+import '../../core/routing/route_paths.dart';
 import '../../core/storage/storage_providers.dart';
 import '../../core/theme/color_tokens.dart';
-import '../../core/theme/type_scale.dart';
+import '../../core/widgets/nebula/nebula_nav.dart';
 import '../../core/wireguard/tunnel_controller.dart';
-import '../../l10n/app_localizations.dart';
 import '../devices/devices_controller.dart';
+import 'desktop_frame.dart';
 
 /// The authenticated area's shell: three tabs over a hairline.
 ///
@@ -94,147 +95,40 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       }
     });
 
+    final List<String> roots = <String>[
+      RoutePaths.homeConnect,
+      RoutePaths.homeDevices,
+      RoutePaths.homeAccount,
+    ];
+    void goBranch(int index) => navigationShell.goBranch(
+      index,
+      // Tapping the tab you are already on returns it to its root, which is
+      // the standard escape from a stack you pushed too deep.
+      initialLocation: index == navigationShell.currentIndex,
+    );
+    final bool desktop = nebulaDesktopLayout(context);
+    final List<NebulaNavItem> items = appDestinations(
+      context,
+      ref,
+      location: roots[navigationShell.currentIndex],
+      withSettings: desktop,
+      goBranch: goBranch,
+    );
+    if (desktop) {
+      return Scaffold(
+        backgroundColor: palette.bg,
+        body: Row(
+          children: <Widget>[
+            NebulaSideNav(items: items),
+            Expanded(child: navigationShell),
+          ],
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: palette.bg,
       body: navigationShell,
-      bottomNavigationBar: _PanelTabBar(
-        free: free,
-        currentIndex: navigationShell.currentIndex,
-        onSelected: (int index) => navigationShell.goBranch(
-          index,
-          // Tapping the tab you are already on returns it to its root, which
-          // is the standard escape from a stack you pushed too deep.
-          initialLocation: index == navigationShell.currentIndex,
-        ),
-      ),
-    );
-  }
-}
-
-/// 60px tall, one hairline on top, three equal items.
-///
-/// Not Material's `NavigationBar`: that draws a pill indicator behind the
-/// selected icon and reserves a much taller minimum height, neither of which
-/// this design has room for.
-class _PanelTabBar extends StatelessWidget {
-  const _PanelTabBar({
-    required this.free,
-    required this.currentIndex,
-    required this.onSelected,
-  });
-
-  /// No server: no devices to list, and the third tab is the relays.
-  final bool free;
-  final int currentIndex;
-  final ValueChanged<int> onSelected;
-
-  // Outline and filled icon for each tab, in branch order. The labels are
-  // read in build, because they depend on the language being shown.
-  static const List<(IconData, IconData)> _icons = <(IconData, IconData)>[
-    (Icons.shield_outlined, Icons.shield),
-    (Icons.devices_outlined, Icons.devices),
-    (Icons.person_outline, Icons.person),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final NebulaPalette palette = context.palette;
-    final NebulaTypography type = context.type;
-    final AppText text = AppText.of(context);
-    final List<String> labels = <String>[
-      text.tabConnect,
-      text.tabDevices,
-      free ? text.freeTab : text.tabAccount,
-    ];
-
-    // The system inset goes below the 60px, not inside it. With the inset
-    // inside a fixed-height box, a phone on 3-button navigation (a ~48px
-    // inset) left the tabs about 12px and cut the icons in half; gesture
-    // navigation's small inset hid that on the phone this was built on.
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: palette.bg,
-        border: Border(top: BorderSide(color: palette.hairline)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 60,
-          child: Row(
-            children: <Widget>[
-              for (int index = 0; index < _icons.length; index++)
-                if (!(free && index == 1))
-                  Expanded(
-                    child: _Tab(
-                      // The active tab is the filled icon, per the design's
-                      // "FILL 0 except the active tab icon".
-                      icon: index == currentIndex
-                          ? _icons[index].$2
-                          : _icons[index].$1,
-                      label: labels[index],
-                      selected: index == currentIndex,
-                      onTap: () => onSelected(index),
-                      palette: palette,
-                      type: type,
-                    ),
-                  ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Tab extends StatelessWidget {
-  const _Tab({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    required this.palette,
-    required this.type,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final NebulaPalette palette;
-  final NebulaTypography type;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color color = selected ? palette.blue : palette.textMuted;
-
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: label,
-      child: InkWell(
-        onTap: onTap,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Icon(icon, size: 20, color: color),
-            const SizedBox(width: 8),
-            // Shrinks to fit rather than truncating. A third of the width is
-            // not enough for every language's word beside an icon -- Russian
-            // "Подключение" was cut to "Подключен…" on a real phone -- and a
-            // slightly smaller label reads far better than half of one.
-            Flexible(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  style: type.tabLabel.copyWith(color: color),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+      bottomNavigationBar: NebulaTabBar(items: items),
     );
   }
 }
