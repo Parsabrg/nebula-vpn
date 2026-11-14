@@ -177,6 +177,10 @@ void main() {
       );
       addTearDown(container.dispose);
       await container.read(freeModeProvider.notifier).enter();
+      // Tall enough for the whole Free screen: its fields sit below the fold.
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       await tester.pumpWidget(_appFor(container));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Free'));
@@ -196,6 +200,17 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('This link cannot be used'), findsOneWidget);
 
+      await tester.scrollUntilVisible(
+        find.byType(TextField).first,
+        200,
+        // The other tabs stay built, offstage: this tab's own list.
+        scrollable: find
+            .descendant(
+              of: find.byType(FreeModeScreen),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
       await tester.enterText(
         find.byType(TextField).first,
         'vless://0f1e2d3c-4b5a-4978-8a6b-5c4d3e2f1a0b@188.114.97.6:443'

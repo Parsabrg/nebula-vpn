@@ -695,5 +695,13 @@
   "devicesSignedIn": "Signed in",
   "@devicesSignedIn": {"description": "Devices: the section listing the devices signed in to this account."},
   "deviceThisDeviceBadge": "This device",
-  "@deviceThisDeviceBadge": {"description": "Devices: the badge on the row of the device you are holding."}
+  "@deviceThisDeviceBadge": {"description": "Devices: the badge on the row of the device you are holding."},
+  "freeBuiltIn": "Built in",
+  "@freeBuiltIn": {"description": "Free mode: the section with Cloudflare WARP, which comes with the app."},
+  "freeLinkLabel": "Link",
+  "@freeLinkLabel": {"description": "Free mode / Your links: the label of the field a link is pasted into."},
+  "freeSubscriptionAddress": "Subscription address",
+  "@freeSubscriptionAddress": {"description": "Free mode / Your links: the label of the field a subscription's https address is typed into."},
+  "bypassDomainsField": "Website or address",
+  "@bypassDomainsField": {"description": "Websites that skip the VPN: the label of the field a domain is typed into."}
 }

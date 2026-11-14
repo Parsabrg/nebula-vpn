@@ -562,5 +562,13 @@
   "devicesSignedIn": "Signed in",
   "@devicesSignedIn": {"description": "NEEDS TRANSLATION (English placeholder). Devices: the section listing the devices signed in to this account."},
   "deviceThisDeviceBadge": "This device",
-  "@deviceThisDeviceBadge": {"description": "NEEDS TRANSLATION (English placeholder). Devices: the badge on the row of the device you are holding."}
+  "@deviceThisDeviceBadge": {"description": "NEEDS TRANSLATION (English placeholder). Devices: the badge on the row of the device you are holding."},
+  "freeBuiltIn": "Built in",
+  "@freeBuiltIn": {"description": "NEEDS TRANSLATION (English placeholder). Free mode: the section with Cloudflare WARP, which comes with the app."},
+  "freeLinkLabel": "Link",
+  "@freeLinkLabel": {"description": "NEEDS TRANSLATION (English placeholder). Free mode / Your links: the label of the field a link is pasted into."},
+  "freeSubscriptionAddress": "Subscription address",
+  "@freeSubscriptionAddress": {"description": "NEEDS TRANSLATION (English placeholder). Free mode / Your links: the label of the field a subscription's https address is typed into."},
+  "bypassDomainsField": "Website or address",
+  "@bypassDomainsField": {"description": "NEEDS TRANSLATION (English placeholder). Websites that skip the VPN: the label of the field a domain is typed into."}
 }
