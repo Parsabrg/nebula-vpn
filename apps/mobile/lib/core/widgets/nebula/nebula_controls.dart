@@ -64,7 +64,18 @@ class NebulaButton extends StatelessWidget {
       NebulaButtonKind.dangerText => p.redText,
       NebulaButtonKind.secondary || NebulaButtonKind.text => p.textPrimary,
     };
+    final Widget caption = Text(
+      this.label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: text ? 15 : 16,
+        fontWeight: FontWeight.w600,
+        color: foreground,
+      ),
+    );
     final Widget label = Row(
+      mainAxisSize: text ? MainAxisSize.min : MainAxisSize.max,
       mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
         if (busy)
@@ -82,24 +93,16 @@ class NebulaButton extends StatelessWidget {
           Icon(icon, size: 20, color: foreground),
           const SizedBox(width: 10),
         ],
-        Flexible(
-          child: Text(
-            this.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: text ? 15 : 16,
-              fontWeight: FontWeight.w600,
-              color: foreground,
-            ),
-          ),
-        ),
+        // A text button sizes to its label (it sits in rows); the others
+        // fill the width and shorten a long label instead.
+        if (text) caption else Flexible(child: caption),
       ],
     );
     Widget box = SizedBox(
       height: height,
-      width: double.infinity,
+      width: text ? null : double.infinity,
       child: Center(
+        widthFactor: text ? 1 : null,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: label,

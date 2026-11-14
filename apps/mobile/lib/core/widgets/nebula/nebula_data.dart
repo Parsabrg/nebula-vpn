@@ -355,6 +355,7 @@ class NebulaField extends StatefulWidget {
     this.autocorrect = true,
     this.prefixIcon,
     this.labelVisible = true,
+    this.autofocus = false,
   });
 
   final String label;
@@ -380,6 +381,8 @@ class NebulaField extends StatefulWidget {
 
   /// The label is still read out when hidden (a search box).
   final bool labelVisible;
+
+  final bool autofocus;
 
   @override
   State<NebulaField> createState() => _NebulaFieldState();
@@ -432,6 +435,7 @@ class _NebulaFieldState extends State<NebulaField> {
 
     final Widget input = TextField(
       controller: widget.controller,
+      autofocus: widget.autofocus,
       enabled: widget.enabled,
       obscureText: widget.password && _obscured,
       enableSuggestions: !widget.password,
