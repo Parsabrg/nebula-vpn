@@ -15,6 +15,7 @@ const navigation = [
   { href: "/security", label: "Security" },
   { href: "/admins", label: "Admins" },
   { href: "/pair-device", label: "Pair a device" },
+  { href: "/appearance", label: "Appearance" },
 ] as const;
 
 /** Whether [href] is the section the viewer is in ("/users/x" is Users). */

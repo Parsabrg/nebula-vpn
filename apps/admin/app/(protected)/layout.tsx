@@ -1,4 +1,4 @@
-import { AdminHeader } from "@/components/admin-header";
+import { AdminShell } from "@/components/admin-shell";
 import { requireAdminSession } from "@/lib/auth/require-session";
 
 export default async function ProtectedLayout({
@@ -6,12 +6,5 @@ export default async function ProtectedLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const session = await requireAdminSession();
 
-  return (
-    <>
-      <AdminHeader session={session} />
-      <main id="main-content" className="page-shell" tabIndex={-1}>
-        {children}
-      </main>
-    </>
-  );
+  return <AdminShell role={session.role}>{children}</AdminShell>;
 }

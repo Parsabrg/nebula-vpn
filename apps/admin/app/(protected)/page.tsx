@@ -1,17 +1,47 @@
+import Link from "next/link";
 import { listPendingAccountRequests } from "@/lib/account-requests";
-import { listVpnServers } from "@/lib/topology";
+import {
+  attentionItems,
+  needsAttentionEnabled,
+  type AttentionItem,
+} from "@/lib/attention";
+import { listEmailDeliveries } from "@/lib/email-deliveries";
+import { getSecurityStatus } from "@/lib/security";
+import { getVpnServerHealth, listVpnServers } from "@/lib/topology";
 import { listUsers } from "@/lib/users";
 import { StatTile } from "@/components/stat-tile";
 
+/** The card's sources, each allowed to fail without taking the page down. */
+async function loadAttention(): Promise<AttentionItem[] | null> {
+  const [health, checks, failed] = await Promise.allSettled([
+    getVpnServerHealth(),
+    getSecurityStatus(),
+    listEmailDeliveries({ state: "failed", limit: 1 }),
+  ]);
+  if (
+    health.status === "rejected" &&
+    checks.status === "rejected" &&
+    failed.status === "rejected"
+  ) {
+    return null;
+  }
+  return attentionItems(
+    health.status === "fulfilled" ? health.value : [],
+    checks.status === "fulfilled" ? checks.value : [],
+    failed.status === "fulfilled" ? failed.value.total : 0,
+  );
+}
+
 export default async function OverviewPage() {
-  const [pendingRequests, totalUsers, activeUsers, servers] = await Promise.all(
-    [
+  const showAttention = needsAttentionEnabled();
+  const [pendingRequests, totalUsers, activeUsers, servers, attention] =
+    await Promise.all([
       listPendingAccountRequests(),
       listUsers({ limit: 1 }),
       listUsers({ state: "active", limit: 1 }),
       listVpnServers(),
-    ],
-  );
+      showAttention ? loadAttention() : Promise.resolve(null),
+    ]);
 
   return (
     <>
@@ -46,6 +76,33 @@ export default async function OverviewPage() {
           href="/server-health"
         />
       </section>
+
+      {showAttention && attention !== null ? (
+        <section
+          className="status-card attention"
+          aria-labelledby="attention-title"
+        >
+          <h2 id="attention-title">Needs attention</h2>
+          {attention.length === 0 ? (
+            <p>Nothing needs attention.</p>
+          ) : (
+            <ul>
+              {attention.map((item) => (
+                <li key={`${item.href}:${item.text}`}>
+                  <Link href={item.href}>
+                    <span
+                      className={`badge badge--${item.tone === "danger" ? "failed" : "pending"}`}
+                    >
+                      {item.tone === "danger" ? "Failing" : "Warning"}
+                    </span>
+                    {item.text}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
     </>
   );
 }
