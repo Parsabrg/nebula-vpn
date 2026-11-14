@@ -92,9 +92,12 @@ try {
   if (Test-Path -LiteralPath $Out) { Remove-Item -LiteralPath $Out -Recurse -Force }
   New-Item -ItemType Directory -Path $Out | Out-Null
 
+  # Empty over Cloudflare WARP: no server is dialled directly, so none is
+  # routed around the tunnel.
   $upstream = $null
-  if (-not [System.Net.IPAddress]::TryParse($UpstreamIp, [ref]$upstream) -or
-      $upstream.AddressFamily -ne [System.Net.Sockets.AddressFamily]::InterNetwork) {
+  if ($UpstreamIp -ne '' -and (
+      -not [System.Net.IPAddress]::TryParse($UpstreamIp, [ref]$upstream) -or
+      $upstream.AddressFamily -ne [System.Net.Sockets.AddressFamily]::InterNetwork)) {
     throw 'invalid upstream'
   }
   # Assigned first, then wrapped: Windows PowerShell 5.1's ConvertFrom-Json
@@ -118,16 +121,20 @@ try {
   $ownerStart = (Get-Process -Id $OwnerPid).StartTime
 
   $stage = 'preserving the connection to the VPN server'
-  $physicalRoute = Get-SelectedRoute $UpstreamIp
+  $physicalRoute = $null
+  if ($UpstreamIp -ne '') { $physicalRoute = Get-SelectedRoute $UpstreamIp }
   if ($null -eq $physicalRoute -or $physicalRoute.InterfaceAlias -eq 'Nebula') {
     $physicalRoute = Get-NetRoute -AddressFamily IPv4 | Where-Object { $_.DestinationPrefix -eq '0.0.0.0/0' -and $_.NextHop -ne '0.0.0.0' } | Sort-Object RouteMetric, InterfaceMetric | Select-Object -First 1
   }
   if ($null -eq $physicalRoute) { throw 'no physical gateway found' }
 
   $prefix = "$UpstreamIp/32"
-  $existingRoute = Get-NetRoute -DestinationPrefix $prefix -PolicyStore ActiveStore -ErrorAction SilentlyContinue |
-    Where-Object { $_.InterfaceIndex -eq $physicalRoute.InterfaceIndex } | Select-Object -First 1
-  if ($null -eq $existingRoute) {
+  $existingRoute = $null
+  if ($UpstreamIp -ne '') {
+    $existingRoute = Get-NetRoute -DestinationPrefix $prefix -PolicyStore ActiveStore -ErrorAction SilentlyContinue |
+      Where-Object { $_.InterfaceIndex -eq $physicalRoute.InterfaceIndex } | Select-Object -First 1
+  }
+  if ($UpstreamIp -ne '' -and $null -eq $existingRoute) {
     $ownedRoute = New-NetRoute -DestinationPrefix $prefix -PolicyStore ActiveStore `
       -InterfaceIndex $physicalRoute.InterfaceIndex -NextHop $physicalRoute.NextHop -RouteMetric 1 -ErrorAction SilentlyContinue
   }

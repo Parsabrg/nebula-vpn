@@ -12,6 +12,8 @@ const List<(List<String>, String)> _bundled = <(List<String>, String)>[
   (<String>['CottenDNS'], 'cottendns.txt'),
   (<String>['Aether'], 'aether.txt'),
   (<String>['Aether (bundled crates)'], 'aether-third-party.txt'),
+  (<String>['Psiphon'], 'psiphon.txt'),
+  (<String>['Psiphon (bundled modules)'], 'psiphon-third-party.txt'),
   (<String>['hev-socks5-tunnel'], 'hev-socks5-tunnel.txt'),
   (<String>['WireGuard for Android'], 'wireguard-android.txt'),
   (<String>['wireguard-go'], 'wireguard-go.txt'),

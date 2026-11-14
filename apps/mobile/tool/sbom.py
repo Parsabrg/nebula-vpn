@@ -147,6 +147,7 @@ def desktop_engines() -> list[dict[str, Any]]:
         ("xray", "XTLS/Xray-core"),
         ("hysteria", "apernet/hysteria"),
         ("cotten", "WhiteDNS/CottenDNS"),
+        ("aether", "patterniha/Aether"),
     ):
         components.append(
             _component(
@@ -179,6 +180,16 @@ def desktop_engines() -> list[dict[str, Any]]:
             f"pkg:github/WhiteDNS/CottenDNS@{values['cottenVersion']}?arch=windows-amd64",
             "app-windows",
             values["cottenHash"],
+        )
+    )
+    components.append(
+        _component(
+            "application",
+            "aether (windows-x86_64, archive)",
+            values["aetherVersion"],
+            f"pkg:github/patterniha/Aether@{values['aetherVersion']}?arch=windows-x86_64",
+            "app-windows",
+            values["aetherHash"],
         )
     )
     if hysteria:

@@ -630,5 +630,17 @@
   "warpNewKeys": "Get new WARP keys",
   "warpNewKeysMeta": "On the next connection",
   "warpNewKeysDone": "New keys will be made on the next connection.",
-  "warpNewKeysExplain": "The keys are this device's free WARP registration. Get new ones if WARP connects but carries nothing."
+  "warpNewKeysExplain": "The keys are this device's free WARP registration. Get new ones if WARP connects but carries nothing.",
+  "warpOutsideIranTitle": "Leave outside Iran",
+  "warpOutsideIranOn": "On: out through Psiphon",
+  "warpOutsideIranExplain": "For the Cloudflare WARP server. Cloudflare places every WARP exit for someone in Iran in Iran, so sites that refuse Iran refuse WARP too. With this on, WARP carries you to Psiphon, and sites see a Psiphon address outside Iran. Slower, and connecting takes a little longer. Your servers reached through WARP leave from the server already.",
+  "privacyPolicy": "Privacy policy",
+  "privacyPolicyMeta": "What is stored, and what is sent where",
+  "termsOfUse": "Terms of use",
+  "termsOfUseMeta": "Using Nebula and the servers it reaches",
+  "legalEnglishOnly": "This text is in English only.",
+  "sectionStartup": "Startup",
+  "sectionRouting": "Routing",
+  "sectionDetails": "Details",
+  "sectionManage": "Manage"
 }

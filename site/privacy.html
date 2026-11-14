@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy policy – Nebula VPN</title>
+<meta name="description" content="What Nebula VPN stores, for how long, and what its apps send where.">
+<link rel="canonical" href="https://parsabrg.github.io/nebula-vpn/privacy.html">
+<link rel="icon" type="image/png" href="favicon.png">
+<style>
+  :root { --bg: #f7f7fa; --fg: #15151c; --muted: #5b5b6b; --card: #ffffff; --line: #e3e3ea; --accent: #4f63e7; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0b0b10; --fg: #f1f1f5; --muted: #a0a0b2; --card: #15151d; --line: #26263a; --accent: #8193ff; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 40px 16px 64px; }
+  nav a { color: var(--muted); text-decoration: none; font-size: 15px; }
+  h1 { font-size: clamp(28px, 5vw, 40px); margin: 16px 0 8px; letter-spacing: -0.02em; }
+  h2 { margin: 36px 0 10px; font-size: 22px; }
+  ul { padding-inline-start: 22px; }
+  li { margin: 6px 0; }
+  a { color: var(--accent); }
+  code { font-size: 0.9em; overflow-wrap: anywhere; }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: 12px; font-size: 15px; display: block; overflow-x: auto; }
+  th, td { text-align: start; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  footer { margin-top: 56px; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <nav><a href="./">← Nebula VPN</a></nav>
+  <h1>Privacy policy</h1>
+<p>What a Nebula VPN server stores about the people who use it, for how long, and what the apps (Android, Windows, Linux) send where. Written from the code and checked against the live deployment on 2026-10-17; WARP, free mode and the connection checks added from the code on 2026-11-14. If something here stops being true, it is a bug in the software or in this page.</p>
+<p>Nebula is self-hosted: whoever runs a Nebula server is the one holding this data, and the one to ask about it. The terms of use are in <a href="terms.html">terms.md</a>.</p>
+<h2>Never collected</h2>
+<ul><li>
+The sites and addresses you visit, and the contents of your traffic. The servers' Xray and Hysteria2 keep no connection log; checked on the live server: no connection lines at all.
+</li><li>
+Your DNS lookups.
+</li><li>
+Your IP address. No database table has a column for it, and the web server keeps no access log.
+</li><li>
+Your password (only a slow, salted Argon2id hash of it is stored), and one-time sign-in, activation and reset codes (only keyed digests).
+</li><li>
+Private keys: your WireGuard key never leaves your device.
+</li></ul>
+<h2>Stored while you have an account</h2>
+<table><thead><tr><th>What</th><th>Why</th></tr></thead><tbody><tr><td>Email address, optional username</td><td>To sign in, and to send the emails you ask for</td></tr><tr><td>Password hash (Argon2id)</td><td>To check your password</td></tr><tr><td>Account state, device limit, data allowance, expiry</td><td>The limits your account has</td></tr><tr><td>Each device: the name you see in Devices, its platform (Android, Windows, Linux), the app version, and whether it is revoked</td><td>So you can see and revoke your devices</td></tr><tr><td>Sessions: which device, when it expires, when it was last used</td><td>To keep you signed in, and to sign a device out when it is revoked</td></tr><tr><td>Each device's VPN keys and credentials (WireGuard public key, Xray/Hysteria2 credentials, encrypted)</td><td>So the server lets that device connect</td></tr><tr><td>Traffic counters per device and protocol: bytes received and sent, and when they were last read</td><td>Data allowances and the usage you see; amounts only, never where they went</td></tr></tbody></table>
+<h2>Kept for a limited time</h2>
+<table><thead><tr><th>What</th><th>How long</th></tr></thead><tbody><tr><td>Sign-in and email events (that a sign-in or email happened, its outcome; no IP address)</td><td>90 days</td></tr><tr><td>Administrator actions (audit log)</td><td>365 days</td></tr><tr><td>Server health and housekeeping records</td><td>90 days</td></tr><tr><td>Encrypted nightly backups of the database (age-encrypted before they leave the server)</td><td>30 days, then deleted by the nightly backup job</td></tr></tbody></table>
+<p>A weekly job deletes what is older than this.</p>
+<h2>What the apps send, and where</h2>
+<ul><li>
+<strong>To your Nebula server:</strong> sign-in, your device's registration and keys, the server list, and requests for a connection. When signed in, the app also asks the server which app version is current.
+</li><li>
+<strong>Through the VPN:</strong> everything else your device sends while connected, except what you chose to let skip it (split tunnelling, Iranian sites, websites you listed). The app never sees its contents.
+</li><li>
+<strong>Through a relay</strong> (a server listed as "&lt;exit&gt; via &lt;relay&gt;"): the relay sees your IP address and how much you send, as any network on the way does, but not your traffic, which stays encrypted from your device to the exit server. It does not log forwarded connections, and the exit server sees the relay's address instead of yours.
+</li><li>
+<strong>Through Cloudflare WARP</strong> (the "Cloudflare WARP" server, or "Reach servers through WARP" in WARP's settings): the app's WARP client registers this device with Cloudflare's WARP service once, with a random key pair it makes on the device and no email, account or name. The keys stay on the device ("Get new WARP keys" replaces them). Cloudflare then carries your traffic: it sees your IP address and the addresses you connect to, and the contents of anything not already encrypted (most sites use HTTPS). Its own privacy policy for WARP applies to what it does with that. Through WARP to one of our servers, Cloudflare sees only that you reach that server, and the server sees a Cloudflare address instead of yours.
+</li><li>
+<strong>Through Psiphon</strong> ("Leave outside Iran", Cloudflare WARP server only): WARP carries you to Psiphon's network and your traffic leaves from a Psiphon server outside Iran. Cloudflare sees only that you reach Psiphon; Psiphon sees where your traffic goes, but not your IP address, which it receives as a Cloudflare one. Psiphon's own privacy policy applies.
+</li><li>
+<strong>Through the DNS tunnel</strong> (only when every other route has failed, once the app supports it): your traffic is split into DNS queries sent through public resolvers, often ones inside Iran, which pass them to the server. Their contents are encrypted (AES-256-GCM, then the VLESS Encryption tunnel inside); the resolvers see their volume and timing, and that they go to the tunnel's domain.
+</li><li>
+<strong>To GitHub:</strong> if "Check for updates" is on, the app asks GitHub's public releases page for the newest version. GitHub sees your IP address, as for any download. When you install an update from the app, it downloads the release file and its signed checksum list from GitHub too.
+</li><li>
+<strong>To public DNS resolvers (Cloudflare 1.1.1.1, Google 8.8.8.8, Quad9 9.9.9.9):</strong> before a connection through Cloudflare, one lookup of <code>cloudflare-ech.com</code>, which every Cloudflare encrypted connection makes. It names no site you visit.
+</li><li>
+<strong>Subscriptions and links you add:</strong> fetched from the address you gave; they stay on your device and are never sent to your Nebula server.
+</li><li>
+<strong>Free mode</strong> (no account): the app fetches the free subscription, a public list of servers, from GitHub Pages (<code>parsabrg.github.io</code>), which sees your IP address as for any page. The servers in it are run by other people, not by Nebula: like any VPN server, whoever runs one can see your IP address and where your traffic goes. Use them for getting around a block, not for anything you would not want a stranger to see.
+</li><li>
+<strong>Connection checks:</strong> while connecting and while connected, the app checks that the tunnel really carries data, with requests through it to <code>www.gstatic.com</code>, <code>speed.cloudflare.com</code> and <code>www.youtube.com</code>. Before a connection, it checks the device is online at all with one request each to <code>connectivitycheck.gstatic.com</code> and <code>checkip.amazonaws.com</code>, outside the VPN. None of them carries anything about you or your account.
+</li><li>
+<strong>Tools you start:</strong> the speed test downloads from and uploads to <code>speed.cloudflare.com</code>; the leak test asks Cloudflare (<code>1.1.1.1</code>) which address your traffic leaves from; the clean-address scan connects to Cloudflare's addresses to time them. Each runs only when you start it.
+</li><li>
+<strong>Nothing else.</strong> No analytics, no crash reporting, no advertising, no third-party SDKs. The app contains no Google Play Services or Firebase code (the QR scanner is open-source ZXing).
+</li></ul>
+<p>On the device, the app keeps your session, settings and the links you added, in the platform's secure storage where they are secrets.</p>
+<h2>Your choices</h2>
+<ul><li>
+See and revoke your devices under Devices.
+</li><li>
+Turn off "Check for updates" in Settings.
+</li><li>
+Get new WARP keys in Settings, Cloudflare WARP; or never use WARP, and nothing is sent to Cloudflare's WARP service.
+</li><li>
+Change your password under Account. You stay signed in on this device; every other device is signed out.
+</li><li>
+Delete your account under Account, with your password. This happens at once and cannot be undone:
+<ul><li>
+<strong>Deleted:</strong> your email address, username and password; your devices' names and hardware IDs; every session, sign-in token, activation and password-reset link; your original account request; every email queued for or sent to your address; your permissions and server assignments.
+</li><li>
+<strong>Removed from every server:</strong> your WireGuard, Xray and Hysteria2 credentials (within about a minute; an unreachable server removes them when it is back).
+</li><li>
+<strong>Kept, under a random number that is not linked to you:</strong> audit log entries and traffic totals. The deletion's own audit entry does not contain your address.
+</li><li>
+<strong>Backups</strong> still hold the old data until they expire, within 30 days.
+</li><li>
+An email already on its way when you delete may still arrive; its copy on the server expires within 24 hours and is never sent once deleted.
+</li></ul>
+</li><li>
+An administrator can delete an account from the admin panel, for example when you ask them to. It is the same deletion as above; the audit entry names the administrator who did it.
+</li></ul>
+<h2>A server's operator</h2>
+<p>Running a VPN means your traffic leaves the internet from that server, so the person running it is in a position of trust. Nebula is built so that the software records as little as possible, but it cannot stop an operator from changing what their own server does. Use a server run by someone you trust, or run your own.</p>
+  <footer>Generated from <a href="https://github.com/Parsabrg/nebula-vpn/blob/main/docs/privacy.md">docs/privacy.md</a>. <a href="privacy.html">Privacy policy</a> · <a href="terms.html">Terms of use</a></footer>
+</main>
+</body>
+</html>

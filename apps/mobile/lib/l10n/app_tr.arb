@@ -497,5 +497,17 @@
   "warpNewKeys": "Yeni WARP anahtarları al",
   "warpNewKeysMeta": "Sonraki bağlantıda",
   "warpNewKeysDone": "Yeni anahtarlar sonraki bağlantıda oluşturulacak.",
-  "warpNewKeysExplain": "Anahtarlar bu cihazın ücretsiz WARP kaydıdır. WARP bağlanıp hiçbir şey taşımıyorsa yenilerini alın."
+  "warpNewKeysExplain": "Anahtarlar bu cihazın ücretsiz WARP kaydıdır. WARP bağlanıp hiçbir şey taşımıyorsa yenilerini alın.",
+  "warpOutsideIranTitle": "İran dışından çık",
+  "warpOutsideIranOn": "Açık: Psiphon üzerinden çıkış",
+  "warpOutsideIranExplain": "Cloudflare WARP sunucusu için. Cloudflare, İran'daki herkesin WARP çıkışını İran'a yerleştirir; bu yüzden İran'ı reddeden siteler WARP'ı da reddeder. Açıkken WARP sizi Psiphon'a taşır ve siteler İran dışında bir Psiphon adresi görür. Daha yavaştır ve bağlanmak biraz daha uzun sürer. WARP üzerinden ulaştığınız sunucularınız zaten sunucudan çıkar.",
+  "privacyPolicy": "Gizlilik politikası",
+  "privacyPolicyMeta": "Neyin saklandığı ve neyin nereye gönderildiği",
+  "termsOfUse": "Kullanım koşulları",
+  "termsOfUseMeta": "Nebula'yı ve ulaştığı sunucuları kullanmak",
+  "legalEnglishOnly": "Bu metin yalnızca İngilizcedir.",
+  "sectionStartup": "Başlangıç",
+  "sectionRouting": "Yönlendirme",
+  "sectionDetails": "Ayrıntılar",
+  "sectionManage": "Yönet"
 }

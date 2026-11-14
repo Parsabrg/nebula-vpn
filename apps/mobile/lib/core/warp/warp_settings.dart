@@ -230,9 +230,10 @@ const String _chromeTrustAnchors =
 
 const String defaultMasqueSni = 'www.cloudflare.com';
 
-/// Where the app carries Aether: Android so far (the desktop runtimes
-/// do not bundle it yet).
-bool get warpSupported => Platform.isAndroid;
+/// Where the app carries Aether: Android, and the Windows and Linux
+/// runtimes (desktop_aether.dart).
+bool get warpSupported =>
+    Platform.isAndroid || Platform.isWindows || Platform.isLinux;
 
 class WarpSettings {
   const WarpSettings({
@@ -248,6 +249,7 @@ class WarpSettings {
     this.endpoint,
     this.quickReconnect = true,
     this.throughWarp = false,
+    this.leaveOutsideIran = false,
     this.identity = 0,
   });
 
@@ -278,6 +280,13 @@ class WarpSettings {
   /// Reach Nebula servers through WARP.
   final bool throughWarp;
 
+  /// WARP mode leaves through Psiphon, carried by WARP: every WARP exit for
+  /// someone in Iran is placed in Iran (seven tries over three protocols,
+  /// 2026-11-14), so sites refusing Iran refuse plain WARP; Psiphon's exit
+  /// came out in Poland. For free users, who have no server of ours to go
+  /// through instead.
+  final bool leaveOutsideIran;
+
   /// Which WARP keys are used: raised by "Get new WARP keys", so the next
   /// connection registers new ones under new file names.
   final int identity;
@@ -297,6 +306,7 @@ class WarpSettings {
     String? Function()? endpoint,
     bool? quickReconnect,
     bool? throughWarp,
+    bool? leaveOutsideIran,
     int? identity,
   }) => WarpSettings(
     protocol: protocol ?? this.protocol,
@@ -311,6 +321,7 @@ class WarpSettings {
     endpoint: endpoint == null ? this.endpoint : endpoint(),
     quickReconnect: quickReconnect ?? this.quickReconnect,
     throughWarp: throughWarp ?? this.throughWarp,
+    leaveOutsideIran: leaveOutsideIran ?? this.leaveOutsideIran,
     identity: identity ?? this.identity,
   );
 
@@ -327,6 +338,7 @@ class WarpSettings {
     'endpoint': endpoint,
     'quickReconnect': quickReconnect,
     'throughWarp': throughWarp,
+    'leaveOutsideIran': leaveOutsideIran,
     'identity': identity,
   };
 
@@ -387,6 +399,7 @@ class WarpSettings {
           : null,
       quickReconnect: decoded['quickReconnect'] != false,
       throughWarp: decoded['throughWarp'] == true,
+      leaveOutsideIran: decoded['leaveOutsideIran'] == true,
       identity: identity is int && identity >= 0 ? identity : 0,
     );
   }
@@ -425,7 +438,24 @@ bool isValidWarpEndpoint(String value) {
 
 /// Aether's command line for [settings], serving SOCKS5 on loopback [port],
 /// keeping its WARP identities in its working directory.
-List<String> aetherArguments(WarpSettings settings, int port) {
+/// Where Psiphon serves when WARP mode leaves through it: two after
+/// Aether's port, as the desktop bridge takes the one after.
+int psiphonPortFor(int aetherPort) => aetherPort + 2;
+
+/// The line Aether logs once the proxy Xray dials serves: its own SOCKS5,
+/// or Psiphon's. Only the port tells them apart, and WireGuard inside MASQUE
+/// logs the same words for an inner port before its tunnel exists.
+String aetherReadyLine(int port, {bool psiphon = false}) => psiphon
+    ? 'psiphon is ready; 127.0.0.1:${psiphonPortFor(port)}'
+    : 'socks5 server listening on 127.0.0.1:$port';
+
+/// [psiphon]: leave through Psiphon (WARP mode with "Leave outside Iran");
+/// the binary is found next to Aether, or named by the Android plugin.
+List<String> aetherArguments(
+  WarpSettings settings,
+  int port, {
+  bool psiphon = false,
+}) {
   final WarpProtocol protocol = settings.protocol;
   final String keys = 'warp-${settings.identity}';
   return <String>[
@@ -461,6 +491,11 @@ List<String> aetherArguments(WarpSettings settings, int port) {
     '$keys.toml',
     '--masque-config',
     '$keys-masque.toml',
+    if (psiphon) ...<String>[
+      '--psiphon',
+      '--psiphon-bind',
+      '127.0.0.1:${psiphonPortFor(port)}',
+    ],
     '--log-level',
     'info',
   ];

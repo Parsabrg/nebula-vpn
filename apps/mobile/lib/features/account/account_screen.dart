@@ -181,8 +181,30 @@ class _Details extends ConsumerWidget {
         const SizedBox(height: 28),
         _UsageBlock(account: account),
         const SizedBox(height: 28),
+        // Settings is not a tab -- this is the way in, so it comes first.
         PanelRowGroup(
           rows: <PanelRow>[
+            PanelRow(
+              label: text.rowSettings,
+              value: text.open,
+              onTap: () => context.push(RoutePaths.homeSettings),
+            ),
+          ],
+        ),
+        const SizedBox(height: 28),
+        SectionHeader(text.sectionDetails),
+        const SizedBox(height: 8),
+        PanelRowGroup(
+          rows: <PanelRow>[
+            PanelRow(
+              label: text.rowEmail,
+              value: account.email,
+              valueIsMono: false,
+            ),
+            PanelRow(
+              label: text.rowStatus,
+              value: _stateLabel(text, account.state),
+            ),
             PanelRow(
               label: text.rowAccessUntil,
               // Three different things, and they must not collapse into one
@@ -193,20 +215,18 @@ class _Details extends ConsumerWidget {
                   : formatLongDate(context, account.expiresAt!),
               valueColor: expired ? palette.amberText : null,
             ),
-            PanelRow(
-              label: text.rowEmail,
-              value: account.email,
-              valueIsMono: false,
-            ),
-            PanelRow(
-              label: text.rowStatus,
-              value: _stateLabel(text, account.state),
-            ),
             if (me != null)
               PanelRow(
                 label: text.rowSessionId,
                 value: _truncate(me.sessionId),
               ),
+          ],
+        ),
+        const SizedBox(height: 28),
+        SectionHeader(text.sectionManage),
+        const SizedBox(height: 8),
+        PanelRowGroup(
+          rows: <PanelRow>[
             if (update != null)
               PanelRow(
                 label: text.rowUpdate,
@@ -223,12 +243,6 @@ class _Details extends ConsumerWidget {
               label: text.rowPassword,
               value: text.change,
               onTap: () => context.push(RoutePaths.homeChangePassword),
-            ),
-            // Settings is not a tab -- this is the way in.
-            PanelRow(
-              label: text.rowSettings,
-              value: text.open,
-              onTap: () => context.push(RoutePaths.homeSettings),
             ),
           ],
         ),
