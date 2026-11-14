@@ -540,5 +540,17 @@
   "accentMono": "Mono",
   "@accentMono": {"description": "NEEDS TRANSLATION (English placeholder). An accent colour's name (swatch label)."},
   "connectionDetails": "Connection details",
-  "@connectionDetails": {"description": "NEEDS TRANSLATION (English placeholder). Connect: the link to the screen with address, session, resolvers and configuration."}
+  "@connectionDetails": {"description": "NEEDS TRANSLATION (English placeholder). Connect: the link to the screen with address, session, resolvers and configuration."},
+  "searchSettings": "Search settings",
+  "@searchSettings": {"description": "NEEDS TRANSLATION (English placeholder). Settings hub: the search field's label."},
+  "noSettingsMatch": "No settings match “{query}”.",
+  "@noSettingsMatch": {"description": "NEEDS TRANSLATION (English placeholder). Settings search: nothing found.", "placeholders": {"query": {"type": "String"}}},
+  "settingsResults": "Results",
+  "@settingsResults": {"description": "NEEDS TRANSLATION (English placeholder). Settings search: the section of matches."},
+  "routingExceptions": "Exceptions",
+  "@routingExceptions": {"description": "NEEDS TRANSLATION (English placeholder). Routing: the section of what skips the VPN."},
+  "routingWhatGoesThrough": "What goes through the VPN",
+  "@routingWhatGoesThrough": {"description": "NEEDS TRANSLATION (English placeholder). Routing: the section label above the Everything / Sanctioned services only choice."},
+  "routingEverything": "Todo",
+  "@routingEverything": {"description": "Routing: everything goes through the VPN (the default). Same word as logEverything."}
 }

@@ -22,6 +22,7 @@ import '../../features/settings/connection_log_screen.dart';
 import '../../features/settings/diagnostics_screen.dart';
 import '../../features/settings/dns_tunnel_resolvers_screen.dart';
 import '../../features/settings/settings_screen.dart';
+import '../../features/settings/settings_sections.dart';
 import '../../features/settings/split_tunnel_screen.dart';
 import '../../features/settings/warp_settings_screen.dart';
 import '../../features/splash/splash_screen.dart';
@@ -245,6 +246,26 @@ final routerProvider = Provider<GoRouter>((Ref ref) {
         path: RoutePaths.homeAppearance,
         pageBuilder: (BuildContext context, GoRouterState state) =>
             buildNebulaPage(context, state, const AppearanceScreen()),
+      ),
+      GoRoute(
+        path: RoutePaths.homeStartup,
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            buildNebulaPage(context, state, const StartupSettingsScreen()),
+      ),
+      GoRoute(
+        path: RoutePaths.homeProtection,
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            buildNebulaPage(context, state, const ProtectionSettingsScreen()),
+      ),
+      GoRoute(
+        path: RoutePaths.homeRouting,
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            buildNebulaPage(context, state, const RoutingSettingsScreen()),
+      ),
+      GoRoute(
+        path: RoutePaths.homeAdvancedGroup,
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            buildNebulaPage(context, state, const AdvancedGroupScreen()),
       ),
     ],
   );

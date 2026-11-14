@@ -7,9 +7,10 @@ import 'package:nebula_mobile/core/app_info.dart';
 import 'package:nebula_mobile/core/settings/protection_controller.dart';
 import 'package:nebula_mobile/core/storage/protection_preference_store.dart';
 import 'package:nebula_mobile/core/storage/storage_providers.dart';
-import 'package:nebula_mobile/core/widgets/panel/panel_controls.dart';
+import 'package:nebula_mobile/core/widgets/nebula/nebula_rows.dart';
 import 'package:nebula_mobile/core/window/login_item.dart';
 import 'package:nebula_mobile/features/settings/settings_screen.dart';
+import 'package:nebula_mobile/features/settings/settings_sections.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../support/localised_app.dart';
@@ -44,11 +45,15 @@ Future<ProviderContainer> _container({
   );
 }
 
-Future<void> _pump(WidgetTester tester, ProviderContainer container) async {
+Future<void> _pump(
+  WidgetTester tester,
+  ProviderContainer container, {
+  Widget screen = const ProtectionSettingsScreen(),
+}) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: localisedApp(const SettingsScreen()),
+      child: localisedApp(screen),
     ),
   );
   await tester.pumpAndSettle();
@@ -75,7 +80,7 @@ void main() {
       final InMemoryProtectionStore store = InMemoryProtectionStore();
       final ProviderContainer container = await _container(store: store);
       addTearDown(container.dispose);
-      await _pump(tester, container);
+      await _pump(tester, container, screen: const StartupSettingsScreen());
 
       await tester.tap(find.text('Connect on launch'));
       await tester.pumpAndSettle();
@@ -97,7 +102,7 @@ void main() {
       final InMemoryProtectionStore store = InMemoryProtectionStore();
       final ProviderContainer container = await _container(store: store);
       addTearDown(container.dispose);
-      await _pump(tester, container);
+      await _pump(tester, container, screen: const StartupSettingsScreen());
 
       await tester.tap(find.text('live ↓ ↑ in the shade'));
       await tester.pumpAndSettle();
@@ -128,11 +133,11 @@ void main() {
       // is built lazily, so rows scrolled past are not there to count.
       final Finder row = find.ancestor(
         of: find.text('Kill switch'),
-        matching: find.byType(PanelExternalRow),
+        matching: find.byType(NebulaRow),
       );
       expect(row, findsOneWidget);
       expect(
-        find.descendant(of: row, matching: find.byType(Switch)),
+        find.descendant(of: row, matching: find.byType(NebulaSwitch)),
         findsNothing,
       );
     });
@@ -190,7 +195,7 @@ void main() {
       final _FakeLoginItem item = _FakeLoginItem();
       final ProviderContainer container = await _container(loginItem: item);
       addTearDown(container.dispose);
-      await _pump(tester, container);
+      await _pump(tester, container, screen: const StartupSettingsScreen());
 
       // Android's restart receiver has no desktop counterpart.
       expect(find.text('Reconnect after restart'), findsNothing);
@@ -249,12 +254,17 @@ void main() {
   ) async {
     final ProviderContainer container = await _container();
     addTearDown(container.dispose);
-    await _pump(tester, container);
+    await _pump(tester, container, screen: const SettingsScreen());
 
     // Scrolled to, not assumed on screen: the settings list is longer than
     // the viewport, and a lazily built ListView has not created the About
     // section until it is reached.
-    await tester.scrollUntilVisible(find.text('Version'), 200);
+    await tester.scrollUntilVisible(
+      find.text('Version'),
+      200,
+      // The page's list, not the search field's own scrollable.
+      scrollable: find.byType(Scrollable).first,
+    );
 
     expect(find.text('Version'), findsOneWidget);
     // kClientVersion, which app_info_test pins to pubspec.yaml, so it cannot

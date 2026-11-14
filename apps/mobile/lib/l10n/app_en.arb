@@ -673,5 +673,17 @@
   "accentMono": "Mono",
   "@accentMono": {"description": "An accent colour's name (swatch label)."},
   "connectionDetails": "Connection details",
-  "@connectionDetails": {"description": "Connect: the link to the screen with address, session, resolvers and configuration."}
+  "@connectionDetails": {"description": "Connect: the link to the screen with address, session, resolvers and configuration."},
+  "searchSettings": "Search settings",
+  "@searchSettings": {"description": "Settings hub: the search field's label."},
+  "noSettingsMatch": "No settings match “{query}”.",
+  "@noSettingsMatch": {"description": "Settings search: nothing found.", "placeholders": {"query": {"type": "String"}}},
+  "settingsResults": "Results",
+  "@settingsResults": {"description": "Settings search: the section of matches."},
+  "routingExceptions": "Exceptions",
+  "@routingExceptions": {"description": "Routing: the section of what skips the VPN."},
+  "routingWhatGoesThrough": "What goes through the VPN",
+  "@routingWhatGoesThrough": {"description": "Routing: the section label above the Everything / Sanctioned services only choice."},
+  "routingEverything": "Everything",
+  "@routingEverything": {"description": "Routing: everything goes through the VPN (the default)."}
 }
