@@ -2332,3 +2332,162 @@ h2 {
   background: transparent;
   color: var(--danger-text);
 }
+
+/* A page title with its actions on the right ("Add server", "Relays"). */
+.page-heading--actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.page-heading--actions > div:first-child {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.page-heading__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+/* Material icon glyphs inside buttons. */
+.icon {
+  font-family: "Material Icons Outlined";
+  font-size: 18px;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  font-feature-settings: "liga";
+}
+
+.button .icon {
+  margin-right: 8px;
+}
+
+/* A card's title with a control at its right ("Check again"). */
+.status-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.status-card__head h2 {
+  flex: 1;
+  min-width: 160px;
+}
+
+/* Notices: a tinted box with a coloured border, by kind. */
+.notice {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--surface));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--text);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.notice--warning {
+  border-color: color-mix(in srgb, var(--warning-text) 35%, var(--surface));
+  background: color-mix(in srgb, var(--warning-text) 12%, var(--surface));
+}
+
+.notice--danger {
+  border-color: color-mix(in srgb, var(--danger-text) 35%, var(--surface));
+  background: color-mix(in srgb, var(--danger-text) 12%, var(--surface));
+}
+
+/* A table cell holding a name and the code under it. */
+.cell-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cell-stack .muted {
+  font-size: 13px;
+}
+
+.numeric {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Choices in a dialog: each a bordered box, the chosen one outlined in the
+   accent (the server's state in Manage). */
+.choice-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--button-radius);
+  cursor: pointer;
+}
+
+.choice.is-selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.choice input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+
+.choice span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.choice strong {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.server-manage .everyone__result,
+.server-manage > .button {
+  margin-top: 12px;
+}
+
+.field__help {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.page-heading.page-heading--actions {
+  max-width: none;
+}

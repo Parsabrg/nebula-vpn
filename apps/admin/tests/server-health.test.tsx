@@ -67,8 +67,10 @@ it("shows unsettled records even when the agent is unreachable", async () => {
       .getAllByRole("cell")
       .map((cell) => cell.textContent),
   ).toEqual(["node-1", "2", "3", "1"]);
-  const card = screen.getByRole("article", { name: "Server Node 1" });
-  expect(await within(card).findByText("Agent unreachable")).toBeVisible();
+  // The agent column says it is down; the records above still show.
+  const row = screen.getByRole("row", { name: /Node 1/ });
+  const [agent] = await within(row).findAllByText("Down");
+  expect(agent).toBeVisible();
   expect(
     screen.getByText("6 records are waiting or need review."),
   ).toBeVisible();
@@ -129,24 +131,18 @@ it.each([false, null])(
       return { items: [] };
     });
     render(await ServerHealthPage(defaultProps));
-    const card = screen.getByRole("article", { name: "Server Node 1" });
-    // WireGuard's own evidence stands, whatever Xray's probe said.
-    expect(await within(card).findByText("up · 0 peers")).toBeVisible();
-    expect(within(card).getByTitle("2026-10-02T00:00:00.000Z")).toBeVisible();
+    const row = screen.getByRole("row", { name: /Node 1/ });
+    // WireGuard's own evidence stands, whatever Xray's probe said: the
+    // agent and WireGuard read OK, the check time is the agent's.
+    expect(await within(row).findByTitle("0 peers")).toHaveTextContent("OK");
+    expect(within(row).getByTitle("1.0.0")).toHaveTextContent("OK");
+    expect(within(row).getByTitle("2026-10-02T00:00:00.000Z")).toBeVisible();
+    // Xray's own answer, with its reason on hover.
     expect(
-      within(card).getByText(
-        listenerUp === null
-          ? "Xray not checked · 0 ms"
-          : "Xray listener down · 0 ms",
+      within(row).getByTitle(
+        listenerUp === null ? "agent_unreachable" : "listener_unreachable",
       ),
-    ).toBeVisible();
-    expect(
-      within(card).getByText(
-        listenerUp === null
-          ? "unknown (agent_unreachable)"
-          : "down (listener_unreachable)",
-      ),
-    ).toBeVisible();
+    ).toHaveTextContent(listenerUp === null ? "Unknown" : "Down");
     expect(apiFetch).toHaveBeenCalledWith("/v1/admin/vpn-servers/xray-health");
   },
 );
@@ -170,13 +166,12 @@ it("says the servers could not be checked instead of inventing an empty probe se
       };
     return emptyHistory;
   });
-  // The page itself no longer waits for the agents: it shows, and the card
-  // says the live check failed.
+  // The page itself does not wait for the agents: it shows, and the row
+  // says the live check failed rather than showing empty results.
   render(await ServerHealthPage(defaultProps));
-  const card = screen.getByRole("article", { name: "Server Node 1" });
-  expect(
-    await within(card).findByText("Could not check right now"),
-  ).toBeVisible();
+  const row = screen.getByRole("row", { name: /Node 1/ });
+  const failed = await within(row).findAllByText("Could not check");
+  expect(failed).toHaveLength(3);
 });
 
 it("shows an empty inventory without claiming provisioning has not been implemented", async () => {
