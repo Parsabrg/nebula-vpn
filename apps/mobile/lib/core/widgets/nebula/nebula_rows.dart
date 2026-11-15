@@ -158,52 +158,61 @@ class NebulaRow extends StatelessWidget {
       NebulaTone.normal => p.textPrimary,
     };
 
-    final Widget content = Row(
-      children: <Widget>[
-        if (icon != null) ...<Widget>[
-          _Tile(icon: icon!, tone: tone),
-          const SizedBox(width: 14),
-        ],
-        Expanded(
-          flex: 3,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  height: 22 / 16,
-                  color:
-                      titleColor ??
-                      (tone == NebulaTone.danger ? p.redText : p.textPrimary),
-                ),
-              ),
-              if (subtitle != null && subtitle!.isNotEmpty) ...<Widget>[
-                const SizedBox(height: 2),
+    final Widget content = LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints box) => Row(
+        children: <Widget>[
+          if (icon != null) ...<Widget>[
+            _Tile(icon: icon!, tone: tone),
+            const SizedBox(width: 14),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
                 Text(
-                  subtitle!,
+                  title,
                   style: TextStyle(
-                    fontSize: 13,
-                    height: 18 / 13,
+                    fontSize: 16,
+                    height: 22 / 16,
                     color:
-                        subtitleColor ??
-                        (tone == NebulaTone.warn ? toneColor : p.textMuted),
+                        titleColor ??
+                        (tone == NebulaTone.danger ? p.redText : p.textPrimary),
                   ),
                 ),
+                if (subtitle != null && subtitle!.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle!,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 18 / 13,
+                      color:
+                          subtitleColor ??
+                          (tone == NebulaTone.warn ? toneColor : p.textMuted),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
-        // At most two fifths of the row, so a long value or button label
-        // on a small phone or with large text shortens instead of pushing
-        // past the screen edge.
-        if (trailing != null) ...<Widget>[
-          const SizedBox(width: 12),
-          Flexible(flex: 2, child: trailing!),
+          // At most two fifths of the row, so a long value or button label
+          // on a small phone or with large text shortens instead of pushing
+          // past the screen edge. A cap rather than a flex share, which kept
+          // the trailing part off the row's end.
+          if (trailing != null) ...<Widget>[
+            const SizedBox(width: 12),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: box.hasBoundedWidth
+                    ? box.maxWidth * 0.4
+                    : double.infinity,
+              ),
+              child: trailing,
+            ),
+          ],
         ],
-      ],
+      ),
     );
 
     late final EdgeInsets padding;

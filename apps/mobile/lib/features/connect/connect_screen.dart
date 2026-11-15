@@ -169,20 +169,24 @@ class _Header extends StatelessWidget {
         height: 48,
         child: Row(
           children: <Widget>[
-            Flexible(
-              child: desktop
-                  ? Semantics(
-                      header: true,
-                      child: Text(
-                        text.tabConnect,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: nebulaTitleStyle(p),
-                      ),
-                    )
-                  : const NebulaBrand(),
+            // Expanded, not Flexible beside a Spacer: the two split the free
+            // space and left "+" in the middle of the row.
+            Expanded(
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: desktop
+                    ? Semantics(
+                        header: true,
+                        child: Text(
+                          text.tabConnect,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: nebulaTitleStyle(p),
+                        ),
+                      )
+                    : const NebulaBrand(),
+              ),
             ),
-            const Spacer(),
             Tooltip(
               message: text.ownLinksTitle,
               child: NebulaPressable(

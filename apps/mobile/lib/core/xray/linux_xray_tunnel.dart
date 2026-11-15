@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../network/dns_tunnel_engine.dart';
+import '../platform/owned_process.dart';
 import '../tunnel/tunnel_traffic.dart';
 import '../warp/desktop_aether.dart';
 import 'linux_tunnel_config.dart';
@@ -501,9 +502,13 @@ class LinuxXrayRuntime {
   }
 
   static Future<int> _startQuiet(String executable, List<String> args) async {
-    final Process process = await Process.start(
+    final (String command, List<String> arguments) = ownedCommand(
       executable,
       args,
+    );
+    final Process process = await Process.start(
+      command,
+      arguments,
       workingDirectory: File(executable).parent.path,
       mode: ProcessStartMode.detached,
     );

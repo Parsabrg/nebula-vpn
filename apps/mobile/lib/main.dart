@@ -30,7 +30,9 @@ Future<void> main(List<String> arguments) async {
     await windowManager.ensureInitialized();
 
     const WindowOptions windowOptions = WindowOptions(
-      size: Size(420, 720),
+      // The redesign's desktop window: wide enough for the sidebar layout
+      // (900 px and up). Narrower than that it shows the phone layout.
+      size: Size(1040, 700),
       minimumSize: Size(380, 640),
       center: true,
       title: 'Nebula VPN',
