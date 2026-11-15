@@ -169,13 +169,19 @@ class _Header extends StatelessWidget {
         height: 48,
         child: Row(
           children: <Widget>[
-            if (desktop)
-              Semantics(
-                header: true,
-                child: Text(text.tabConnect, style: nebulaTitleStyle(p)),
-              )
-            else
-              const NebulaBrand(),
+            Flexible(
+              child: desktop
+                  ? Semantics(
+                      header: true,
+                      child: Text(
+                        text.tabConnect,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: nebulaTitleStyle(p),
+                      ),
+                    )
+                  : const NebulaBrand(),
+            ),
             const Spacer(),
             Tooltip(
               message: text.ownLinksTitle,

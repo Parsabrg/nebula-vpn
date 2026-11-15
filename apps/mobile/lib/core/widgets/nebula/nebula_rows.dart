@@ -165,6 +165,7 @@ class NebulaRow extends StatelessWidget {
           const SizedBox(width: 14),
         ],
         Expanded(
+          flex: 3,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -195,7 +196,13 @@ class NebulaRow extends StatelessWidget {
             ],
           ),
         ),
-        if (trailing != null) ...<Widget>[const SizedBox(width: 12), trailing!],
+        // At most two fifths of the row, so a long value or button label
+        // on a small phone or with large text shortens instead of pushing
+        // past the screen edge.
+        if (trailing != null) ...<Widget>[
+          const SizedBox(width: 12),
+          Flexible(flex: 2, child: trailing!),
+        ],
       ],
     );
 

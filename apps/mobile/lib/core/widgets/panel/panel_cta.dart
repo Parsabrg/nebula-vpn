@@ -56,7 +56,16 @@ class PanelCta extends StatelessWidget {
           Icon(icon, size: 20),
           const SizedBox(width: 8),
         ],
-        Text(label, style: type.ctaLabel),
+        // Shortened on a small phone or with large text, not pushed past
+        // the button's edge.
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: type.ctaLabel,
+          ),
+        ),
       ],
     );
 

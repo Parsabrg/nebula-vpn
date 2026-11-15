@@ -16,6 +16,8 @@ import 'package:nebula_mobile/core/routing/route_paths.dart';
 import 'package:nebula_mobile/core/servers/server_repository.dart';
 import 'package:nebula_mobile/core/storage/secure_token_store.dart';
 import 'package:nebula_mobile/core/storage/storage_providers.dart';
+import 'package:nebula_mobile/core/theme/look.dart';
+import 'package:nebula_mobile/core/theme/nebula_theme.dart';
 import 'package:nebula_mobile/core/wireguard/tunnel_controller.dart';
 import 'package:nebula_mobile/features/account_request/account_request_screen.dart';
 import 'package:nebula_mobile/features/auth/sign_in_screen.dart';
@@ -116,10 +118,11 @@ class _UnpairedNotifier extends PairingNotifier {
   Pairing? build() => null;
 }
 
-Widget _appFor(ProviderContainer container) {
+Widget _appFor(ProviderContainer container, {ThemeData? theme}) {
   return UncontrolledProviderScope(
     container: container,
     child: MaterialApp.router(
+      theme: theme,
       routerConfig: container.read(routerProvider),
       // The screens read their copy through AppText, which needs these.
       localizationsDelegates: AppText.localizationsDelegates,
@@ -439,5 +442,94 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(SignInScreen), findsOneWidget);
+  });
+
+  // The redesign has to hold on every device people actually use: a small
+  // phone, the common sizes, a tablet both ways round, a desktop window, and
+  // with the system text size turned up. A layout that overflows fails the
+  // test on its own (Flutter reports the overflow as an error).
+  group('every screen fits every size', () {
+    const Map<String, Size> sizes = <String, Size>{
+      'small phone': Size(320, 568),
+      'phone': Size(360, 800),
+      'large phone': Size(430, 932),
+      'tablet': Size(800, 1280),
+      'landscape': Size(1280, 720),
+    };
+    const List<double> textScales = <double>[1, 1.3, 2];
+    const Pairing stored = Pairing(
+      apiUrl: 'https://vpn.example.org',
+      deploymentId: '7d3c1f2e-0b5a-4c9d-8e61-2f4a9b0c1d2e',
+      deploymentName: 'Home',
+      caCertificatePem: null,
+      caSha256: null,
+      profiles: <String>['wireguard-native'],
+    );
+    const List<String> signedIn = <String>[
+      RoutePaths.homeConnect,
+      RoutePaths.homeDevices,
+      RoutePaths.homeAccount,
+      RoutePaths.homeSettings,
+      RoutePaths.homeAppearance,
+      RoutePaths.homeProtection,
+      RoutePaths.homeRouting,
+      RoutePaths.homeAdvancedGroup,
+      RoutePaths.homeStartup,
+      RoutePaths.homeWarp,
+    ];
+    const List<String> signedOut = <String>[
+      RoutePaths.signIn,
+      RoutePaths.accountRequest,
+      RoutePaths.activate,
+      RoutePaths.passwordReset,
+    ];
+
+    for (final MapEntry<String, Size> size in sizes.entries) {
+      for (final double scale in textScales) {
+        testWidgets('${size.key}, text x$scale', (WidgetTester tester) async {
+          tester.view
+            ..devicePixelRatio = 1
+            ..physicalSize = size.value;
+          tester.platformDispatcher.textScaleFactorTestValue = scale;
+          addTearDown(tester.view.reset);
+          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+          for (final NebulaLook look in NebulaLook.values) {
+            for (final bool authenticated in <bool>[true, false]) {
+              final ProviderContainer container = await _containerWith(
+                authenticated
+                    ? const AuthAuthenticated(tokens: _authenticatedTokens)
+                    : const AuthUnauthenticated(),
+                tunnel: FakeTunnelController(),
+                stored: stored,
+              );
+              await tester.pumpWidget(
+                _appFor(
+                  container,
+                  theme: NebulaTheme.resolve(
+                    Brightness.dark,
+                    AppearanceChoice(look: look),
+                  ),
+                ),
+              );
+              await tester.pumpAndSettle();
+              for (final String path in authenticated ? signedIn : signedOut) {
+                container.read(routerProvider).go(path);
+                await tester.pumpAndSettle();
+                final Object? error = tester.takeException();
+                if (error != null) {
+                  debugPrint(
+                    "SWEEP ${look.name} $path: ${(error as FlutterError).diagnostics.map((d) => d.toString()).join(' | ')}",
+                  );
+                }
+                expect(error, isNull, reason: '${look.name} $path');
+              }
+              await tester.pumpWidget(const SizedBox());
+              container.dispose();
+            }
+          }
+        });
+      }
+    }
   });
 }
