@@ -2491,3 +2491,127 @@ h2 {
 .page-heading.page-heading--actions {
   max-width: none;
 }
+
+/* Filters sit in a card, as the design draws them. */
+.filter-bar {
+  padding: 20px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: var(--card-blur);
+}
+
+/* A list card's pager: inside the card, at its right. */
+.status-card .pagination {
+  margin-top: 14px;
+  padding: 0;
+  border: 0;
+  justify-content: flex-end;
+}
+
+/* Number columns read from the right. */
+.data-table th.num,
+.data-table td.num {
+  text-align: right;
+}
+
+/* A link in a table reads as the row's name, not as underlined text. */
+.data-table td a:not(.button) {
+  color: var(--text);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.data-table td a:not(.button):hover,
+.data-table td a:not(.button):focus-visible {
+  text-decoration: underline;
+}
+
+/* Cards on a page sit 20 apart. */
+.filter-bar + .status-card,
+.status-card + .status-card,
+.status-card + section,
+.status-grid + .status-card {
+  margin-top: 20px;
+}
+
+/* "← Users" above a detail page's title. */
+.crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.crumb .icon {
+  margin: 0;
+}
+
+.page-heading h1 .badge {
+  margin-left: 10px;
+  vertical-align: middle;
+}
+
+/* A detail page's tabs: underlined, the current one in the accent. */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 20px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+}
+
+.tabs a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.tabs a[aria-current="page"] {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+}
+
+.tabs + * {
+  margin-top: 20px;
+}
+
+.tabs .count-badge {
+  margin-left: 0;
+}
+
+/* Label over value, four to a row (a user's details). */
+.kv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
+  gap: 16px;
+  margin: 16px 0 0;
+}
+
+.kv-grid dt {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.kv-grid dd {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}

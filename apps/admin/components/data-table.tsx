@@ -13,6 +13,8 @@ interface DataTableProps {
   headers: string[];
   rows: DataTableRow[];
   emptyMessage: string;
+  /** Columns holding numbers, set to the right as the design does. */
+  numeric?: number[];
 }
 
 /**
@@ -25,6 +27,7 @@ export function DataTable({
   headers,
   rows,
   emptyMessage,
+  numeric = [],
 }: DataTableProps) {
   const isNarrow = useMediaQuery("(max-width: 48rem)");
 
@@ -53,8 +56,12 @@ export function DataTable({
     <table className="data-table" aria-label={caption}>
       <thead>
         <tr>
-          {headers.map((header) => (
-            <th scope="col" key={header}>
+          {headers.map((header, index) => (
+            <th
+              scope="col"
+              key={header}
+              className={numeric.includes(index) ? "num" : undefined}
+            >
               {header}
             </th>
           ))}
@@ -64,7 +71,12 @@ export function DataTable({
         {rows.map((row) => (
           <tr key={row.key}>
             {row.cells.map((cell, index) => (
-              <td key={headers[index]}>{cell}</td>
+              <td
+                key={headers[index]}
+                className={numeric.includes(index) ? "num" : undefined}
+              >
+                {cell}
+              </td>
             ))}
           </tr>
         ))}
