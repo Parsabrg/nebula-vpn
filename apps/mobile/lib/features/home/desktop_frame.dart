@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/free/free_mode.dart';
+import '../../core/routing/home_branches.dart';
 import '../../core/routing/route_paths.dart';
 import '../../core/theme/color_tokens.dart';
 import '../../core/widgets/nebula/nebula_nav.dart';
@@ -21,8 +22,16 @@ List<NebulaNavItem> appDestinations(
   final AppText text = AppText.of(context);
   final bool free = ref.watch(freeModeProvider);
   final bool settings = location.startsWith(RoutePaths.homeSettings);
-  void go(int branch, String path) =>
-      goBranch != null ? goBranch(branch) : context.go(path);
+  void go(int branch, String path) {
+    if (goBranch != null) {
+      goBranch(branch);
+      return;
+    }
+    // From a settings page: the tab's own screens closed too.
+    popHomeBranch(ref, branch);
+    context.go(path);
+  }
+
   return <NebulaNavItem>[
     NebulaNavItem(
       label: text.tabConnect,

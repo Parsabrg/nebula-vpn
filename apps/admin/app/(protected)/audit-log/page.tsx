@@ -135,6 +135,13 @@ interface AuditLogSearchParams {
   offset?: string;
 }
 
+/** The badge colour for an outcome: green, red or amber. */
+const OUTCOME_TONE: Record<string, string> = {
+  success: "active",
+  failure: "failed",
+  denied: "pending",
+};
+
 export default async function AuditLogPage({
   searchParams,
 }: {
@@ -160,56 +167,83 @@ export default async function AuditLogPage({
 
   return (
     <>
-      <section className="page-heading" aria-labelledby="audit-log-title">
-        <h1 id="audit-log-title">Audit log</h1>
-        <p>Append-only record of administrator and system actions.</p>
-        <p>
-          <a
-            className="button button--secondary"
-            href="/api/admin/audit-log/export"
-            download
-          >
+      <section
+        className="page-heading page-heading--actions"
+        aria-labelledby="audit-log-title"
+      >
+        <div>
+          <h1 id="audit-log-title">Audit log</h1>
+          <p>Append-only record of administrator and system actions.</p>
+          <p className="section-note">
+            Keep exports off this server; <code>nebula-api audit-verify</code>{" "}
+            shows whether a later one still contains an earlier one unchanged.
+          </p>
+        </div>
+        <div className="page-heading__actions">
+          <a className="button" href="/api/admin/audit-log/export" download>
+            <span className="icon" aria-hidden="true">
+              download
+            </span>
             Export as a hash chain
-          </a>{" "}
-          Keep exports off this server; <code>nebula-api audit-verify</code>{" "}
-          shows whether a later one still contains an earlier one unchanged.
-        </p>
+          </a>
+        </div>
       </section>
 
       <FilterBar fields={FILTER_FIELDS} values={filterValues} />
 
-      <DataTable
-        caption="Audit events"
-        headers={["Recorded", "Actor", "Target", "Event", "Outcome", "Reason"]}
-        emptyMessage="No audit events match these filters."
-        rows={page.items.map((item) => ({
-          key: item.id,
-          cells: [
-            <LocalTime key="time-1" value={item.recordedAt} />,
-            item.actorId
-              ? (item.actorName ??
-                `${label(item.actorKind)} ${shortId(item.actorId)}`)
-              : label(item.actorKind),
-            <Target
-              key="target"
-              kind={item.targetKind}
-              id={item.targetId}
-              name={item.targetName}
-            />,
-            label(item.eventCode),
-            label(item.outcome),
-            item.reasonCode ? label(item.reasonCode) : "—",
-          ],
-        }))}
-      />
+      <section className="status-card" aria-labelledby="audit-events-title">
+        <h2 id="audit-events-title">
+          Audit events
+          <span className="count-badge">{page.total}</span>
+        </h2>
+        <DataTable
+          caption="Audit events"
+          headers={[
+            "Recorded",
+            "Actor",
+            "Event",
+            "Target",
+            "Outcome",
+            "Reason",
+          ]}
+          emptyMessage="No audit events match these filters."
+          rows={page.items.map((item) => ({
+            key: item.id,
+            cells: [
+              <span key="time" className="numeric muted">
+                <LocalTime value={item.recordedAt} />
+              </span>,
+              item.actorId
+                ? (item.actorName ??
+                  `${label(item.actorKind)} ${shortId(item.actorId)}`)
+                : label(item.actorKind),
+              <strong key="event">{label(item.eventCode)}</strong>,
+              <span key="target" className="muted">
+                <Target
+                  kind={item.targetKind}
+                  id={item.targetId}
+                  name={item.targetName}
+                />
+              </span>,
+              <span
+                key="outcome"
+                className={`badge badge--${OUTCOME_TONE[item.outcome] ?? "unknown"}`}
+              >
+                {label(item.outcome)}
+              </span>,
+              item.reasonCode ? label(item.reasonCode) : "—",
+            ],
+          }))}
+        />
 
-      <PaginationControls
-        total={page.total}
-        limit={page.limit}
-        offset={page.offset}
-        basePath="/audit-log"
-        searchParams={filterValues}
-      />
+        <PaginationControls
+          total={page.total}
+          limit={page.limit}
+          offset={page.offset}
+          basePath="/audit-log"
+          searchParams={filterValues}
+        />
+      </section>
     </>
   );
 }

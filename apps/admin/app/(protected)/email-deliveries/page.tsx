@@ -51,6 +51,15 @@ interface EmailDeliverySearchParams {
   offset?: string;
 }
 
+/** Each template's subject line, as the worker sends it
+ * (services/worker/src/nebula_worker/templates.py). */
+const SUBJECTS: Record<string, string> = {
+  account_request_review: "New Nebula account request pending review",
+  user_activation: "Activate your Nebula account",
+  password_reset: "Reset your Nebula password",
+  request_rejected: "Your Nebula account request was not approved",
+};
+
 export default async function EmailDeliveriesPage({
   searchParams,
 }: {
@@ -84,45 +93,65 @@ export default async function EmailDeliveriesPage({
 
       <FilterBar fields={FILTER_FIELDS} values={filterValues} />
 
-      <DataTable
-        caption="Email deliveries"
-        headers={[
-          "Recipient",
-          "Template",
-          "Subject",
-          "State",
-          "Attempts",
-          "Sent",
-          "Result",
-        ]}
-        emptyMessage="No email deliveries match these filters."
-        rows={page.items.map((item) => ({
-          key: item.id,
-          cells: [
-            item.recipientAddress,
-            label(item.templateCode),
-            item.subjectKind === "user" ? (
-              <Link key="subject" href={`/users/${item.subjectId}`}>
-                {label(item.subjectKind)}
-              </Link>
-            ) : (
-              label(item.subjectKind)
-            ),
-            label(item.state),
-            item.attemptCount,
-            item.sentAt ? <LocalTime value={item.sentAt} /> : "—",
-            item.resultCode ? label(item.resultCode) : "—",
-          ],
-        }))}
-      />
+      <section className="status-card" aria-labelledby="emails-title">
+        <h2 id="emails-title">
+          Emails
+          <span className="count-badge">{page.total}</span>
+        </h2>
+        <DataTable
+          caption="Email deliveries"
+          headers={[
+            "Recipient",
+            "Subject",
+            "Template",
+            "State",
+            "Attempts",
+            "Sent",
+            "Result",
+          ]}
+          numeric={[4]}
+          emptyMessage="No email deliveries match these filters."
+          rows={page.items.map((item) => ({
+            key: item.id,
+            cells: [
+              // The recipient leads to the user the email was about.
+              item.subjectKind === "user" ? (
+                <Link key="to" href={`/users/${item.subjectId}`}>
+                  {item.recipientAddress}
+                </Link>
+              ) : (
+                <strong key="to">{item.recipientAddress}</strong>
+              ),
+              SUBJECTS[item.templateCode] ?? "—",
+              <span key="template" className="muted">
+                {label(item.templateCode)}
+              </span>,
+              <span key="state" className={`badge badge--${item.state}`}>
+                {label(item.state)}
+              </span>,
+              <span key="attempts" className="numeric">
+                {item.attemptCount}
+              </span>,
+              item.sentAt ? (
+                <span key="sent" className="muted">
+                  <LocalTime value={item.sentAt} />
+                </span>
+              ) : (
+                "—"
+              ),
+              item.resultCode ? label(item.resultCode) : "—",
+            ],
+          }))}
+        />
 
-      <PaginationControls
-        total={page.total}
-        limit={page.limit}
-        offset={page.offset}
-        basePath="/email-deliveries"
-        searchParams={filterValues}
-      />
+        <PaginationControls
+          total={page.total}
+          limit={page.limit}
+          offset={page.offset}
+          basePath="/email-deliveries"
+          searchParams={filterValues}
+        />
+      </section>
     </>
   );
 }

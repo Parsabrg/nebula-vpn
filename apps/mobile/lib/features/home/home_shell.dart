@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_notifier.dart';
 import '../../core/auth/auth_state.dart';
 import '../../core/free/free_mode.dart';
+import '../../core/routing/home_branches.dart';
 import '../../core/routing/route_paths.dart';
 import '../../core/storage/storage_providers.dart';
 import '../../core/theme/color_tokens.dart';
@@ -100,12 +101,15 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       RoutePaths.homeDevices,
       RoutePaths.homeAccount,
     ];
-    void goBranch(int index) => navigationShell.goBranch(
-      index,
-      // Tapping the tab you are already on returns it to its root, which is
-      // the standard escape from a stack you pushed too deep.
-      initialLocation: index == navigationShell.currentIndex,
-    );
+    // A tab tap lands on that tab's main page, however deep it was left:
+    // several screens into Connection details, tapping Connect did nothing
+    // (owner, 2026-11-15), because those screens are pushed straight onto
+    // the tab's navigator, which the router's own reset leaves alone.
+    void goBranch(int index) {
+      popHomeBranch(ref, index);
+      navigationShell.goBranch(index, initialLocation: true);
+    }
+
     final bool desktop = nebulaDesktopLayout(context);
     final List<NebulaNavItem> items = appDestinations(
       context,

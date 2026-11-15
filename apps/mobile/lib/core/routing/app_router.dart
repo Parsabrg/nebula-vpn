@@ -31,6 +31,7 @@ import '../auth/auth_state.dart';
 import '../free/free_mode.dart';
 import '../pairing/pairing.dart';
 import '../pairing/pairing_providers.dart';
+import 'home_branches.dart';
 import 'nebula_page.dart';
 import 'route_paths.dart';
 
@@ -104,6 +105,9 @@ String? _redirect(Ref ref, GoRouterState state) {
 }
 
 final routerProvider = Provider<GoRouter>((Ref ref) {
+  final List<GlobalKey<NavigatorState>> branchKeys = ref.read(
+    homeBranchKeysProvider,
+  );
   final _AuthRefreshListenable refreshListenable = _AuthRefreshListenable(ref);
   ref.onDispose(refreshListenable.dispose);
 
@@ -157,6 +161,7 @@ final routerProvider = Provider<GoRouter>((Ref ref) {
             ) => HomeShell(navigationShell: navigationShell),
         branches: <StatefulShellBranch>[
           StatefulShellBranch(
+            navigatorKey: branchKeys[0],
             routes: <RouteBase>[
               GoRoute(
                 path: RoutePaths.homeConnect,
@@ -166,6 +171,7 @@ final routerProvider = Provider<GoRouter>((Ref ref) {
             ],
           ),
           StatefulShellBranch(
+            navigatorKey: branchKeys[1],
             routes: <RouteBase>[
               GoRoute(
                 path: RoutePaths.homeDevices,
@@ -175,6 +181,7 @@ final routerProvider = Provider<GoRouter>((Ref ref) {
             ],
           ),
           StatefulShellBranch(
+            navigatorKey: branchKeys[2],
             routes: <RouteBase>[
               GoRoute(
                 path: RoutePaths.homeAccount,

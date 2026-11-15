@@ -11,6 +11,7 @@ import '../../core/widgets/nebula/nebula_feedback.dart';
 import '../../core/widgets/nebula/nebula_page.dart';
 import '../../core/widgets/nebula/nebula_rows.dart';
 import '../../core/widgets/nebula/nebula_surface.dart';
+import '../../core/xray/xray_config.dart';
 import '../../l10n/app_localizations.dart';
 import '../devices/devices_controller.dart';
 import '../devices/devices_state.dart';
@@ -29,7 +30,11 @@ class ConfigurationScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final DevicesState state = ref.watch(devicesControllerProvider);
     final NebulaPalette palette = context.palette;
-    final XrayClientResult? client = state.xrayClient;
+    // WARP's connection is Cloudflare's, with nothing of ours to copy or
+    // release: it listed 127.0.0.1 : 0 and empty fields (owner, Linux,
+    // 2026-11-15).
+    final XrayClientResult? client =
+        state.xrayClient?.transport == kWarpTransport ? null : state.xrayClient;
 
     final AppText text = AppText.of(context);
     NebulaRow info(String title, String value) => NebulaRow(
@@ -51,11 +56,12 @@ class ConfigurationScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
           ],
-          NebulaButton.text(
-            label: text.releasePeer,
-            danger: true,
-            onPressed: () => _releasePeer(context, ref, state),
-          ),
+          if (state.xrayClient?.transport != kWarpTransport)
+            NebulaButton.text(
+              label: text.releasePeer,
+              danger: true,
+              onPressed: () => _releasePeer(context, ref, state),
+            ),
         ],
       ),
       children: <Widget>[

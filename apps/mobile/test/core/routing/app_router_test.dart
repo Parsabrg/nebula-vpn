@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
@@ -397,6 +399,41 @@ void main() {
     await tester.pumpWidget(_appFor(container));
     await tester.pumpAndSettle();
 
+    expect(find.byType(ConnectScreen), findsOneWidget);
+  });
+
+  testWidgets('a tab tap returns that tab to its main page', (
+    WidgetTester tester,
+  ) async {
+    // Several screens deep (Connection details, Configuration are pushed
+    // straight onto the tab), tapping Connect did nothing (owner,
+    // 2026-11-15). Every tab tap lands on the tab's main page.
+    tester.view
+      ..devicePixelRatio = 1
+      ..physicalSize = const Size(400, 800);
+    addTearDown(tester.view.reset);
+    final ProviderContainer container = await _containerWith(
+      const AuthAuthenticated(tokens: _authenticatedTokens),
+      tunnel: FakeTunnelController(),
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(_appFor(container));
+    await tester.pumpAndSettle();
+    expect(find.byType(ConnectScreen), findsOneWidget);
+
+    unawaited(
+      Navigator.of(tester.element(find.byType(ConnectScreen))).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const Scaffold(body: Text('deep screen')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('deep screen'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.shield));
+    await tester.pumpAndSettle();
+    expect(find.text('deep screen'), findsNothing);
     expect(find.byType(ConnectScreen), findsOneWidget);
   });
 
