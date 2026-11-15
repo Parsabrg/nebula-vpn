@@ -62,6 +62,7 @@ proprietary component.
 |---|---|---|
 | API, agent, worker (Python) | 81 | MIT, BSD, Apache-2.0, ISC, PSF and MPL-2.0; `psycopg` and `psycopg-binary` are LGPL-3.0-only |
 | Admin panel (npm, production) | 53 | MIT, Apache-2.0, ISC, BSD-3-Clause, 0BSD; `sharp`'s `libvips` binaries are LGPL-3.0-or-later; `caniuse-lite` data is CC-BY-4.0 |
+| Admin panel fonts (served from `apps/admin/public/fonts`) | Geist, Geist Mono, Material Icons Outlined | Geist: SIL OFL 1.1 (`OFL.txt` beside them); Material Icons: Apache-2.0 (Google) |
 | AdGuard Home (self-hosted resolver image) | 1 | GPL-3.0 |
 | CottenDNS server (DNS tunnel, plan 10; github.com/WhiteDNS/CottenDNS, released binary) | 1, bundling quic-go, QPACK and SOAR | CottenDNS: MIT (Amin Mahmoudi, NullRoute1970, tajirax; MasterDnsVPN -> StormDNS -> CottenDNS); quic-go: MIT; QPACK: MIT; SOAR: Apache-2.0. The licence files ship with the binary in `/usr/local/share/doc/nebula-cottendns/` |
 
