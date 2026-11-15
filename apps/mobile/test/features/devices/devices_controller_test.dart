@@ -26,6 +26,7 @@ import 'package:nebula_mobile/core/storage/wireguard_key_store.dart';
 import 'package:nebula_mobile/core/storage/wireguard_peer_store.dart';
 import 'package:nebula_mobile/core/storage/xray_credential_store.dart';
 import 'package:nebula_mobile/core/tunnel/tunnel_traffic.dart';
+import 'package:nebula_mobile/core/warp/warp_settings.dart';
 import 'package:nebula_mobile/core/wireguard/tunnel_controller.dart';
 import 'package:nebula_mobile/core/xray/local_proxy.dart';
 import 'package:nebula_mobile/core/xray/xray_tunnel_controller.dart';
@@ -2752,6 +2753,33 @@ void _selectionMemoryTests() {
       );
       expect(state.isConnected, isTrue);
       expect(state.sanctionsOnly, isTrue);
+    });
+
+    test('records whether the connection goes through WARP', () async {
+      // The Connect screen's "through WARP": from the config the tunnel
+      // was built with, and nothing at all with the setting off.
+      for (final bool on in <bool>[true, false]) {
+        final harness = _harness();
+        addTearDown(harness.container.dispose);
+        harness.repository.servers = <AvailableServer>[_xrayOnlyServer];
+        await harness.container
+            .read(advancedSettingsControllerProvider.notifier)
+            .setWarp(WarpSettings(throughWarp: on));
+        await harness.container.read(devicesControllerProvider.notifier).load();
+        final DevicesController notifier = harness.container.read(
+          devicesControllerProvider.notifier,
+        );
+        notifier.selectServer('ams-2');
+        notifier.selectProfile('vless-xhttp-tls');
+        harness.repository.requestXrayClientResult = _xrayClientResult();
+        await notifier.connect(_deviceId);
+
+        final DevicesState state = harness.container.read(
+          devicesControllerProvider,
+        );
+        expect(state.isConnected, isTrue, reason: 'on: $on');
+        expect(state.throughWarp, on ? isTrue : isNull, reason: 'on: $on');
+      }
     });
 
     test('nothing excluded hands the backend an empty list', () async {

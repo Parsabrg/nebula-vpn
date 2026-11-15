@@ -923,7 +923,11 @@ mixin _Connecting on _DevicesCore {
         sanctionsOnly: tunnelUp && routesSanctionsOnly(result, settings),
         // From the config this tunnel was built with: if WARP could not
         // start, the connection fails rather than going around it.
-        throughWarp: () => tunnelUp && settings.warp.throughWarp
+        // Nothing to say for WARP itself: that connection is WARP.
+        throughWarp: () =>
+            tunnelUp &&
+                settings.warp.throughWarp &&
+                result.transport != kWarpTransport
             ? reachesServerThroughWarp(result, settings)
             : null,
         localProxy: () => runningProxy,
