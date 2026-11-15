@@ -60,73 +60,132 @@ export function AppearancePanel() {
     return null;
   }
 
+  const accentName =
+    ACCENTS.find((option) => option.id === current.accent)?.label ?? "";
+
   return (
-    <section className="status-card" aria-label="Appearance">
-      <Choices
-        legend="Look"
-        name="look"
-        options={LOOKS}
-        value={current.look}
-        onChange={(look) => change({ look })}
-      />
-      <Choices
-        legend="Mode"
-        name="mode"
-        options={MODES}
-        value={current.mode}
-        onChange={(mode) => change({ mode })}
-      />
-      <Choices
-        legend="Accent"
-        name="accent"
-        options={ACCENTS}
-        value={current.accent}
-        onChange={(accent) => change({ accent })}
-        swatch
-      />
-    </section>
+    <>
+      <section className="status-card" aria-labelledby="look-title">
+        <h2 id="look-title">Look</h2>
+        <div
+          className="look-tiles"
+          role="radiogroup"
+          aria-labelledby="look-title"
+        >
+          {LOOKS.map((option) => {
+            const on = option.id === current.look;
+            return (
+              <label
+                key={option.id}
+                className={`look-tile${on ? " is-selected" : ""}`}
+              >
+                <input
+                  type="radio"
+                  name="look"
+                  value={option.id}
+                  checked={on}
+                  onChange={() => change({ look: option.id })}
+                  className="visually-hidden"
+                  aria-label={option.label}
+                />
+                <span
+                  className={`look-tile__preview look-tile__preview--${option.id}`}
+                  aria-hidden="true"
+                >
+                  <span className="look-tile__bar" />
+                  <span className="look-tile__row" />
+                  <span className="look-tile__row" />
+                </span>
+                <span className="look-tile__name">
+                  {option.label}
+                  {on ? (
+                    <span className="icon look-tile__check" aria-hidden="true">
+                      check_circle
+                    </span>
+                  ) : null}
+                </span>
+                <span className="look-tile__desc">{LOOK_NOTES[option.id]}</span>
+              </label>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="status-card" aria-labelledby="mode-title">
+        <h2 id="mode-title">Mode</h2>
+        <fieldset className="choice-list mode-choices">
+          <legend className="visually-hidden">Mode</legend>
+          {MODES.map((option) => (
+            <label
+              key={option.id}
+              className={`choice${option.id === current.mode ? " is-selected" : ""}`}
+            >
+              <input
+                type="radio"
+                name="mode"
+                value={option.id}
+                checked={option.id === current.mode}
+                onChange={() => change({ mode: option.id })}
+              />
+              <span>
+                <strong>{option.label}</strong>
+                {option.id === "system" ? (
+                  <span>Follows this computer&apos;s setting</span>
+                ) : null}
+              </span>
+            </label>
+          ))}
+        </fieldset>
+      </section>
+
+      <section className="status-card" aria-labelledby="accent-title">
+        <h2 id="accent-title">Accent · {accentName}</h2>
+        <div
+          className="swatches"
+          role="radiogroup"
+          aria-labelledby="accent-title"
+        >
+          {ACCENTS.map((option) => {
+            const on = option.id === current.accent;
+            return (
+              <label
+                key={option.id}
+                className={`swatch${on ? " is-selected" : ""}`}
+                title={option.label}
+              >
+                <input
+                  type="radio"
+                  name="accent"
+                  value={option.id}
+                  checked={on}
+                  onChange={() => change({ accent: option.id })}
+                  className="visually-hidden"
+                  aria-label={option.label}
+                />
+                <span
+                  className="swatch__dot"
+                  aria-hidden="true"
+                  style={{ background: SWATCH[option.id] }}
+                >
+                  {on ? <span className="icon">check</span> : null}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+        <p className="status-card__desc">
+          The accent marks the main action and what is selected. Green, amber
+          and red keep their meanings in every accent.
+        </p>
+      </section>
+    </>
   );
 }
 
-function Choices<T extends string>({
-  legend,
-  name,
-  options,
-  value,
-  onChange,
-  swatch = false,
-}: {
-  legend: string;
-  name: string;
-  options: readonly { id: T; label: string }[];
-  value: T;
-  onChange: (value: T) => void;
-  swatch?: boolean;
-}) {
-  return (
-    <fieldset className="appearance-choices">
-      <legend>{legend}</legend>
-      <div className="appearance-options">
-        {options.map((option) => (
-          <label className="appearance-option" key={option.id}>
-            <input
-              type="radio"
-              name={name}
-              value={option.id}
-              checked={option.id === value}
-              onChange={() => onChange(option.id)}
-            />
-            {swatch ? (
-              <span
-                className="appearance-swatch"
-                aria-hidden="true"
-                style={{ background: SWATCH[option.id] }}
-              />
-            ) : null}
-            {option.label}
-          </label>
-        ))}
-      </div>
-    </fieldset>
-  );
-}
+/** Each look in a line, as the design describes it. */
+const LOOK_NOTES: Record<string, string> = {
+  minimal: "Hairlines and mono figures. The densest.",
+  glass: "Translucent panels over a soft backdrop.",
+  soft: "Solid rounded cards, no borders.",
+  expressive: "Tonal colour and big shapes.",
+};
