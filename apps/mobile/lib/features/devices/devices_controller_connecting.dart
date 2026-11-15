@@ -265,6 +265,7 @@ mixin _Connecting on _DevicesCore {
       tunnelEstablished: false,
       tunnelEstablishedAt: () => null,
       sanctionsOnly: false,
+      throughWarp: () => null,
       localProxy: () => null,
       actionErrorMessage: () => null,
     );
@@ -522,6 +523,12 @@ mixin _Connecting on _DevicesCore {
         // session it did not start reports no elapsed time rather than a
         // wrong one.
         tunnelEstablishedAt: () => tunnelUp ? DateTime.now() : null,
+        // WireGuard never goes through WARP: said so when it was asked for.
+        throughWarp: () =>
+            tunnelUp &&
+                ref.read(advancedSettingsControllerProvider).warp.throughWarp
+            ? false
+            : null,
         actionErrorMessage: () => tunnelError,
       );
       if (tunnelUp) {
@@ -914,6 +921,11 @@ mixin _Connecting on _DevicesCore {
         // wrong one.
         tunnelEstablishedAt: () => tunnelUp ? DateTime.now() : null,
         sanctionsOnly: tunnelUp && routesSanctionsOnly(result, settings),
+        // From the config this tunnel was built with: if WARP could not
+        // start, the connection fails rather than going around it.
+        throughWarp: () => tunnelUp && settings.warp.throughWarp
+            ? reachesServerThroughWarp(result, settings)
+            : null,
         localProxy: () => runningProxy,
         actionErrorMessage: () => tunnelError,
       );
@@ -1080,6 +1092,7 @@ mixin _Connecting on _DevicesCore {
       tunnelEstablished: false,
       tunnelEstablishedAt: () => null,
       sanctionsOnly: false,
+      throughWarp: () => null,
       localProxy: () => null,
     );
     _mark('disconnect: off');

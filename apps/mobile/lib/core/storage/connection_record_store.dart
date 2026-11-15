@@ -23,6 +23,7 @@ class ConnectionRecord {
     required this.profileCode,
     required this.protocolCode,
     required this.sanctionsOnly,
+    this.throughWarp,
     this.peer,
     this.xrayClient,
     this.localProxyPort,
@@ -35,6 +36,9 @@ class ConnectionRecord {
   final String profileCode;
   final String protocolCode;
   final bool sanctionsOnly;
+
+  /// See DevicesState.throughWarp. Absent from records written before it.
+  final bool? throughWarp;
   final WireGuardPeerResult? peer;
   final XrayClientResult? xrayClient;
 
@@ -66,6 +70,7 @@ class ConnectionRecord {
       profileCode: profileCode,
       protocolCode: protocolCode,
       sanctionsOnly: sanctionsOnly,
+      throughWarp: throughWarp,
       peer: peer,
       xrayClient: xrayClient,
       localProxyPort: localProxyPort,
@@ -83,6 +88,7 @@ class ConnectionRecord {
     'profileCode': profileCode,
     'protocolCode': protocolCode,
     'sanctionsOnly': sanctionsOnly,
+    'throughWarp': throughWarp,
     if (localProxyPort case final int port) 'localProxyPort': port,
     if (tunnelProxy case final LocalProxy proxy) ...<String, Object?>{
       'tunnelProxyPort': proxy.port,
@@ -151,6 +157,7 @@ class ConnectionRecord {
         profileCode: map['profileCode']! as String,
         protocolCode: map['protocolCode']! as String,
         sanctionsOnly: map['sanctionsOnly']! as bool,
+        throughWarp: map['throughWarp'] as bool?,
         localProxyPort: map['localProxyPort'] as int?,
         tunnelProxy: switch ((
           map['tunnelProxyPort'],

@@ -578,5 +578,9 @@
   "searchHint": "Search",
   "@searchHint": {"description": "NEEDS TRANSLATION (English placeholder). Placeholder inside the Settings search field."},
   "dnsTunnelResolversField": "Resolvers",
-  "@dnsTunnelResolversField": {"description": "NEEDS TRANSLATION (English placeholder). Label above the box where DNS tunnel resolver addresses are pasted."}
+  "@dnsTunnelResolversField": {"description": "NEEDS TRANSLATION (English placeholder). Label above the box where DNS tunnel resolver addresses are pasted."},
+  "viaWarp": "through WARP",
+  "@viaWarp": {"description": "NEEDS TRANSLATION (English placeholder). After the protocol on Connect: this connection reaches the server through Cloudflare WARP."},
+  "notViaWarp": "not through WARP",
+  "@notViaWarp": {"description": "NEEDS TRANSLATION (English placeholder). After the protocol on Connect: Reach servers through WARP is on, but this protocol (Hysteria2, WireGuard) connects on its own."}
 }

@@ -413,7 +413,16 @@ class ConnectServerRow extends StatelessWidget {
           // "Try another server" is what the error says when none of a
           // server's protocols got through: the row says where to do it.
           titleColor: view == ConnectView.notProtected ? p.amberText : null,
-          subtitle: protocol,
+          // "VLESS Encryption · through WARP": with "Reach servers through
+          // WARP" on, whether this connection actually does.
+          subtitle: switch (live ? state.throughWarp : null) {
+            true => '$protocol · ${text.viaWarp}',
+            false => '$protocol · ${text.notViaWarp}',
+            null => protocol,
+          },
+          subtitleColor: live && state.throughWarp == false
+              ? p.amberText
+              : null,
           trailing: tappable
               ? NebulaRowTrailing.valueChevron(context, text.change)
               : null,

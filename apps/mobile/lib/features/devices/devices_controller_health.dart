@@ -135,6 +135,7 @@ mixin _HealthChecks on _DevicesCore {
       tunnelEstablished: false,
       tunnelEstablishedAt: () => null,
       sanctionsOnly: false,
+      throughWarp: () => null,
       localProxy: () => null,
       actionErrorMessage: () => reason,
     );
@@ -455,6 +456,7 @@ mixin _HealthChecks on _DevicesCore {
       tunnelEstablished: false,
       tunnelEstablishedAt: () => null,
       sanctionsOnly: false,
+      throughWarp: () => null,
       localProxy: () => null,
     );
     final String? deviceId = _connectedDeviceId ?? _storedDeviceId();

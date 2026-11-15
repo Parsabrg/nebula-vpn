@@ -415,6 +415,36 @@ void _trafficTests() {
     expect(find.textContaining('sanctioned services only'), findsOneWidget);
   });
 
+  testWidgets('says whether the connection goes through WARP', (
+    WidgetTester tester,
+  ) async {
+    // With "Reach servers through WARP" on, the protocol line says whether
+    // this connection really does: Hysteria2 and WireGuard cannot.
+    for (final (bool? through, String? expected) in <(bool?, String?)>[
+      (true, 'through WARP'),
+      (false, 'not through WARP'),
+      (null, null),
+    ]) {
+      await _pump(
+        tester,
+        ConnectView.protected,
+        DevicesState(
+          loadStatus: DevicesLoadStatus.loaded,
+          servers: const <AvailableServer>[_frankfurt],
+          selectedServerCode: 'de-fra-1',
+          xrayClient: _client,
+          tunnelEstablished: true,
+          throughWarp: through,
+        ),
+      );
+      if (expected == null) {
+        expect(find.textContaining('WARP'), findsNothing);
+      } else {
+        expect(find.textContaining('· $expected'), findsOneWidget);
+      }
+    }
+  });
+
   testWidgets('details: an unknown session is a dash, a known one a clock', (
     WidgetTester tester,
   ) async {
