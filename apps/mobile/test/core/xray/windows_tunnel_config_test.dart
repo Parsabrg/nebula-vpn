@@ -20,7 +20,7 @@ tls:
         profile,
         '203.0.113.4',
       );
-      expect(config, contains('server: 203.0.113.4:8450'));
+      expect(config, contains('server: 203.0.113.4:8450\n'));
       expect(config, contains('sni: vpn.example.org'));
       expect(config, contains('insecure: false'));
       expect(config, contains('ipv4: [0.0.0.0/0]'));
@@ -29,6 +29,29 @@ tls:
       expect(config, isNot(contains('youtube')));
     },
   );
+
+  test('the quoted server the renderer writes, with port hopping', () {
+    // As renderXrayClientConfigJson writes it since the YAML was quoted.
+    final String config = windowsHysteriaFullTunnelConfig(
+      'server: "vpn.example.org:443,20000-50000"\nauth: "x"\n',
+      '203.0.113.4',
+    );
+    expect(config, contains('server: 203.0.113.4:443,20000-50000\n'));
+    expect(
+      windowsHysteriaFullTunnelConfig(
+        'server: "vpn.example.org:8450"\n',
+        '203.0.113.4',
+      ),
+      contains('server: 203.0.113.4:8450\n'),
+    );
+    expect(
+      () => windowsHysteriaFullTunnelConfig(
+        'server: "vpn.example.org:99999"\n',
+        '203.0.113.4',
+      ),
+      throwsStateError,
+    );
+  });
 
   test('missing numeric upstream fails instead of allowing a route loop', () {
     expect(

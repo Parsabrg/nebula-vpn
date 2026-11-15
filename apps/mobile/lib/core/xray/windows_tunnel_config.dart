@@ -25,14 +25,31 @@ String windowsHysteriaFullTunnelConfig(
   if (match == null) {
     throw StateError('$platform received an invalid VPN server profile.');
   }
-  final String value = match.group(1)!.trim();
-  final int? port = int.tryParse(value.substring(value.lastIndexOf(':') + 1));
-  if (port == null || port < 1 || port > 65535) {
+  // The renderer quotes the value (`"host:443"`), and port hopping adds a
+  // range (`host:443,20000-50000`); both were read as a bad port before.
+  String value = match.group(1)!.trim();
+  if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+    value = value.substring(1, value.length - 1);
+  }
+  final String ports = value.substring(value.lastIndexOf(':') + 1);
+  bool valid(String p) {
+    final int? n = int.tryParse(p);
+    return n != null && n >= 1 && n <= 65535;
+  }
+
+  if (ports.isEmpty ||
+      !ports
+          .split(',')
+          .every(
+            (String part) =>
+                part.split('-').length <= 2 && part.split('-').every(valid),
+          )) {
     throw StateError('$platform received an invalid VPN server port.');
   }
   final String pinned = yaml.replaceFirst(
     serverLine,
-    'server: $upstreamIpv4:$port',
+    // Unquoted: an address and digits, and the Linux helper reads this line.
+    'server: $upstreamIpv4:$ports',
   );
   return '''$pinned
 tun:
