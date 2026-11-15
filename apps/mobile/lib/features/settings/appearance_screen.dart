@@ -164,32 +164,36 @@ class _LookTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          AspectRatio(
-            aspectRatio: 1.35,
-            child: Container(
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                color: p.canvas,
-                gradient: p.backdrop == null
-                    ? null
-                    : LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: <Color>[
-                          nebulaMix(p.backdrop!.first, 60, p.canvas),
-                          p.canvas,
-                          nebulaMix(p.backdrop!.second, 60, p.canvas),
-                        ],
-                      ),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: selected ? here.blue : here.hairline,
-                  width: selected ? 2 : 1,
-                ),
+          // The design's tile: 116 high whatever the width, so it keeps
+          // its proportions from a phone to a desktop window.
+          Container(
+            height: 116,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: p.canvas,
+              gradient: p.backdrop == null
+                  ? null
+                  : LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: <Color>[
+                        nebulaMix(p.backdrop!.first, 60, p.canvas),
+                        p.canvas,
+                        nebulaMix(p.backdrop!.second, 60, p.canvas),
+                      ],
+                    ),
+              borderRadius: BorderRadius.circular(here.radiusMd),
+              border: Border.all(
+                color: selected
+                    ? here.blue
+                    : (here.isDark
+                          ? const Color(0x2EFFFFFF)
+                          : const Color(0x29101014)),
+                width: selected ? 2 : 1,
               ),
-              padding: const EdgeInsets.all(12),
-              child: _Preview(p: p),
             ),
+            padding: const EdgeInsets.all(12),
+            child: _Preview(p: p),
           ),
           const SizedBox(height: 8),
           Row(
@@ -243,47 +247,64 @@ class _Preview extends StatelessWidget {
                           alpha: (p.surface.a + 0.08).clamp(0, 1),
                         )
                       : p.surface),
-            borderRadius: BorderRadius.circular(hero ? 8 : 5),
+            borderRadius: expressive
+                ? (hero
+                      ? BorderRadius.circular(12)
+                      : const BorderRadius.vertical(
+                          top: Radius.circular(8),
+                          bottom: Radius.circular(3),
+                        ))
+                : BorderRadius.circular(hero ? 10 : 7),
             border: p.look == NebulaLook.glass
                 ? Border.all(color: p.hairline)
                 : null,
           );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Container(
-            width: 44,
-            height: 4,
-            decoration: BoxDecoration(
-              color: minimal ? p.textMuted : p.textPrimary,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Expanded(
-          flex: 3,
-          child: Container(
-            decoration: block(hero: true),
-            alignment: Alignment.centerLeft,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Container(
-              width: 20,
-              height: 4,
-              decoration: BoxDecoration(
-                color: p.blue,
-                borderRadius: BorderRadius.circular(2),
+    // Fixed heights as designed (a 6 bar, a 40 hero, two 18 rows, 7
+    // apart); the box clips the last row.
+    return ClipRect(
+      child: OverflowBox(
+        alignment: Alignment.topCenter,
+        maxHeight: double.infinity,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            FractionallySizedBox(
+              alignment: AlignmentDirectional.centerStart,
+              widthFactor: 0.42,
+              child: Opacity(
+                opacity: 0.75,
+                child: Container(
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: minimal ? p.textMuted : p.textPrimary,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
               ),
             ),
-          ),
+            const SizedBox(height: 7),
+            Container(
+              height: 40,
+              decoration: block(hero: true),
+              alignment: AlignmentDirectional.bottomStart,
+              padding: const EdgeInsets.all(7),
+              child: Container(
+                width: 22,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: p.blue,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+            ),
+            const SizedBox(height: 7),
+            Container(height: 18, decoration: block(hero: false)),
+            const SizedBox(height: 7),
+            Container(height: 18, decoration: block(hero: false)),
+          ],
         ),
-        const SizedBox(height: 5),
-        Expanded(child: Container(decoration: block(hero: false))),
-        const SizedBox(height: 3),
-        Expanded(child: Container(decoration: block(hero: false))),
-      ],
+      ),
     );
   }
 }

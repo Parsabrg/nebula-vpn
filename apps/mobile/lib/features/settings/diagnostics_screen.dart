@@ -10,7 +10,10 @@ import '../../core/diagnostics/leak_test.dart';
 import '../../core/diagnostics/packet_loss.dart';
 import '../../core/diagnostics/speed_test.dart';
 import '../../core/theme/color_tokens.dart';
+import '../../core/theme/look.dart';
+import '../../core/widgets/nebula/nebula_controls.dart';
 import '../../core/widgets/nebula/nebula_page.dart';
+import '../../core/widgets/nebula/nebula_rows.dart';
 import '../../core/wireguard/tunnel_controller.dart';
 import '../../core/xray/local_proxy.dart';
 import '../../l10n/app_localizations.dart';
@@ -185,25 +188,28 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
     final LossReport? loss = _loss;
     final int? lastTestMs = _lastTestMs(state);
 
-    return Scaffold(
-      backgroundColor: palette.bg,
-      appBar: AppBar(
-        leading: const Center(child: NebulaBackButton()),
-        leadingWidth: 64,
-        title: Text(text.sectionDiagnostics),
-        actions: <Widget>[
-          IconButton(
-            tooltip: text.diagnosticsCopyReport,
-            icon: const Icon(Icons.copy_all),
-            onPressed: () => _copyReport(state),
+    Widget runButton(String label, {required bool busy, VoidCallback? run}) =>
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: NebulaButton.secondary(
+            label: label,
+            busy: busy,
+            onPressed: busy ? null : run,
           ),
-        ],
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(20),
+        );
+
+    return NebulaPage(
+      title: text.sectionDiagnostics,
+      children: <Widget>[
+        const SizedBox(height: 12),
+        NebulaButton.secondary(
+          label: text.diagnosticsCopyReport,
+          icon: Icons.content_copy,
+          onPressed: () => _copyReport(state),
+        ),
+        NebulaSectionLabel(text.diagnosticsConnection),
+        NebulaRowGroup(
           children: <Widget>[
-            _Heading(text.diagnosticsConnection),
             _Row(
               label: text.rowStatus,
               value: connected ? text.statusConnected : text.statusDisconnected,
@@ -213,58 +219,44 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
               _Row(
                 label: text.rowServer,
                 value: state.selectedServer?.displayName ?? '—',
-                color: palette.textPrimary,
               ),
               _Row(
                 label: text.rowProtocol,
                 value:
                     state.activeProfileCode ?? state.activeProtocolCode ?? '—',
-                color: palette.textPrimary,
               ),
               if (lastTestMs != null)
-                _Row(
-                  label: text.diagnosticsLastTest,
-                  value: '$lastTestMs ms',
-                  color: palette.textPrimary,
-                ),
+                _Row(label: text.diagnosticsLastTest, value: '$lastTestMs ms'),
               if (_handshakeAge != null)
                 _Row(
                   label: text.statusHandshake,
                   value: text.diagnosticsSecondsAgo(_handshakeAge!.inSeconds),
                   color: _handshakeAge! > const Duration(minutes: 3)
                       ? palette.amberText
-                      : palette.textPrimary,
+                      : null,
                 ),
             ],
-            const SizedBox(height: 28),
-            _Heading(text.leakTest),
-            Text(
-              connected ? text.leakTestIntro : text.leakTestNotConnected,
-              style: TextStyle(
-                color: connected ? palette.textMuted : palette.amberText,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: _running ? null : _runLeakTest,
-              child: _running
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(text.leakTestRun),
-            ),
-            if (report != null) ...<Widget>[
-              const SizedBox(height: 16),
+          ],
+        ),
+        NebulaSectionLabel(text.leakTest),
+        _Small(text.leakTestIntro),
+        if (!connected) ...<Widget>[
+          const SizedBox(height: 16),
+          NebulaNotice(
+            text: text.leakTestNotConnected,
+            kind: NebulaNoticeKind.warning,
+          ),
+        ],
+        if (report != null) ...<Widget>[
+          const SizedBox(height: 20),
+          NebulaRowGroup(
+            children: <Widget>[
               _Row(
                 label: text.leakTestExit,
                 value: report.exitCountry == null
                     ? text.leakTestUnreachable
                     : '${report.exitCountry} · ${report.exitAddress}',
-                color: report.exitCountry == null
-                    ? palette.amberText
-                    : palette.textPrimary,
+                color: report.exitCountry == null ? palette.amberText : null,
               ),
               _Row(
                 label: text.leakTestDns,
@@ -283,7 +275,6 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                 _Row(
                   label: text.leakTestResolver,
                   value: report.resolverNetwork!,
-                  color: palette.textPrimary,
                 ),
               _Row(
                 label: text.leakTestIpv6,
@@ -299,24 +290,15 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                     : palette.blueText,
               ),
             ],
-            const SizedBox(height: 28),
-            _Heading(text.speedTest),
-            Text(
-              text.speedTestIntro,
-              style: TextStyle(color: palette.textMuted, height: 1.5),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: _measuringSpeed ? null : _runSpeedTest,
-              child: _measuringSpeed
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(text.speedTestRun),
-            ),
-            if (speed != null) ...<Widget>[
-              const SizedBox(height: 16),
+          ),
+        ],
+        runButton(text.leakTestRun, busy: _running, run: _runLeakTest),
+        NebulaSectionLabel(text.speedTest),
+        _Small(text.speedTestIntro),
+        if (speed != null) ...<Widget>[
+          const SizedBox(height: 20),
+          NebulaRowGroup(
+            children: <Widget>[
               for (final (String label, double? mbps) in <(String, double?)>[
                 (text.speedTestDownload, speed.downloadMbps),
                 (text.speedTestUpload, speed.uploadMbps),
@@ -326,27 +308,18 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                   value: mbps == null
                       ? text.speedTestFailed
                       : text.speedTestMbps(formatMbps(mbps)),
-                  color: mbps == null ? palette.amberText : palette.textPrimary,
+                  color: mbps == null ? palette.amberText : null,
                 ),
             ],
-            const SizedBox(height: 28),
-            _Heading(text.packetLoss),
-            Text(
-              text.packetLossIntro,
-              style: TextStyle(color: palette.textMuted, height: 1.5),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: _measuringLoss ? null : _runLossTest,
-              child: _measuringLoss
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(text.packetLossRun),
-            ),
-            if (loss != null) ...<Widget>[
-              const SizedBox(height: 16),
+          ),
+        ],
+        runButton(text.speedTestRun, busy: _measuringSpeed, run: _runSpeedTest),
+        NebulaSectionLabel(text.packetLoss),
+        _Small(text.packetLossIntro),
+        if (loss != null) ...<Widget>[
+          const SizedBox(height: 20),
+          NebulaRowGroup(
+            children: <Widget>[
               _Row(
                 label: text.packetLossLost,
                 value: lossPercent(loss) == null
@@ -358,7 +331,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                       ),
                 color: (lossPercent(loss) ?? 100) > 2
                     ? palette.amberText
-                    : palette.textPrimary,
+                    : null,
               ),
               if (loss.median != null)
                 _Row(
@@ -367,60 +340,60 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                     loss.median!.inMilliseconds,
                     loss.jitter?.inMilliseconds ?? 0,
                   ),
-                  color: palette.textPrimary,
                 ),
             ],
-          ],
-        ),
+          ),
+        ],
+        runButton(text.packetLossRun, busy: _measuringLoss, run: _runLossTest),
+      ],
+    );
+  }
+}
+
+/// The design's small print under a section: 13/19, muted.
+class _Small extends StatelessWidget {
+  const _Small(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final NebulaPalette p = context.palette;
+    final double side = p.look == NebulaLook.minimal ? 0 : 8;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(side, 10, side, 0),
+      child: Text(
+        text,
+        style: TextStyle(fontSize: 13, height: 19 / 13, color: p.textMuted),
       ),
     );
   }
 }
 
-class _Heading extends StatelessWidget {
-  const _Heading(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Text(
-      text,
-      style: TextStyle(
-        color: context.palette.textMax,
-        fontWeight: FontWeight.w600,
-      ),
-    ),
-  );
-}
-
+/// A result: the label, and the value at the row's end.
 class _Row extends StatelessWidget {
-  const _Row({required this.label, required this.value, required this.color});
+  const _Row({required this.label, required this.value, this.color});
 
   final String label;
   final String value;
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
-    final NebulaPalette palette = context.palette;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: palette.hairline)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          SizedBox(
-            width: 120,
-            child: Text(label, style: TextStyle(color: palette.textMuted)),
-          ),
-          Expanded(
-            child: SelectableText(value, style: TextStyle(color: color)),
-          ),
-        ],
+    final NebulaPalette p = context.palette;
+    return NebulaRow(
+      title: label,
+      // Plain text so it centres on the row; Copy report copies it all.
+      trailing: Text(
+        value,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.end,
+        style: TextStyle(
+          fontSize: 14,
+          height: 20 / 14,
+          color: color ?? p.textMuted,
+        ),
       ),
     );
   }

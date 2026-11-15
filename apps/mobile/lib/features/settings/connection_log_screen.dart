@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/color_tokens.dart';
+import '../../core/widgets/nebula/nebula_controls.dart';
+import '../../core/widgets/nebula/nebula_data.dart';
 import '../../core/widgets/nebula/nebula_page.dart';
 import '../../core/xray/xray_tunnel_controller.dart';
 import '../../l10n/app_localizations.dart';
@@ -65,71 +67,77 @@ class _ConnectionLogScreenState extends ConsumerState<ConnectionLogScreen> {
   @override
   Widget build(BuildContext context) {
     final NebulaPalette palette = context.palette;
+    final AppText text = AppText.of(context);
     final List<String>? lines = _lines;
+    final bool any = lines != null && lines.isNotEmpty;
+    // "Nothing to report." and the reason under it, as the design's empty
+    // state sets them: a title and its text.
+    final List<String> empty = text.logEmpty.split('\n\n');
 
-    return Scaffold(
-      backgroundColor: palette.bg,
-      appBar: AppBar(
-        leading: const Center(child: NebulaBackButton()),
-        leadingWidth: 64,
-        title: Text(AppText.of(context).connectionLog),
-        actions: <Widget>[
-          IconButton(
-            tooltip: AppText.of(context).ctaRefresh,
-            icon: const Icon(Icons.refresh),
-            onPressed: _load,
-          ),
-          if (lines != null && lines.isNotEmpty) ...<Widget>[
-            IconButton(
-              tooltip: AppText.of(context).copy,
-              icon: const Icon(Icons.copy_all),
-              onPressed: () => _copy(lines),
-            ),
-            IconButton(
-              tooltip: AppText.of(context).clear,
-              icon: const Icon(Icons.delete_outline),
-              onPressed: _clear,
-            ),
-          ],
-        ],
+    return NebulaPage(
+      title: text.connectionLog,
+      trailing: IconButton(
+        tooltip: text.ctaRefresh,
+        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+        icon: Icon(Icons.refresh, color: palette.textPrimary),
+        onPressed: _load,
       ),
-      body: SafeArea(child: _body(lines, palette)),
-    );
-  }
-
-  Widget _body(List<String>? lines, NebulaPalette palette) {
-    if (_error != null) {
-      return _Message(
-        text: AppText.of(context).logUnreadable,
-        palette: palette,
-      );
-    }
-    if (lines == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (lines.isEmpty) {
-      // An empty log is the healthy state, and saying so matters: "nothing
-      // here" otherwise reads as the screen being broken, which is the last
-      // thing somebody already debugging a connection needs to wonder about.
-      return _Message(text: AppText.of(context).logEmpty, palette: palette);
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: lines.length,
-      itemBuilder: (BuildContext context, int index) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 3),
-          child: SelectableText(
-            lines[index],
-            style: TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 11,
-              height: 1.35,
-              color: _lineColor(lines[index], palette),
+      children: <Widget>[
+        if (_error != null)
+          NebulaEmptyState(
+            icon: Icons.receipt_long_outlined,
+            title: text.logUnreadable,
+          )
+        else if (lines == null)
+          const Padding(
+            padding: EdgeInsets.all(32),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (lines.isEmpty)
+          // An empty log is the healthy state, and saying so matters:
+          // "nothing here" otherwise reads as the screen being broken.
+          NebulaEmptyState(
+            icon: Icons.receipt_long_outlined,
+            title: empty.first,
+            body: empty.length > 1 ? empty.sublist(1).join('\n\n') : null,
+          )
+        else
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: palette.surface,
+              borderRadius: BorderRadius.circular(palette.radiusSm + 2),
+              border: Border.all(color: palette.hairline),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (final String line in lines)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: SelectableText(
+                      line,
+                      style: TextStyle(
+                        fontFamily: 'GeistMono',
+                        fontSize: 13,
+                        height: 19 / 13,
+                        color: _lineColor(line, palette),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
-        );
-      },
+        const SizedBox(height: 16),
+        NebulaButton.secondary(
+          label: text.copy,
+          icon: Icons.content_copy,
+          onPressed: any ? () => _copy(lines) : null,
+        ),
+        const SizedBox(height: 8),
+        NebulaButton.text(label: text.clear, onPressed: any ? _clear : null),
+      ],
     );
   }
 
@@ -158,26 +166,5 @@ class _ConnectionLogScreenState extends ConsumerState<ConnectionLogScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text(AppText.of(context).logCopied)));
     }
-  }
-}
-
-class _Message extends StatelessWidget {
-  const _Message({required this.text, required this.palette});
-
-  final String text;
-  final NebulaPalette palette;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Text(
-          text,
-          textAlign: TextAlign.center,
-          style: TextStyle(color: palette.textMuted, height: 1.5),
-        ),
-      ),
-    );
   }
 }

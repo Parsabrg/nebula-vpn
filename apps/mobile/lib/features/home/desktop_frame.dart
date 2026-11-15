@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/free/free_mode.dart';
 import '../../core/routing/route_paths.dart';
+import '../../core/theme/color_tokens.dart';
 import '../../core/widgets/nebula/nebula_nav.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -48,8 +49,9 @@ List<NebulaNavItem> appDestinations(
     if (withSettings)
       NebulaNavItem(
         label: text.settingsTitle,
-        icon: Icons.settings_outlined,
-        selectedIcon: Icons.settings,
+        // The design's sliders, not a gear (the gear is Account's way in).
+        icon: Icons.tune,
+        selectedIcon: Icons.tune,
         selected: settings,
         onTap: () => settings
             ? context.go(RoutePaths.homeSettings)
@@ -71,18 +73,23 @@ class DesktopFrame extends ConsumerWidget {
     if (!nebulaDesktopLayout(context)) {
       return child;
     }
-    return Row(
-      children: <Widget>[
-        NebulaSideNav(
-          items: appDestinations(
-            context,
-            ref,
-            location: location,
-            withSettings: true,
+    // A Material under the sidebar: without one its text had no default
+    // style (Flutter's yellow underline) and the window showed black.
+    return Material(
+      color: context.palette.bg,
+      child: Row(
+        children: <Widget>[
+          NebulaSideNav(
+            items: appDestinations(
+              context,
+              ref,
+              location: location,
+              withSettings: true,
+            ),
           ),
-        ),
-        Expanded(child: child),
-      ],
+          Expanded(child: NebulaBesideSideNav(child: child)),
+        ],
+      ),
     );
   }
 }

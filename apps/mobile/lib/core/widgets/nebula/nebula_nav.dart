@@ -189,13 +189,17 @@ class _Tab extends StatelessWidget {
                 ? Border(top: BorderSide(color: p.blue, width: 2))
                 : const Border(),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Icon(icon, size: 20, color: on ? p.blueText : labelColor),
-              const SizedBox(width: 8),
-              label(13),
-            ],
+          // The full tab height, so the selected line sits on the bar's top
+          // edge as designed, not just above the icon.
+          child: SizedBox.expand(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                Icon(icon, size: 20, color: on ? p.blueText : labelColor),
+                const SizedBox(width: 8),
+                label(13),
+              ],
+            ),
           ),
         );
       case NebulaLook.glass:
@@ -256,6 +260,22 @@ class _Tab extends StatelessWidget {
   }
 }
 
+/// The sidebar's width.
+const double nebulaSideNavWidth = 220;
+
+/// Marks content laid out beside the desktop sidebar, so its page padding
+/// centres the column in the space right of the sidebar rather than in the
+/// whole window (which left a 380 px column in a 1040 px window).
+class NebulaBesideSideNav extends InheritedWidget {
+  const NebulaBesideSideNav({required super.child, super.key});
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<NebulaBesideSideNav>() != null;
+
+  @override
+  bool updateShouldNotify(NebulaBesideSideNav oldWidget) => false;
+}
+
 /// The desktop sidebar: 220 wide, the brand, then the destinations; the
 /// current one tinted (with a 2 px accent bar on Minimal).
 class NebulaSideNav extends StatelessWidget {
@@ -283,7 +303,7 @@ class NebulaSideNav extends StatelessWidget {
       ),
     );
     return SizedBox(
-      width: 220,
+      width: nebulaSideNavWidth,
       child: switch (p.look) {
         NebulaLook.minimal => DecoratedBox(
           decoration: BoxDecoration(

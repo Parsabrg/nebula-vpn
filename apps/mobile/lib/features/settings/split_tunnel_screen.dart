@@ -6,7 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/split_tunnel/installed_apps.dart';
 import '../../core/split_tunnel/split_tunnel_controller.dart';
 import '../../core/theme/color_tokens.dart';
+import '../../core/widgets/nebula/nebula_controls.dart';
+import '../../core/widgets/nebula/nebula_data.dart';
 import '../../core/widgets/nebula/nebula_page.dart';
+import '../../core/widgets/nebula/nebula_rows.dart';
 import '../../l10n/app_localizations.dart';
 
 /// Choose which apps go around the tunnel instead of through it.
@@ -33,93 +36,74 @@ class _SplitTunnelScreenState extends ConsumerState<SplitTunnelScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final NebulaPalette palette = context.palette;
     final AsyncValue<List<InstalledApp>> apps = ref.watch(
       installedAppsProvider,
     );
     final Set<String> excluded = ref.watch(splitTunnelControllerProvider);
 
-    return Scaffold(
-      backgroundColor: palette.bg,
-      appBar: AppBar(
-        leading: const Center(child: NebulaBackButton()),
-        leadingWidth: 64,
-        title: Text(AppText.of(context).splitTunneling),
-        actions: <Widget>[
-          if (excluded.isNotEmpty)
-            TextButton(
+    final AppText text = AppText.of(context);
+    return NebulaPage(
+      title: text.splitTunneling,
+      trailing: excluded.isEmpty
+          ? null
+          : NebulaButton.rowAction(
+              label: text.clear,
               onPressed: () =>
                   ref.read(splitTunnelControllerProvider.notifier).clear(),
-              child: Text(AppText.of(context).clear),
             ),
-        ],
-      ),
-      body: SafeArea(
-        child: apps.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (Object error, StackTrace _) => _Message(
-            // Named plainly. The likely cause is a platform that has no
-            // per-app routing at all, and "something went wrong" would send
-            // somebody looking for a fault that is not there.
-            text: AppText.of(context).appsUnreadable,
-          ),
+      children: <Widget>[
+        const SizedBox(height: 16),
+        NebulaNotice(
+          text: excluded.isEmpty
+              ? text.everyAppTunnelled
+              : text.appsBypassTunnel(excluded.length),
+          kind: NebulaNoticeKind.info,
+        ),
+        ...apps.when(
+          loading: () => const <Widget>[
+            Padding(
+              padding: EdgeInsets.all(32),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ],
+          // Named plainly. The likely cause is a platform that has no
+          // per-app routing at all, and "something went wrong" would send
+          // somebody looking for a fault that is not there.
+          error: (Object error, StackTrace _) => <Widget>[
+            const SizedBox(height: 16),
+            _Message(text: text.appsUnreadable),
+          ],
           data: (List<InstalledApp> all) {
             final List<InstalledApp> visible = _matching(all, _query);
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 4),
-                  child: Text(
-                    excluded.isEmpty
-                        ? AppText.of(context).everyAppTunnelled
-                        : AppText.of(context).appsBypassTunnel(excluded.length),
-                    style: TextStyle(color: palette.textMuted, fontSize: 13),
-                  ),
+            return <Widget>[
+              const SizedBox(height: 16),
+              NebulaField(
+                label: text.searchApps,
+                hint: text.searchApps,
+                prefixIcon: Icons.search,
+                autocorrect: false,
+                onChanged: (String value) => setState(() => _query = value),
+              ),
+              const SizedBox(height: 20),
+              if (visible.isEmpty)
+                _Message(text: text.noAppsMatch)
+              else
+                NebulaRowGroup(
+                  children: <Widget>[
+                    for (final InstalledApp app in visible)
+                      _AppRow(
+                        app: app,
+                        excluded: excluded.contains(app.packageName),
+                        onChanged: (bool value) => ref
+                            .read(splitTunnelControllerProvider.notifier)
+                            .setExcluded(app.packageName, excluded: value),
+                      ),
+                  ],
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 8,
-                  ),
-                  child: TextField(
-                    // Not a credential: no password manager offering one here.
-                    autofillHints: null,
-                    decoration: InputDecoration(
-                      isDense: true,
-                      prefixIcon: const Icon(Icons.search, size: 18),
-                      hintText: AppText.of(context).searchApps,
-                      border: const OutlineInputBorder(),
-                    ),
-                    onChanged: (String value) => setState(() => _query = value),
-                  ),
-                ),
-                if (visible.isEmpty)
-                  Expanded(
-                    child: _Message(text: AppText.of(context).noAppsMatch),
-                  )
-                else
-                  Expanded(
-                    child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: visible.length,
-                      itemBuilder: (BuildContext context, int index) {
-                        final InstalledApp app = visible[index];
-                        return _AppRow(
-                          app: app,
-                          excluded: excluded.contains(app.packageName),
-                          onChanged: (bool value) => ref
-                              .read(splitTunnelControllerProvider.notifier)
-                              .setExcluded(app.packageName, excluded: value),
-                        );
-                      },
-                    ),
-                  ),
-              ],
-            );
+            ];
           },
         ),
-      ),
+      ],
     );
   }
 
@@ -158,16 +142,13 @@ class _AppRow extends ConsumerWidget {
       appIconProvider(app.packageName),
     );
 
-    return SwitchListTile(
-      value: excluded,
-      onChanged: onChanged,
-      title: Text(app.label, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        app.packageName,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: palette.textMuted, fontSize: 11),
-      ),
-      secondary: SizedBox(
+    // A checkbox, as the design draws a list of apps to pick from.
+    return NebulaRow(
+      title: app.label,
+      subtitle: app.packageName,
+      toggled: excluded,
+      onTap: () => onChanged(!excluded),
+      leading: SizedBox(
         width: 32,
         height: 32,
         // A missing icon leaves the space rather than collapsing the row,
@@ -177,6 +158,11 @@ class _AppRow extends ConsumerWidget {
               bytes == null ? null : Image.memory(bytes, gaplessPlayback: true),
           orElse: () => null,
         ),
+      ),
+      trailing: Icon(
+        excluded ? Icons.check_box : Icons.check_box_outline_blank,
+        size: 24,
+        color: excluded ? palette.blue : palette.textMuted,
       ),
     );
   }
@@ -191,7 +177,7 @@ class _Message extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(24),
         child: Text(
           text,
           textAlign: TextAlign.center,

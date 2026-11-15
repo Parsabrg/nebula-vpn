@@ -51,7 +51,7 @@ class AdvancedSettingsScreen extends ConsumerWidget {
     );
 
     return NebulaPage(
-      title: text.advancedTitle,
+      title: text.tunnelOptions,
       trailing: settings.isDefault
           ? null
           : NebulaButton.text(

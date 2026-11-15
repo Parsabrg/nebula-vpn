@@ -579,3 +579,144 @@ class _NebulaFieldState extends State<NebulaField> {
     );
   }
 }
+
+/// The small status line with a dot: mono capitals on Minimal, 14 px
+/// medium elsewhere (the design's eyebrow).
+class NebulaEyebrow extends StatelessWidget {
+  const NebulaEyebrow({required this.text, super.key, this.dot});
+
+  final String text;
+  final Color? dot;
+
+  @override
+  Widget build(BuildContext context) {
+    final NebulaPalette p = context.palette;
+    final bool minimal = p.look == NebulaLook.minimal;
+    return Row(
+      children: <Widget>[
+        if (dot != null) ...<Widget>[
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+        ],
+        Flexible(
+          child: Text(
+            minimal ? upperCaseFor(context, text) : text,
+            style: minimal
+                ? TextStyle(
+                    fontFamily: 'GeistMono',
+                    fontSize: 12,
+                    height: 16 / 12,
+                    letterSpacing: 1.2,
+                    color: p.textMuted,
+                  )
+                : TextStyle(
+                    fontSize: 14,
+                    height: 20 / 14,
+                    fontWeight: FontWeight.w500,
+                    color: p.textMuted,
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A label and a mono figure on one line with a meter under it (the
+/// design's lede meter: "3 of 100 devices" and "3 / 100").
+class NebulaLedeMeter extends StatelessWidget {
+  const NebulaLedeMeter({
+    required this.label,
+    required this.value,
+    required this.fraction,
+    super.key,
+  });
+
+  final String label;
+  final String value;
+  final double fraction;
+
+  @override
+  Widget build(BuildContext context) {
+    final NebulaPalette p = context.palette;
+    final TextStyle style = TextStyle(
+      fontSize: 15,
+      height: 22 / 15,
+      color: p.textMuted,
+    );
+    return Padding(
+      padding: EdgeInsets.only(
+        top: 8,
+        left: p.look == NebulaLook.minimal ? 0 : 4,
+        right: p.look == NebulaLook.minimal ? 0 : 4,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: <Widget>[
+              Expanded(child: Text(label, style: style)),
+              const SizedBox(width: 12),
+              Text(
+                value,
+                textDirection: TextDirection.ltr,
+                style: style.copyWith(fontFamily: 'GeistMono'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          NebulaUsageMeter(fraction: fraction),
+        ],
+      ),
+    );
+  }
+}
+
+/// A label above any field, as the design draws every field: 14 px medium,
+/// 6 above the box. The label names the field for screen readers too.
+class NebulaLabeledField extends StatelessWidget {
+  const NebulaLabeledField({
+    required this.label,
+    required this.child,
+    super.key,
+  });
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final NebulaPalette p = context.palette;
+    final double inset = p.look == NebulaLook.minimal ? 0 : 4;
+    return Semantics(
+      label: label,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: inset),
+            child: ExcludeSemantics(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 20 / 14,
+                  fontWeight: FontWeight.w500,
+                  color: p.textPrimary,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          child,
+        ],
+      ),
+    );
+  }
+}

@@ -4,7 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/dns_tunnel_resolvers.dart';
 import '../../core/network/dns_tunnel_sync.dart';
 import '../../core/theme/color_tokens.dart';
+import '../../core/theme/look.dart';
+import '../../core/widgets/nebula/nebula_controls.dart';
+import '../../core/widgets/nebula/nebula_data.dart';
+import '../../core/widgets/nebula/nebula_feedback.dart';
 import '../../core/widgets/nebula/nebula_page.dart';
+import '../../core/widgets/nebula/nebula_rows.dart';
 import '../../l10n/app_localizations.dart';
 
 /// "Wi-Fi", "mobile data (43211)" or "this network", for a network key.
@@ -178,15 +183,19 @@ class _DnsTunnelResolversScreenState
     final AppText text = AppText.of(context);
     final DnsTunnelResolvers resolvers = ref.watch(dnsTunnelResolversProvider);
 
-    return Scaffold(
-      backgroundColor: palette.bg,
-      appBar: AppBar(
-        leading: const Center(child: NebulaBackButton()),
-        leadingWidth: 64,
-        title: Text(text.dnsTunnelResolvers),
-      ),
-      body: SafeArea(
-        child: ListenableBuilder(
+    final double inset = palette.look == NebulaLook.minimal ? 0 : 4;
+    TextStyle body(Color color) =>
+        TextStyle(fontSize: 15, height: 22 / 15, color: color);
+    final TextStyle small = TextStyle(
+      fontSize: 13,
+      height: 19 / 13,
+      color: palette.textMuted,
+    );
+
+    return NebulaPage(
+      title: text.dnsTunnelResolvers,
+      children: <Widget>[
+        ListenableBuilder(
           listenable: resolvers,
           builder: (BuildContext context, _) {
             final String? network = resolvers.network;
@@ -198,47 +207,106 @@ class _DnsTunnelResolversScreenState
             final DnsTunnelScanProgress? progress = resolvers.progress;
             final bool busy = scanning != null;
             final String? active = resolvers.active;
-            return ListView(
-              padding: const EdgeInsets.all(20),
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                Text(
-                  text.dnsTunnelResolversIntro,
-                  style: TextStyle(color: palette.textMuted, height: 1.5),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(inset, 12, inset, 0),
+                  child: Text(
+                    text.dnsTunnelResolversIntro,
+                    style: body(palette.textMuted),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                NebulaRowGroup(
+                  children: <Widget>[
+                    NebulaRow(
+                      title: text.dnsTunnelResolversSet,
+                      subtitle: active ?? text.dnsTunnelResolversBuiltIn,
+                      trailing: NebulaRowTrailing.chevron(context),
+                      onTap: busy
+                          ? null
+                          : () async {
+                              // '' stands for the built-in set, so a
+                              // cancelled dialog (null) can be told apart.
+                              final String? picked =
+                                  await showNebulaChoice<String>(
+                                    context,
+                                    title: text.dnsTunnelResolversSet,
+                                    selected: active ?? '',
+                                    options: <(String, String)>[
+                                      ('', text.dnsTunnelResolversBuiltIn),
+                                      for (final String name
+                                          in resolvers.setNames)
+                                        (name, name),
+                                    ],
+                                  );
+                              if (picked != null) {
+                                await _select(picked.isEmpty ? null : picked);
+                              }
+                            },
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    palette.look == NebulaLook.minimal ? 0 : 8,
+                    10,
+                    0,
+                    0,
+                  ),
+                  child: Text(
+                    working.isEmpty
+                        ? text.dnsTunnelResolversNoneHere(networkName)
+                        : text.dnsTunnelResolversHere(
+                            networkName,
+                            working.length,
+                            network == null
+                                ? 0
+                                : resolvers.iranCountOn(network),
+                          ),
+                    style: small,
+                  ),
                 ),
                 const SizedBox(height: 16),
-                DropdownButtonFormField<String?>(
-                  initialValue: active,
-                  decoration: InputDecoration(
-                    labelText: text.dnsTunnelResolversSet,
-                    border: const OutlineInputBorder(),
-                  ),
-                  items: <DropdownMenuItem<String?>>[
-                    DropdownMenuItem<String?>(
-                      child: Text(text.dnsTunnelResolversBuiltIn),
+                NebulaLabeledField(
+                  label: text.dnsTunnelResolversField,
+                  child: TextField(
+                    controller: _field,
+                    enabled: !busy,
+                    minLines: 3,
+                    // Short: a long list scrolls inside it.
+                    maxLines: 6,
+                    keyboardType: TextInputType.multiline,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    // Addresses read left to right in every language.
+                    textDirection: TextDirection.ltr,
+                    style: const TextStyle(
+                      fontFamily: 'GeistMono',
+                      fontSize: 14,
+                      height: 20 / 14,
                     ),
-                    for (final String name in resolvers.setNames)
-                      DropdownMenuItem<String?>(value: name, child: Text(name)),
-                  ],
-                  onChanged: busy ? null : _select,
+                    decoration: const InputDecoration(
+                      hintText: '1.2.3.4\n5.6.7.8:53\n[2001:db8::1]:53',
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  working.isEmpty
-                      ? text.dnsTunnelResolversNoneHere(networkName)
-                      : text.dnsTunnelResolversHere(
-                          networkName,
-                          working.length,
-                          network == null ? 0 : resolvers.iranCountOn(network),
-                        ),
-                  style: TextStyle(color: palette.textPrimary),
-                ),
-                const SizedBox(height: 12),
+                if (_message != null) ...<Widget>[
+                  const SizedBox(height: 16),
+                  NebulaNotice(
+                    text: _message!,
+                    kind: _messageIsError
+                        ? NebulaNoticeKind.warning
+                        : NebulaNoticeKind.success,
+                  ),
+                ],
                 if (busy && progress != null) ...<Widget>[
+                  const SizedBox(height: 16),
                   Row(
                     children: <Widget>[
-                      const SizedBox(
-                        width: 18,
-                        height: 18,
+                      const SizedBox.square(
+                        dimension: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                       const SizedBox(width: 12),
@@ -253,99 +321,77 @@ class _DnsTunnelResolversScreenState
                               progress.valid.length,
                             ),
                           ].join('\n'),
-                          style: TextStyle(color: palette.textPrimary),
+                          style: body(palette.textPrimary),
                         ),
                       ),
-                      TextButton(
+                      NebulaButton.rowAction(
+                        label: text.dnsTunnelResolversStop,
                         onPressed: resolvers.stop,
-                        child: Text(text.dnsTunnelResolversStop),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
                 ],
-                FilledButton(
+                const SizedBox(height: 16),
+                NebulaButton(
+                  label: text.dnsTunnelResolversTest,
                   onPressed: busy ? null : () => _run(resolvers.quickTest),
-                  child: Text(text.dnsTunnelResolversTest),
                 ),
-                const SizedBox(height: 8),
-                OutlinedButton(
+                const SizedBox(height: 10),
+                NebulaButton.secondary(
+                  label: text.dnsTunnelResolversFullScan,
                   onPressed: busy || !DnsTunnelResolvers.unmetered(network)
                       ? null
                       : () => _run(resolvers.fullScan),
-                  child: Text(text.dnsTunnelResolversFullScan),
                 ),
                 if (!DnsTunnelResolvers.unmetered(network))
                   Padding(
-                    padding: const EdgeInsets.only(top: 4),
+                    padding: EdgeInsets.fromLTRB(inset, 6, inset, 0),
                     child: Text(
                       text.dnsTunnelResolversFullScanWifiOnly,
-                      style: TextStyle(color: palette.textMuted),
+                      style: small,
                     ),
                   ),
-                if (_message != null) ...<Widget>[
-                  const SizedBox(height: 16),
-                  Text(
-                    _message!,
-                    style: TextStyle(
-                      color: _messageIsError
-                          ? palette.amberText
-                          : palette.textPrimary,
-                      height: 1.5,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _field,
-                  enabled: !busy,
-                  minLines: 3,
-                  // Short: a long list scrolls inside it, the page stays usable.
-                  maxLines: 6,
-                  keyboardType: TextInputType.multiline,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  // Addresses read left to right in every language.
-                  textDirection: TextDirection.ltr,
-                  style: const TextStyle(fontFamily: 'monospace'),
-                  decoration: const InputDecoration(
-                    hintText: '1.2.3.4\n5.6.7.8:53\n[2001:db8::1]:53',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   children: <Widget>[
-                    TextButton(
+                    NebulaButton.text(
+                      label: text.dnsTunnelResolversSaveAs,
                       onPressed: busy ? null : _saveAs,
-                      child: Text(text.dnsTunnelResolversSaveAs),
                     ),
                     if (active != null)
-                      TextButton(
+                      NebulaButton.text(
+                        label: text.dnsTunnelResolversDelete,
+                        danger: true,
                         onPressed: busy ? null : _delete,
-                        child: Text(text.dnsTunnelResolversDelete),
                       ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                if (working.isNotEmpty) ...<Widget>[
-                  const SizedBox(height: 16),
-                  for (final String resolver in working.take(30))
-                    Text(
-                      resolver,
+                if (working.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 12),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: palette.surface,
+                      borderRadius: BorderRadius.circular(palette.radiusSm + 2),
+                      border: Border.all(color: palette.hairline),
+                    ),
+                    child: Text(
+                      working.take(30).join('\n'),
                       textDirection: TextDirection.ltr,
                       style: TextStyle(
+                        fontFamily: 'GeistMono',
+                        fontSize: 13,
+                        height: 19 / 13,
                         color: palette.textMuted,
-                        fontFamily: 'monospace',
                       ),
                     ),
-                ],
+                  ),
               ],
             );
           },
         ),
-      ),
+      ],
     );
   }
 }

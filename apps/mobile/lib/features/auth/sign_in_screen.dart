@@ -13,6 +13,7 @@ import '../../core/pairing/pairing_providers.dart';
 import '../../core/routing/route_paths.dart';
 import '../../core/settings/locale_controller.dart';
 import '../../core/widgets/nebula/nebula_controls.dart';
+import '../../core/widgets/nebula/nebula_data.dart';
 import '../../core/widgets/nebula/nebula_rows.dart';
 import '../../core/widgets/panel/auth_scaffold.dart';
 import '../../core/widgets/panel/panel_cta.dart';
@@ -101,17 +102,20 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           subline: text.signInSubline,
           errorMessage: _errorMessage,
           fields: <Widget>[
-            TextFormField(
-              controller: _identifierController,
-              autofillHints: const <String>[
-                AutofillHints.username,
-                AutofillHints.email,
-              ],
-              decoration: InputDecoration(hintText: text.fieldEmailOrUsername),
-              validator: (String? value) =>
-                  (value == null || value.trim().isEmpty)
-                  ? text.validateEmailOrUsername
-                  : null,
+            NebulaLabeledField(
+              label: text.fieldEmailOrUsername,
+              child: TextFormField(
+                controller: _identifierController,
+                autofillHints: const <String>[
+                  AutofillHints.username,
+                  AutofillHints.email,
+                ],
+                decoration: const InputDecoration(),
+                validator: (String? value) =>
+                    (value == null || value.trim().isEmpty)
+                    ? text.validateEmailOrUsername
+                    : null,
+              ),
             ),
             PasswordField(
               controller: _passwordController,
@@ -145,6 +149,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   NebulaRow(
                     icon: Icons.person_add_alt,
                     title: text.requestAccess,
+                    subtitle: text.requestAccessSubline,
                     trailing: NebulaRowTrailing.chevron(context),
                     onTap: () => context.push(RoutePaths.accountRequest),
                   ),
@@ -156,6 +161,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   NebulaRow(
                     icon: Icons.key_outlined,
                     title: text.haveACode,
+                    subtitle: text.codeFromEmail,
                     trailing: NebulaRowTrailing.chevron(context),
                     onTap: () => context.push(RoutePaths.activate),
                   ),
@@ -169,8 +175,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   children: <Widget>[
                     NebulaRow(
                       icon: Icons.dns_outlined,
-                      title: text.pairedServer(pairing!.deploymentName!),
-                      trailing: NebulaButton.text(
+                      title: text.rowServer,
+                      subtitle: pairing!.deploymentName,
+                      trailing: NebulaButton.rowAction(
                         label: text.changeServer,
                         onPressed: () =>
                             ref.read(pairingProvider.notifier).forget(),

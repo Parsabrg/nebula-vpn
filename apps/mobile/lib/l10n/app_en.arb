@@ -705,5 +705,11 @@
   "bypassDomainsField": "Website or address",
   "@bypassDomainsField": {"description": "Websites that skip the VPN: the label of the field a domain is typed into."},
   "signInNoAccountYet": "No account yet",
-  "@signInNoAccountYet": {"description": "Sign in: the section with Request access and I have a code."}
+  "@signInNoAccountYet": {"description": "Sign in: the section with Request access and I have a code."},
+  "accountData": "Data",
+  "@accountData": {"description": "Label over the data figure in the Account plan block."},
+  "searchHint": "Search",
+  "@searchHint": {"description": "Placeholder inside the Settings search field."},
+  "dnsTunnelResolversField": "Resolvers",
+  "@dnsTunnelResolversField": {"description": "Label above the box where DNS tunnel resolver addresses are pasted."}
 }

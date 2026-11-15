@@ -16,7 +16,6 @@ import '../../core/widgets/nebula/nebula_data.dart';
 import '../../core/widgets/nebula/nebula_nav.dart';
 import '../../core/widgets/nebula/nebula_page.dart';
 import '../../core/widgets/nebula/nebula_rows.dart';
-import '../../core/widgets/nebula/nebula_surface.dart';
 import '../../core/widgets/panel/panel_atoms.dart';
 import '../../l10n/app_localizations.dart';
 import '../devices/devices_controller.dart';
@@ -157,73 +156,26 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final NebulaPalette p = context.palette;
     final AppText text = AppText.of(context);
-    final bool desktop = nebulaDesktopLayout(context);
-    final Widget plus = Icon(Icons.add, size: 22, color: p.textPrimary);
-    return Padding(
-      padding: EdgeInsets.only(
-        top: desktop ? 28 : 24,
-        bottom: 4,
-        left: p.look == NebulaLook.minimal ? 0 : 4,
-      ),
-      child: SizedBox(
-        height: 48,
-        child: Row(
-          children: <Widget>[
-            // Expanded, not Flexible beside a Spacer: the two split the free
-            // space and left "+" in the middle of the row.
-            Expanded(
-              child: Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: desktop
-                    ? Semantics(
-                        header: true,
-                        child: Text(
-                          text.tabConnect,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: nebulaTitleStyle(p),
-                        ),
-                      )
-                    : const NebulaBrand(),
+    return NebulaTabHeader(
+      title: nebulaDesktopLayout(context)
+          ? Semantics(
+              header: true,
+              child: Text(
+                text.tabConnect,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: nebulaTitleStyle(p),
               ),
-            ),
-            Tooltip(
-              message: text.ownLinksTitle,
-              child: NebulaPressable(
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (BuildContext context) =>
-                        const FreeModeScreen(ownLinks: true),
-                  ),
-                ),
-                borderRadius: BorderRadius.circular(22),
-                semanticLabel: text.ownLinksTitle,
-                excludeChildSemantics: true,
-                child: switch (p.look) {
-                  NebulaLook.glass => NebulaPanel(
-                    radius: 22,
-                    child: SizedBox.square(
-                      dimension: 44,
-                      child: Center(child: plus),
-                    ),
-                  ),
-                  NebulaLook.expressive => Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: p.subtle,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Center(child: plus),
-                  ),
-                  _ => SizedBox.square(
-                    dimension: 44,
-                    child: Center(child: plus),
-                  ),
-                },
-              ),
-            ),
-          ],
+            )
+          : const NebulaBrand(),
+      action: NebulaHeaderAction(
+        icon: Icons.add,
+        label: text.ownLinksTitle,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (BuildContext context) =>
+                const FreeModeScreen(ownLinks: true),
+          ),
         ),
       ),
     );

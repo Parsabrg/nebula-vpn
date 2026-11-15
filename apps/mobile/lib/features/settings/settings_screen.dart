@@ -182,6 +182,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SizedBox(height: 16),
         NebulaField(
           label: text.searchSettings,
+          hint: text.searchHint,
           controller: _search,
           prefixIcon: Icons.search,
           autocorrect: false,

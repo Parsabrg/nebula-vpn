@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/routing/route_paths.dart';
 import '../../core/theme/type_scale.dart';
+import '../../core/widgets/nebula/nebula_data.dart';
 import '../../core/widgets/panel/auth_scaffold.dart';
 import '../../core/widgets/panel/panel_cta.dart';
 import '../../core/widgets/password_field.dart';
@@ -69,14 +70,17 @@ class _PasswordResetConfirmScreenState
         subline: text.codeFromEmail,
         errorMessage: state is SubmissionFailure ? state.message : null,
         fields: <Widget>[
-          TextFormField(
-            controller: _tokenController,
-            style: context.type.rowValue.copyWith(letterSpacing: 1),
-            decoration: InputDecoration(hintText: text.fieldResetCode),
-            validator: (String? value) =>
-                (value == null || value.trim().length < 10)
-                ? text.validateResetCode
-                : null,
+          NebulaLabeledField(
+            label: text.fieldResetCode,
+            child: TextFormField(
+              controller: _tokenController,
+              style: context.type.rowValue.copyWith(letterSpacing: 1),
+              decoration: const InputDecoration(),
+              validator: (String? value) =>
+                  (value == null || value.trim().length < 10)
+                  ? text.validateResetCode
+                  : null,
+            ),
           ),
           PasswordField(
             controller: _passwordController,

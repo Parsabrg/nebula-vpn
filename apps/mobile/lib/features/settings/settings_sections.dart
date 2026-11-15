@@ -112,7 +112,6 @@ class ProtectionSettingsScreen extends ConsumerWidget {
               // Windows and Linux: the app's own, through the elevated
               // helper. Takes effect from the next connection.
               NebulaSwitchRow(
-                icon: Icons.shield_outlined,
                 title: text.killSwitch,
                 subtitle: text.killSwitchDesktopMeta,
                 value: protection.blockWhenVpnDrops,
@@ -120,7 +119,6 @@ class ProtectionSettingsScreen extends ConsumerWidget {
                     controller.setBlockWhenVpnDrops(enabled: on),
               ),
             NebulaSwitchRow(
-              icon: Icons.lan_outlined,
               title: text.allowLocalNetwork,
               subtitle: text.allowLocalNetworkMeta,
               value: protection.bypassLocalNetwork,
@@ -184,14 +182,12 @@ class RoutingSettingsScreen extends ConsumerWidget {
         NebulaRowGroup(
           children: <Widget>[
             NebulaSwitchRow(
-              icon: Icons.flag_outlined,
               title: text.iranDirect,
               subtitle: text.iranDirectMeta,
               value: advanced.iranDirect,
               onChanged: (bool on) => controller.setIranDirect(enabled: on),
             ),
             NebulaRow(
-              icon: Icons.apps_outlined,
               title: text.splitTunneling,
               subtitle: splitTunnelMeta(
                 text,
@@ -201,7 +197,6 @@ class RoutingSettingsScreen extends ConsumerWidget {
               onTap: () => context.push(RoutePaths.homeSplitTunnel),
             ),
             NebulaRow(
-              icon: Icons.language,
               title: text.bypassDomains,
               subtitle: bypassDomainsMeta(text, advanced.bypassDomains),
               trailing: NebulaRowTrailing.chevron(context),
@@ -362,7 +357,6 @@ class _AndroidKillSwitchRowState extends ConsumerState<AndroidKillSwitchRow> {
         .watch(androidKillSwitchProvider)
         .value;
     return NebulaRow(
-      icon: Icons.shield_outlined,
       title: text.killSwitch,
       subtitle: androidKillSwitchMeta(text, state),
       tone: state?.lockdown == true ? NebulaTone.normal : NebulaTone.warn,

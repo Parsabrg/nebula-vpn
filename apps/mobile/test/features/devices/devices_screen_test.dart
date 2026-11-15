@@ -92,7 +92,7 @@ void main() {
 
     expect(find.text('Pixel 8'), findsOneWidget);
     expect(find.text('Windows desktop'), findsOneWidget);
-    expect(find.text('2 of 5'), findsOneWidget);
+    expect(find.text('2 / 5'), findsOneWidget);
   });
 
   testWidgets('marks this device and says where its peer is', (
@@ -156,7 +156,7 @@ void main() {
 
     expect(repository.revoked, <String>[_otherDeviceId]);
     expect(find.text('Windows desktop'), findsNothing);
-    expect(find.text('1 of 5'), findsOneWidget);
+    expect(find.text('1 / 5'), findsOneWidget);
   });
 
   testWidgets('a failed load offers a retry rather than an empty list', (

@@ -16,7 +16,7 @@ class NebulaButton extends StatelessWidget {
     this.kind = NebulaButtonKind.primary,
     this.icon,
     this.busy = false,
-  });
+  }) : row = false;
 
   const NebulaButton.secondary({
     required this.label,
@@ -24,7 +24,8 @@ class NebulaButton extends StatelessWidget {
     super.key,
     this.icon,
     this.busy = false,
-  }) : kind = NebulaButtonKind.secondary;
+  }) : kind = NebulaButtonKind.secondary,
+       row = false;
 
   const NebulaButton.danger({
     required this.label,
@@ -32,7 +33,8 @@ class NebulaButton extends StatelessWidget {
     super.key,
     this.icon,
     this.busy = false,
-  }) : kind = NebulaButtonKind.danger;
+  }) : kind = NebulaButtonKind.danger,
+       row = false;
 
   const NebulaButton.text({
     required this.label,
@@ -41,11 +43,27 @@ class NebulaButton extends StatelessWidget {
     this.icon,
     this.busy = false,
     bool danger = false,
-  }) : kind = danger ? NebulaButtonKind.dangerText : NebulaButtonKind.text;
+  }) : kind = danger ? NebulaButtonKind.dangerText : NebulaButtonKind.text,
+       row = false;
+
+  /// The action at a row's end (Revoke, Change server, Remove): 44 tall,
+  /// 14 px medium, sitting 8 into the row's edge, as the design draws it.
+  const NebulaButton.rowAction({
+    required this.label,
+    required this.onPressed,
+    super.key,
+    this.busy = false,
+    bool danger = false,
+  }) : kind = danger ? NebulaButtonKind.dangerText : NebulaButtonKind.text,
+       icon = null,
+       row = true;
 
   final String label;
   final VoidCallback? onPressed;
   final NebulaButtonKind kind;
+
+  /// A row's end action (see [NebulaButton.rowAction]).
+  final bool row;
   final IconData? icon;
 
   /// Shows a spinner in place of the icon; the label says what is happening.
@@ -56,7 +74,7 @@ class NebulaButton extends StatelessWidget {
     final NebulaPalette p = context.palette;
     final bool text =
         kind == NebulaButtonKind.text || kind == NebulaButtonKind.dangerText;
-    final double height = text ? 48 : 52;
+    final double height = row ? 44 : (text ? 48 : 52);
     final BorderRadius radius = BorderRadius.circular(p.radiusButton);
     final Color foreground = switch (kind) {
       NebulaButtonKind.primary => p.onAccent,
@@ -69,8 +87,8 @@ class NebulaButton extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
-        fontSize: text ? 15 : 16,
-        fontWeight: FontWeight.w600,
+        fontSize: row ? 14 : (text ? 15 : 16),
+        fontWeight: row ? FontWeight.w500 : FontWeight.w600,
         color: foreground,
       ),
     );
@@ -111,7 +129,7 @@ class NebulaButton extends StatelessWidget {
       child: Center(
         widthFactor: text ? 1 : null,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: EdgeInsets.symmetric(horizontal: row ? 12 : 16),
           child: label,
         ),
       ),
@@ -143,13 +161,24 @@ class NebulaButton extends StatelessWidget {
       case NebulaButtonKind.dangerText:
         break;
     }
-    return NebulaPressable(
+    final Widget button = NebulaPressable(
       onTap: busy ? null : onPressed,
-      borderRadius: radius,
+      borderRadius: row ? BorderRadius.circular(p.radiusSm) : radius,
       semanticLabel: this.label,
       excludeChildSemantics: true,
       child: box,
     );
+    // A row's action sits 8 into the row's end, so its label lines up
+    // closer to the edge, as designed.
+    return row
+        ? Transform.translate(
+            offset: Offset(
+              Directionality.of(context) == TextDirection.rtl ? -8 : 8,
+              0,
+            ),
+            child: button,
+          )
+        : button;
   }
 }
 

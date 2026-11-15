@@ -275,7 +275,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(SignInScreen), findsOneWidget);
-      expect(find.text('Server: Home'), findsOneWidget);
+      // The design's server row: "Server" with the deployment under it.
+      expect(find.text('Home'), findsOneWidget);
       expect(
         await container.read(pairingStoreProvider).read(),
         isNotNull,

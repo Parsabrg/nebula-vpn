@@ -12,7 +12,6 @@ import '../../core/widgets/nebula/nebula_data.dart';
 import '../../core/widgets/nebula/nebula_feedback.dart';
 import '../../core/widgets/nebula/nebula_page.dart';
 import '../../core/widgets/nebula/nebula_rows.dart';
-import '../../core/widgets/nebula/nebula_surface.dart';
 import '../../core/widgets/panel/panel_atoms.dart';
 import '../../core/widgets/refresh_while_visible.dart';
 import '../../l10n/app_localizations.dart';
@@ -58,7 +57,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen>
     });
 
     return NebulaPage(
-      title: text.devicesHeading,
+      title: text.tabDevices,
       showBack: false,
       children: _body(context, state),
     );
@@ -97,48 +96,15 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen>
       case AccountLoadStatus.loaded:
         final AccountSummary account = state.account!;
         return <Widget>[
-          const SizedBox(height: 16),
-          NebulaPanel(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        text.devicesOfLimit(
-                          account.devicesInUse,
-                          account.deviceLimit,
-                        ),
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: palette.textMuted,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      text.devicesInUseOfLimit(
-                        account.devicesInUse,
-                        account.deviceLimit,
-                      ),
-                      textDirection: TextDirection.ltr,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: palette.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                NebulaUsageMeter(
-                  fraction: account.deviceLimit <= 0
-                      ? 0
-                      : account.devicesInUse / account.deviceLimit,
-                ),
-              ],
+          NebulaLedeMeter(
+            label: text.devicesOfLimit(
+              account.devicesInUse,
+              account.deviceLimit,
             ),
+            value: '${account.devicesInUse} / ${account.deviceLimit}',
+            fraction: account.deviceLimit <= 0
+                ? 0
+                : account.devicesInUse / account.deviceLimit,
           ),
           NebulaSectionLabel(text.devicesSignedIn),
           NebulaRowGroup(
@@ -234,7 +200,7 @@ class _RevokeAction extends ConsumerWidget {
       );
     }
     final AppText text = AppText.of(context);
-    return NebulaButton.text(
+    return NebulaButton.rowAction(
       label: text.revoke,
       danger: true,
       onPressed: () async {

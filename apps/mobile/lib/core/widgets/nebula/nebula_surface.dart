@@ -89,11 +89,13 @@ class NebulaPanel extends StatelessWidget {
           return DecoratedBox(decoration: decoration, child: inner);
         }
         // The blur is the expensive part, so only here, clipped to the
-        // panel; Reduce transparency (above) has none at all.
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: corners,
-            boxShadow: decoration.boxShadow,
+        // panel; Reduce transparency (above) has none at all. The shadow is
+        // painted outside the panel only: under a see-through panel it
+        // showed through as a dark band along the bottom.
+        return CustomPaint(
+          painter: _OuterShadow(
+            shadow: decoration.boxShadow!.first,
+            corners: corners,
           ),
           child: ClipRRect(
             borderRadius: corners,
@@ -108,6 +110,41 @@ class NebulaPanel extends StatelessWidget {
         );
     }
   }
+}
+
+/// A box shadow drawn only outside a rounded rectangle, as a CSS
+/// box-shadow is. Flutter's own fills under the box, which shows through a
+/// translucent panel.
+class _OuterShadow extends CustomPainter {
+  const _OuterShadow({required this.shadow, required this.corners});
+
+  final BoxShadow shadow;
+  final BorderRadius corners;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final RRect box = corners.toRRect(Offset.zero & size);
+    canvas.save();
+    canvas.clipPath(
+      Path.combine(
+        PathOperation.difference,
+        Path()..addRect((Offset.zero & size).inflate(shadow.blurRadius * 3)),
+        Path()..addRRect(box),
+      ),
+    );
+    canvas.drawRRect(
+      box.shift(shadow.offset).inflate(shadow.spreadRadius),
+      Paint()
+        ..color = shadow.color
+        // CSS blur B is a Gaussian of sigma B / 2.
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, shadow.blurRadius / 2),
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_OuterShadow old) =>
+      old.shadow != shadow || old.corners != corners;
 }
 
 /// A tap target with the redesign's interaction states: an overlay in the

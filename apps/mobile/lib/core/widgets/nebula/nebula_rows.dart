@@ -133,10 +133,14 @@ class NebulaRow extends StatelessWidget {
     this.selected,
     this.toggled,
     this.titleColor,
+    this.leading,
   });
 
   final String title;
   final IconData? icon;
+
+  /// In place of [icon]'s tile, for a picture of its own (an app's icon).
+  final Widget? leading;
   final String? subtitle;
   final Color? subtitleColor;
   final Color? titleColor;
@@ -161,7 +165,10 @@ class NebulaRow extends StatelessWidget {
     final Widget content = LayoutBuilder(
       builder: (BuildContext context, BoxConstraints box) => Row(
         children: <Widget>[
-          if (icon != null) ...<Widget>[
+          if (leading != null) ...<Widget>[
+            leading!,
+            const SizedBox(width: 14),
+          ] else if (icon != null) ...<Widget>[
             _Tile(icon: icon!, tone: tone),
             const SizedBox(width: 14),
           ],
@@ -196,7 +203,7 @@ class NebulaRow extends StatelessWidget {
               ],
             ),
           ),
-          // At most two fifths of the row, so a long value or button label
+          // At most 52% of the row (the design's value width), so a long value or button label
           // on a small phone or with large text shortens instead of pushing
           // past the screen edge. A cap rather than a flex share, which kept
           // the trailing part off the row's end.
@@ -374,7 +381,8 @@ abstract final class NebulaRowTrailing {
   static Widget valueChevron(BuildContext context, String text) => Row(
     mainAxisSize: MainAxisSize.min,
     children: <Widget>[
-      value(context, text, mono: false),
+      // Shortens with "..." rather than pushing the chevron off the row.
+      Flexible(child: value(context, text, mono: false)),
       const SizedBox(width: 6),
       chevron(context),
     ],

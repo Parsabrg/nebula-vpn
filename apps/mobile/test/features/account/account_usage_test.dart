@@ -84,6 +84,12 @@ void main() {
   testWidgets('sign out asks first, and Cancel keeps the account', (
     WidgetTester tester,
   ) async {
+    // Sign out sits in the page, after Delete account, as the design has
+    // it: a window tall enough to show it.
+    tester.view
+      ..devicePixelRatio = 1
+      ..physicalSize = const Size(800, 1400);
+    addTearDown(tester.view.reset);
     await _pump(tester, _account(usedBytes: gib));
 
     await tester.tap(find.text('Sign out'));

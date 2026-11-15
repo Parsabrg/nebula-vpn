@@ -120,7 +120,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         body: Row(
           children: <Widget>[
             NebulaSideNav(items: items),
-            Expanded(child: navigationShell),
+            Expanded(child: NebulaBesideSideNav(child: navigationShell)),
           ],
         ),
       );

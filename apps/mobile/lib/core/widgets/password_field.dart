@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
+import 'nebula/nebula_data.dart';
 
 /// A password [TextFormField] with a visibility toggle. The toggle is
 /// icon-only, so it carries an explicit [Semantics] label reflecting its
@@ -39,14 +40,13 @@ class _PasswordFieldState extends State<PasswordField> {
     final String toggleLabel = _obscured
         ? text.showPassword
         : text.hidePassword;
-    return TextFormField(
+    final Widget field = TextFormField(
       controller: widget.controller,
       obscureText: _obscured,
       autofillHints: widget.autofillHints,
       validator: widget.validator,
       onChanged: widget.onChanged,
       decoration: InputDecoration(
-        labelText: widget.labelText,
         suffixIcon: Semantics(
           label: toggleLabel,
           button: true,
@@ -66,5 +66,7 @@ class _PasswordFieldState extends State<PasswordField> {
         ),
       ),
     );
+    // The design's label sits above the box, not inside it.
+    return NebulaLabeledField(label: widget.labelText, child: field);
   }
 }
