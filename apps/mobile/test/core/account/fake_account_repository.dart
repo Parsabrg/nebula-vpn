@@ -29,6 +29,28 @@ class FakeAccountRepository implements AccountRepository {
     return devices;
   }
 
+  final List<(String, String)> renamed = <(String, String)>[];
+
+  @override
+  Future<void> renameDevice(String deviceId, String name) async {
+    renamed.add((deviceId, name));
+    devices = <AccountDevice>[
+      for (final AccountDevice d in devices)
+        d.id == deviceId
+            ? AccountDevice(
+                id: d.id,
+                name: name,
+                platform: d.platform,
+                state: d.state,
+                clientVersion: d.clientVersion,
+                registeredAt: d.registeredAt,
+                isCurrent: d.isCurrent,
+                serverCodes: d.serverCodes,
+              )
+            : d,
+    ];
+  }
+
   @override
   Future<void> revokeDevice(String deviceId) async {
     final Object? error = revokeError;

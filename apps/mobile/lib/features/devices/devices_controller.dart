@@ -694,7 +694,7 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
   );
   bool _cancelled(int attempt);
   Future<void> _stopLeftoverTunnel();
-  Future<void> disconnect(String deviceId);
+  Future<void> disconnect(String deviceId, {bool keepConnecting = false});
   Future<bool> _serverChangedCredential({
     required String deviceId,
     required String serverCode,

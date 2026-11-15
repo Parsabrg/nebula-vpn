@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class AccountResponse(BaseModel):
@@ -53,3 +53,20 @@ class DeviceListResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     items: list[DeviceItem]
+
+
+class DeviceRenameRequest(BaseModel):
+    """A new name for one of the caller's devices, as shown in Devices."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # The same bound as the name given at sign-in.
+    name: str = Field(min_length=1, max_length=80)
+
+    @field_validator("name")
+    @classmethod
+    def _printable(cls, value: str) -> str:
+        value = value.strip()
+        if not value or any(not character.isprintable() for character in value):
+            raise ValueError("a device name is printable text")
+        return value

@@ -6,6 +6,7 @@ import 'package:nebula_mobile/core/servers/server_repository.dart';
 import 'package:nebula_mobile/core/storage/advanced_settings_store.dart';
 import 'package:nebula_mobile/core/warp/warp_settings.dart';
 import 'package:nebula_mobile/core/xray/local_proxy.dart';
+import 'package:nebula_mobile/core/xray/windows_tunnel_config.dart';
 import 'package:nebula_mobile/core/xray/xray_config.dart';
 
 const LocalProxy _localProxy = LocalProxy(
@@ -205,5 +206,79 @@ void main() {
       protocolProfileCode: kWarpTransport,
     );
     expect(client.transport, kWarpTransport);
+  });
+
+  group('Leave outside Iran', () {
+    const WarpSettings outside = WarpSettings(leaveOutsideIran: true);
+
+    test('WARP mode leaves through Psiphon, and waits for it', () {
+      final Map<String, dynamic> config = _render(warpClient, outside);
+      final int aether = _localProxy.port + 1;
+      final Map<String, dynamic> proxy =
+          (config['outbounds'] as List<dynamic>).first as Map<String, dynamic>;
+      expect(jsonEncode(proxy), contains('"port":${aether + 2}'));
+      final Map<String, dynamic> run =
+          config['nebulaAether'] as Map<String, dynamic>;
+      final List<dynamic> args = run['args'] as List<dynamic>;
+      expect(
+        args,
+        containsAllInOrder(<String>[
+          '--psiphon',
+          '--psiphon-bind',
+          '127.0.0.1:${aether + 2}',
+        ]),
+      );
+      expect(run['ready'], 'psiphon is ready; 127.0.0.1:${aether + 2}');
+    });
+
+    test('answers IPv4 only, as Psiphon reaches no IPv6 address', () {
+      final Map<String, dynamic> config = _render(warpClient, outside);
+      expect(
+        (config['dns'] as Map<String, dynamic>)['queryStrategy'],
+        'UseIPv4',
+      );
+      // Kept by the Windows tunnel, which writes its own DNS block.
+      expect(
+        (windowsXrayTunConfig(config)['dns']
+            as Map<String, dynamic>)['queryStrategy'],
+        'UseIPv4',
+      );
+      expect(
+        (_render(warpClient, WarpSettings.defaults)['dns']
+                as Map<String, dynamic>)
+            .containsKey('queryStrategy'),
+        isFalse,
+      );
+    });
+
+    test('a server through WARP leaves from the server, not Psiphon', () {
+      final Map<String, dynamic> config = _render(
+        _reality,
+        outside.copyWith(throughWarp: true),
+      );
+      final Map<String, dynamic> run =
+          config['nebulaAether'] as Map<String, dynamic>;
+      expect(run['args'], isNot(contains('--psiphon')));
+      expect(
+        run['ready'],
+        'socks5 server listening on 127.0.0.1:${_localProxy.port + 1}',
+      );
+    });
+
+    test('off by default, and kept across a save', () {
+      expect(WarpSettings.defaults.leaveOutsideIran, isFalse);
+      expect(
+        WarpSettings.fromJsonString(jsonEncode(outside.toJson())),
+        outside,
+      );
+      final Map<String, dynamic> config = _render(
+        warpClient,
+        WarpSettings.defaults,
+      );
+      expect(
+        (config['nebulaAether'] as Map<String, dynamic>)['args'],
+        isNot(contains('--psiphon')),
+      );
+    });
   });
 }

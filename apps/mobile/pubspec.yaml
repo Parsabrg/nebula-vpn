@@ -49,6 +49,9 @@ flutter:
   assets:
     # The notices the bundled engines' licenses ask to travel with them.
     - assets/licenses/
+    # The privacy policy and terms of use, copies of docs/privacy.md and
+    # docs/terms.md (test/features/settings/legal_document_test.dart).
+    - assets/legal/
     # The DNS tunnel's starting resolver list (CottenDNS, MIT).
     - path: assets/dns_tunnel/
       platforms: [android, windows, linux]

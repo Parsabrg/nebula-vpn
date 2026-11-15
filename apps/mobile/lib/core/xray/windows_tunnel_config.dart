@@ -143,6 +143,10 @@ Map<String, dynamic> windowsXrayTunConfig(
     'dns': <String, dynamic>{
       'servers': <String>[for (final String ip in resolvers) 'tcp://$ip'],
       'tag': 'nebula-dns',
+      // IPv4 only where the route out has no IPv6 (WARP through Psiphon).
+      if ((config['dns'] as Map<String, dynamic>?)?['queryStrategy']
+          case final Object strategy)
+        'queryStrategy': strategy,
     },
     'inbounds': <Map<String, dynamic>>[
       <String, dynamic>{

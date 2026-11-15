@@ -23,8 +23,11 @@ import '../../core/widgets/panel/panel_controls.dart';
 import '../../core/window/login_item.dart';
 import '../../core/wireguard/native_tunnel_channel.dart';
 import '../../l10n/app_localizations.dart';
+import 'legal_document_screen.dart';
 
-/// Three sections: appearance, protection, about.
+/// Sections in the order they are reached for: how it looks, how it
+/// starts, what protects the connection, what goes where, the deeper
+/// settings, help when something fails, and about.
 ///
 /// The kill switch is a row here rather than the two-paragraph explanation it
 /// replaces. The explanation was correct and nobody read it; the row states
@@ -71,7 +74,7 @@ class SettingsScreen extends ConsumerWidget {
             _LanguageRow(text: text),
 
             const SizedBox(height: 28),
-            SectionHeader(text.sectionProtection),
+            SectionHeader(text.sectionStartup),
             const SizedBox(height: 4),
             PanelToggleRow(
               title: text.connectOnLaunch,
@@ -104,24 +107,38 @@ class SettingsScreen extends ConsumerWidget {
               title: text.notificationSpeed,
               meta: text.notificationSpeedMeta,
               value: protection.notificationSpeed,
+              isLast: true,
               onChanged: (bool enabled) =>
                   controller.setNotificationSpeed(enabled: enabled),
             ),
+
+            const SizedBox(height: 28),
+            SectionHeader(text.sectionProtection),
+            const SizedBox(height: 4),
+            if (defaultTargetPlatform == TargetPlatform.android)
+              _AndroidKillSwitchRow(onTap: () => _openKillSwitch(context, text))
+            else
+              // Windows and Linux: the app's own, through the elevated
+              // helper. Takes effect from the next connection.
+              PanelToggleRow(
+                title: text.killSwitch,
+                meta: text.killSwitchDesktopMeta,
+                value: protection.blockWhenVpnDrops,
+                onChanged: (bool enabled) =>
+                    controller.setBlockWhenVpnDrops(enabled: enabled),
+              ),
             PanelToggleRow(
               title: text.allowLocalNetwork,
               meta: text.allowLocalNetworkMeta,
               value: protection.bypassLocalNetwork,
+              isLast: true,
               onChanged: (bool enabled) =>
                   controller.setBypassLocalNetwork(enabled: enabled),
             ),
-            PanelExternalRow(
-              title: text.splitTunneling,
-              meta: _splitTunnelMeta(
-                text,
-                ref.watch(splitTunnelControllerProvider),
-              ),
-              onTap: () => context.push(RoutePaths.homeSplitTunnel),
-            ),
+
+            const SizedBox(height: 28),
+            SectionHeader(text.sectionRouting),
+            const SizedBox(height: 4),
             PanelToggleRow(
               title: text.iranDirect,
               meta: text.iranDirectMeta,
@@ -130,31 +147,6 @@ class SettingsScreen extends ConsumerWidget {
                   .read(advancedSettingsControllerProvider.notifier)
                   .setIranDirect(enabled: enabled),
             ),
-            PanelExternalRow(
-              title: text.bypassDomains,
-              meta: _bypassDomainsMeta(
-                text,
-                ref.watch(advancedSettingsControllerProvider).bypassDomains,
-              ),
-              onTap: () => context.push(RoutePaths.homeBypassDomains),
-            ),
-            PanelToggleRow(
-              title: text.localProxyMode,
-              meta: text.localProxyModeMeta,
-              value:
-                  ref
-                      .watch(advancedSettingsControllerProvider)
-                      .connectionMode ==
-                  ConnectionMode.localProxy,
-              onChanged: (bool enabled) => ref
-                  .read(advancedSettingsControllerProvider.notifier)
-                  .setConnectionMode(
-                    enabled ? ConnectionMode.localProxy : ConnectionMode.vpn,
-                  ),
-            ),
-            if (ref.watch(advancedSettingsControllerProvider).connectionMode ==
-                ConnectionMode.localProxy)
-              const _LocalProxyPortRow(),
             PanelToggleRow(
               title: text.routingSanctionsOnly,
               meta: text.routingSanctionsOnlyMeta,
@@ -169,33 +161,22 @@ class SettingsScreen extends ConsumerWidget {
                         : RoutingMode.everything,
                   ),
             ),
-            if (defaultTargetPlatform == TargetPlatform.android)
-              _AndroidKillSwitchRow(onTap: () => _openKillSwitch(context, text))
-            else
-              // Windows and Linux: the app's own, through the elevated
-              // helper. Takes effect from the next connection.
-              PanelToggleRow(
-                title: text.killSwitch,
-                meta: text.killSwitchDesktopMeta,
-                value: protection.blockWhenVpnDrops,
-                isLast: true,
-                onChanged: (bool enabled) =>
-                    controller.setBlockWhenVpnDrops(enabled: enabled),
-              ),
-
-            const SizedBox(height: 28),
-            SectionHeader(text.sectionDiagnostics),
-            const SizedBox(height: 4),
             PanelExternalRow(
-              title: text.connectionLog,
-              meta: text.connectionLogMeta,
-              onTap: () => context.push(RoutePaths.homeConnectionLog),
+              title: text.splitTunneling,
+              meta: _splitTunnelMeta(
+                text,
+                ref.watch(splitTunnelControllerProvider),
+              ),
+              onTap: () => context.push(RoutePaths.homeSplitTunnel),
             ),
             PanelExternalRow(
-              title: text.sectionDiagnostics,
-              meta: text.diagnosticsMeta,
+              title: text.bypassDomains,
+              meta: _bypassDomainsMeta(
+                text,
+                ref.watch(advancedSettingsControllerProvider).bypassDomains,
+              ),
               isLast: true,
-              onTap: () => context.push(RoutePaths.homeDiagnostics),
+              onTap: () => context.push(RoutePaths.homeBypassDomains),
             ),
 
             const SizedBox(height: 28),
@@ -204,13 +185,14 @@ class SettingsScreen extends ConsumerWidget {
             if (warpSupported)
               PanelExternalRow(
                 title: text.warpTitle,
-                meta:
-                    ref
-                        .watch(advancedSettingsControllerProvider)
-                        .warp
-                        .throughWarp
-                    ? text.warpThroughOn
-                    : text.warpRowMeta,
+                meta: switch (ref
+                    .watch(advancedSettingsControllerProvider)
+                    .warp) {
+                  WarpSettings(throughWarp: true) => text.warpThroughOn,
+                  WarpSettings(leaveOutsideIran: true) =>
+                    text.warpOutsideIranOn,
+                  _ => text.warpRowMeta,
+                },
                 onTap: () => context.push(RoutePaths.homeWarp),
               ),
             PanelExternalRow(
@@ -225,7 +207,6 @@ class SettingsScreen extends ConsumerWidget {
               meta:
                   ref.watch(advancedSettingsControllerProvider).cleanIp ??
                   text.cleanIpAutomatic,
-              isLast: !dnsTunnelSupported,
               onTap: () => context.push(RoutePaths.homeCleanIp),
             ),
             if (dnsTunnelSupported)
@@ -242,12 +223,48 @@ class SettingsScreen extends ConsumerWidget {
                       resolvers.active ?? text.dnsTunnelResolversBuiltIn,
                       network == null ? 0 : resolvers.workingOn(network).length,
                     ),
-                    isLast: true,
                     onTap: () =>
                         context.push(RoutePaths.homeDnsTunnelResolvers),
                   );
                 },
               ),
+            PanelToggleRow(
+              title: text.localProxyMode,
+              meta: text.localProxyModeMeta,
+              value:
+                  ref
+                      .watch(advancedSettingsControllerProvider)
+                      .connectionMode ==
+                  ConnectionMode.localProxy,
+              isLast:
+                  ref
+                      .watch(advancedSettingsControllerProvider)
+                      .connectionMode !=
+                  ConnectionMode.localProxy,
+              onChanged: (bool enabled) => ref
+                  .read(advancedSettingsControllerProvider.notifier)
+                  .setConnectionMode(
+                    enabled ? ConnectionMode.localProxy : ConnectionMode.vpn,
+                  ),
+            ),
+            if (ref.watch(advancedSettingsControllerProvider).connectionMode ==
+                ConnectionMode.localProxy)
+              const _LocalProxyPortRow(),
+
+            const SizedBox(height: 28),
+            SectionHeader(text.sectionDiagnostics),
+            const SizedBox(height: 4),
+            PanelExternalRow(
+              title: text.connectionLog,
+              meta: text.connectionLogMeta,
+              onTap: () => context.push(RoutePaths.homeConnectionLog),
+            ),
+            PanelExternalRow(
+              title: text.sectionDiagnostics,
+              meta: text.diagnosticsMeta,
+              isLast: true,
+              onTap: () => context.push(RoutePaths.homeDiagnostics),
+            ),
 
             const SizedBox(height: 28),
             SectionHeader(text.sectionAbout),
@@ -269,6 +286,29 @@ class SettingsScreen extends ConsumerWidget {
                 applicationLegalese: 'GPL-3.0-or-later',
               ),
             ),
+            for (final (String title, String meta, String asset)
+                in <(String, String, String)>[
+                  (
+                    text.privacyPolicy,
+                    text.privacyPolicyMeta,
+                    LegalDocumentScreen.privacyAsset,
+                  ),
+                  (
+                    text.termsOfUse,
+                    text.termsOfUseMeta,
+                    LegalDocumentScreen.termsAsset,
+                  ),
+                ])
+              PanelExternalRow(
+                title: title,
+                meta: meta,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (BuildContext context) =>
+                        LegalDocumentScreen(title: title, asset: asset),
+                  ),
+                ),
+              ),
             const _VersionRow(),
             const SizedBox(height: 24),
           ],
@@ -371,7 +411,6 @@ class _AndroidKillSwitchRowState extends ConsumerState<_AndroidKillSwitchRow> {
       // Amber until Android blocks traffic without the VPN -- the one
       // protection the app cannot switch on itself.
       metaColor: state?.lockdown == true ? palette.textMuted : palette.amberDim,
-      isLast: true,
       onTap: widget.onTap,
     );
   }
@@ -589,6 +628,7 @@ class _LocalProxyPortRow extends ConsumerWidget {
     return PanelExternalRow(
       title: AppText.of(context).localProxyPort,
       meta: '127.0.0.1:$port',
+      isLast: true,
       onTap: () => _edit(context, ref, port),
     );
   }

@@ -1,5 +1,5 @@
 Aether v2.4.0, the Cloudflare WARP client Nebula runs as a separate program
-(libaether.so). Source: https://github.com/patterniha/Aether/tree/v2.4.0
+(libaether.so, aether.exe, aether). Source: https://github.com/patterniha/Aether/tree/v2.4.0
 Licensed under the GNU Affero General Public License, version 3:
 
                     GNU AFFERO GENERAL PUBLIC LICENSE

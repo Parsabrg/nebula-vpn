@@ -134,6 +134,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen>
               PanelListRow(
                 title: device.name,
                 leading: _platformIcon(device.platform),
+                onTap: () => _renameDevice(context, ref, device),
                 meta: _meta(context, text, device),
                 metaColor: device.isCurrent
                     ? palette.blueText
@@ -150,7 +151,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen>
               ),
             const SizedBox(height: 16),
             Text(
-              text.revokeFootnote,
+              '${text.devicesRenameHint} ${text.revokeFootnote}',
               style: type.listMeta.copyWith(color: palette.textMuted),
             ),
             const SizedBox(height: 24),
@@ -266,4 +267,45 @@ class _SkeletonDeviceRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Asks for a new name for [device] and saves it.
+Future<void> _renameDevice(
+  BuildContext context,
+  WidgetRef ref,
+  AccountDevice device,
+) async {
+  final AppText text = AppText.of(context);
+  final TextEditingController field = TextEditingController(text: device.name);
+  final String? name = await showDialog<String>(
+    context: context,
+    builder: (BuildContext context) => AlertDialog(
+      title: Text(text.renameDevice),
+      content: TextField(
+        controller: field,
+        autofocus: true,
+        maxLength: 80,
+        decoration: InputDecoration(labelText: text.deviceNameLabel),
+        onSubmitted: (String value) => Navigator.of(context).pop(value),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(text.cancel),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(field.text),
+          child: Text(text.save),
+        ),
+      ],
+    ),
+  );
+  field.dispose();
+  final String? trimmed = name?.trim();
+  if (trimmed == null || trimmed.isEmpty || trimmed == device.name) {
+    return;
+  }
+  await ref
+      .read(accountControllerProvider.notifier)
+      .renameDevice(device.id, trimmed);
 }

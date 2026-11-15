@@ -52,8 +52,10 @@ record of what is done and how it was tested; the full target is in
   analytics or error reports. A subscription link (for iOS apps) exists only
   when the account holder makes one; it holds credentials of its own, counts
   as a device, and is revoked like one.
-- No connection logs and no IP addresses kept; see
-  [`docs/privacy.md`](docs/privacy.md).
+- No connection logs and no IP addresses kept; see the
+  [privacy policy](docs/privacy.md) and the [terms of use](docs/terms.md),
+  also in the app under Settings and on the
+  [website](https://parsabrg.github.io/nebula-vpn/privacy.html).
 - The public API never gets root or a shell. VPN changes go through narrow
   WireGuard, Xray and Hysteria2 drivers behind a mutually authenticated
   agent.

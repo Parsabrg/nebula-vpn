@@ -55,7 +55,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           .login(
             identifier: _identifierController.text.trim(),
             password: _passwordController.text,
-            deviceName: currentDeviceName,
+            deviceName: await readDeviceName(),
             platform: currentDevicePlatform,
             clientVersion: kClientVersion,
           );

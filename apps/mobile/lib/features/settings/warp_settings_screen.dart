@@ -116,6 +116,15 @@ class WarpSettingsScreen extends ConsumerWidget {
               text.warpIntro,
               style: TextStyle(color: palette.textMuted, fontSize: 13),
             ),
+            const SizedBox(height: 16),
+            PanelToggleRow(
+              title: text.warpOutsideIranTitle,
+              meta: warp.leaveOutsideIran ? text.warpOutsideIranOn : text.off,
+              value: warp.leaveOutsideIran,
+              onChanged: (bool on) => save(warp.copyWith(leaveOutsideIran: on)),
+              isLast: true,
+            ),
+            explain(text.warpOutsideIranExplain),
 
             const SizedBox(height: 24),
             SectionHeader(text.warpSectionServers),

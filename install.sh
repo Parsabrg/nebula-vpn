@@ -977,8 +977,11 @@ if [ -n "$CONFIGURE" ]; then
           fi
           [ -n "$(agentget NEBULA_XRAY_REALITY_PUBLIC_KEY)" ] || die "xray x25519 gave no key pair"
           # The site whose TLS handshake a probe sees: big, reachable from
-          # Iran, TLS 1.3 and HTTP/2. Pick one that loads there.
-          site=$(agentget NEBULA_XRAY_REALITY_SERVER_NAME); site=${site:-www.microsoft.com}
+          # Iran, TLS 1.3 and HTTP/2. Not www.microsoft.com: Iran drops that
+          # name to an address that is not Microsoft's from its datacentres,
+          # which breaks it through an Iranian relay (2026-11-14); the home
+          # line let it through.
+          site=$(agentget NEBULA_XRAY_REALITY_SERVER_NAME); site=${site:-www.speedtest.net}
           read -rp "  site to borrow [$site]: " a; site=${a:-$site}
           [[ $site =~ ^[A-Za-z0-9.-]+$ ]] || die "'$site' is not a host name"
           agentset NEBULA_XRAY_REALITY_SERVER_NAME "$site"
