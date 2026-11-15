@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import '../platform/owned_process.dart';
+
 /// Cloudflare WARP (Aether) on Windows and Linux, run as the person, as on
 /// Android.
 ///
@@ -122,9 +124,13 @@ Future<void> registerAether(
   List<String> args,
   void Function(String line) log,
 ) async {
-  final Process process = await Process.start(
+  final (String command, List<String> arguments) = ownedCommand(
     engine,
     <String>[...args, '--register', aetherRegisterWord(args)],
+  );
+  final Process process = await Process.start(
+    command,
+    arguments,
     workingDirectory: aetherHome().path,
     mode: ProcessStartMode.detachedWithStdio,
   );
@@ -163,12 +169,16 @@ Future<Process> startAether(
   void Function(String line) log, {
   String? upstream,
 }) async {
-  final Process process = await Process.start(
+  final (String command, List<String> arguments) = ownedCommand(
     engine,
     <String>[
       ...args,
       if (upstream != null) ...<String>['--upstream', upstream],
     ],
+  );
+  final Process process = await Process.start(
+    command,
+    arguments,
     workingDirectory: aetherHome().path,
     // No console window on Windows; its output is still read below, and
     // must be for as long as it runs, or a full pipe stalls it.

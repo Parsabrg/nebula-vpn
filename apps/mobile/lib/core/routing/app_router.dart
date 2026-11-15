@@ -15,12 +15,14 @@ import '../../features/pairing/pairing_screen.dart';
 import '../../features/password_reset/password_reset_confirm_screen.dart';
 import '../../features/password_reset/password_reset_request_screen.dart';
 import '../../features/settings/advanced_settings_screen.dart';
+import '../../features/settings/appearance_screen.dart';
 import '../../features/settings/bypass_domains_screen.dart';
 import '../../features/settings/clean_ip_screen.dart';
 import '../../features/settings/connection_log_screen.dart';
 import '../../features/settings/diagnostics_screen.dart';
 import '../../features/settings/dns_tunnel_resolvers_screen.dart';
 import '../../features/settings/settings_screen.dart';
+import '../../features/settings/settings_sections.dart';
 import '../../features/settings/split_tunnel_screen.dart';
 import '../../features/settings/warp_settings_screen.dart';
 import '../../features/splash/splash_screen.dart';
@@ -29,6 +31,7 @@ import '../auth/auth_state.dart';
 import '../free/free_mode.dart';
 import '../pairing/pairing.dart';
 import '../pairing/pairing_providers.dart';
+import 'home_branches.dart';
 import 'nebula_page.dart';
 import 'route_paths.dart';
 
@@ -102,6 +105,9 @@ String? _redirect(Ref ref, GoRouterState state) {
 }
 
 final routerProvider = Provider<GoRouter>((Ref ref) {
+  final List<GlobalKey<NavigatorState>> branchKeys = ref.read(
+    homeBranchKeysProvider,
+  );
   final _AuthRefreshListenable refreshListenable = _AuthRefreshListenable(ref);
   ref.onDispose(refreshListenable.dispose);
 
@@ -155,6 +161,7 @@ final routerProvider = Provider<GoRouter>((Ref ref) {
             ) => HomeShell(navigationShell: navigationShell),
         branches: <StatefulShellBranch>[
           StatefulShellBranch(
+            navigatorKey: branchKeys[0],
             routes: <RouteBase>[
               GoRoute(
                 path: RoutePaths.homeConnect,
@@ -164,6 +171,7 @@ final routerProvider = Provider<GoRouter>((Ref ref) {
             ],
           ),
           StatefulShellBranch(
+            navigatorKey: branchKeys[1],
             routes: <RouteBase>[
               GoRoute(
                 path: RoutePaths.homeDevices,
@@ -173,6 +181,7 @@ final routerProvider = Provider<GoRouter>((Ref ref) {
             ],
           ),
           StatefulShellBranch(
+            navigatorKey: branchKeys[2],
             routes: <RouteBase>[
               GoRoute(
                 path: RoutePaths.homeAccount,
@@ -239,6 +248,31 @@ final routerProvider = Provider<GoRouter>((Ref ref) {
         path: RoutePaths.homeWarp,
         pageBuilder: (BuildContext context, GoRouterState state) =>
             buildNebulaPage(context, state, const WarpSettingsScreen()),
+      ),
+      GoRoute(
+        path: RoutePaths.homeAppearance,
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            buildNebulaPage(context, state, const AppearanceScreen()),
+      ),
+      GoRoute(
+        path: RoutePaths.homeStartup,
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            buildNebulaPage(context, state, const StartupSettingsScreen()),
+      ),
+      GoRoute(
+        path: RoutePaths.homeProtection,
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            buildNebulaPage(context, state, const ProtectionSettingsScreen()),
+      ),
+      GoRoute(
+        path: RoutePaths.homeRouting,
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            buildNebulaPage(context, state, const RoutingSettingsScreen()),
+      ),
+      GoRoute(
+        path: RoutePaths.homeAdvancedGroup,
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            buildNebulaPage(context, state, const AdvancedGroupScreen()),
       ),
     ],
   );

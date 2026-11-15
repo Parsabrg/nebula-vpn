@@ -8,6 +8,10 @@ import '../../core/cdn/clean_ip.dart';
 import '../../core/settings/advanced_settings_controller.dart';
 import '../../core/storage/advanced_settings_store.dart';
 import '../../core/theme/color_tokens.dart';
+import '../../core/theme/look.dart';
+import '../../core/widgets/nebula/nebula_controls.dart';
+import '../../core/widgets/nebula/nebula_page.dart';
+import '../../core/widgets/nebula/nebula_rows.dart';
 import '../../core/xray/xray_config.dart';
 import '../../l10n/app_localizations.dart';
 import '../devices/devices_controller.dart';
@@ -133,126 +137,122 @@ class _CleanIpScreenState extends ConsumerState<CleanIpScreen> {
         ? text.cleanIpConnectOnce
         : null;
 
-    return Scaffold(
-      backgroundColor: palette.bg,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).maybePop(),
+    final AdvancedSettingsController controller = ref.read(
+      advancedSettingsControllerProvider.notifier,
+    );
+    Widget radio({required bool on}) => Icon(
+      on ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+      size: 24,
+      color: on ? palette.blue : palette.textMuted,
+    );
+
+    return NebulaPage(
+      title: text.cleanIp,
+      children: <Widget>[
+        Padding(
+          padding: EdgeInsets.only(
+            top: 12,
+            left: palette.look == NebulaLook.minimal ? 0 : 4,
+            right: palette.look == NebulaLook.minimal ? 0 : 4,
+          ),
+          child: Text(
+            text.cleanIpIntro,
+            style: TextStyle(
+              fontSize: 15,
+              height: 22 / 15,
+              color: palette.textMuted,
+            ),
+          ),
         ),
-        title: Text(text.cleanIp),
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(20),
+        for (final String warning in <String>[
+          ?blocker,
+          if (_notCloudflare) text.cleanIpNotCloudflare,
+          if (results != null && results.isEmpty) text.cleanIpNoneFound,
+        ]) ...<Widget>[
+          const SizedBox(height: 16),
+          NebulaNotice(text: warning, kind: NebulaNoticeKind.warning),
+        ],
+        const SizedBox(height: 20),
+        NebulaRowGroup(
           children: <Widget>[
-            Text(
-              text.cleanIpIntro,
-              style: TextStyle(color: palette.textMuted, height: 1.5),
-            ),
-            const SizedBox(height: 16),
-            _Line(
-              label: text.cleanIp,
-              value: settings.cleanIp ?? text.cleanIpAutomatic,
-            ),
-            if (host != null) _Line(label: 'CDN', value: host),
-            const SizedBox(height: 16),
-            if (blocker != null)
-              Text(
-                blocker,
-                style: TextStyle(color: palette.amberText, height: 1.5),
-              ),
-            if (_notCloudflare)
-              Text(
-                text.cleanIpNotCloudflare,
-                style: TextStyle(color: palette.amberText, height: 1.5),
-              ),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: blocker != null || done != null
-                  ? null
-                  : () => _scan(host!),
-              child: Text(
-                done != null
-                    ? text.cleanIpScanning(done, _scanSize)
-                    : text.cleanIpScan,
-              ),
-            ),
-            if (settings.cleanIp != null)
-              TextButton(
-                onPressed: () => ref
-                    .read(advancedSettingsControllerProvider.notifier)
-                    .setCleanIp(null),
-                child: Text(text.cleanIpUseAutomatic),
-              ),
-            if (results != null && results.isEmpty) ...<Widget>[
-              const SizedBox(height: 12),
-              Text(
-                text.cleanIpNoneFound,
-                style: TextStyle(color: palette.amberText, height: 1.5),
-              ),
-            ],
-            if (results != null && results.isNotEmpty) ...<Widget>[
-              const SizedBox(height: 16),
-              for (final CleanIpResult r in results)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    r.ip,
-                    style: TextStyle(color: palette.textPrimary),
-                  ),
-                  trailing: Text(
-                    r.ip == settings.cleanIp
-                        ? '${r.milliseconds} ms · ${text.cleanIpInUse}'
-                        : '${r.milliseconds} ms',
-                    style: TextStyle(
-                      color: r.ip == settings.cleanIp
-                          ? palette.blueText
-                          : palette.textMuted,
-                    ),
-                  ),
-                  onTap: () => ref
-                      .read(advancedSettingsControllerProvider.notifier)
-                      .setCleanIp(r.ip),
+            if (results == null || results.isEmpty) ...<Widget>[
+              NebulaRow(
+                title: text.cleanIp,
+                trailing: NebulaRowTrailing.value(
+                  context,
+                  settings.cleanIp ?? text.cleanIpAutomatic,
+                  mono: settings.cleanIp != null,
                 ),
-              const SizedBox(height: 8),
-              Text(
-                text.cleanIpAppliesNext,
-                style: TextStyle(color: palette.textMuted, height: 1.5),
               ),
+              if (host != null)
+                NebulaRow(
+                  title: 'CDN',
+                  trailing: NebulaRowTrailing.value(context, host),
+                ),
+            ] else ...<Widget>[
+              NebulaRow(
+                title: text.cleanIpAutomatic,
+                trailing: radio(on: settings.cleanIp == null),
+                onTap: () => controller.setCleanIp(null),
+              ),
+              for (final CleanIpResult r in results)
+                NebulaRow(
+                  title: r.ip,
+                  subtitle: '${r.milliseconds} ms',
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      if (r.ip == settings.cleanIp) ...<Widget>[
+                        Flexible(
+                          child: NebulaRowTrailing.badge(
+                            context,
+                            text.cleanIpInUse,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                      ],
+                      radio(on: r.ip == settings.cleanIp),
+                    ],
+                  ),
+                  onTap: () => controller.setCleanIp(r.ip),
+                ),
             ],
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _Line extends StatelessWidget {
-  const _Line({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final NebulaPalette palette = context.palette;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: <Widget>[
-          SizedBox(
-            width: 140,
-            child: Text(label, style: TextStyle(color: palette.textMuted)),
-          ),
-          Expanded(
-            child: SelectableText(
-              value,
-              style: TextStyle(color: palette.textPrimary),
+        if (results != null && results.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.only(
+              top: 10,
+              left: palette.look == NebulaLook.minimal ? 0 : 8,
+            ),
+            child: Text(
+              text.cleanIpAppliesNext,
+              style: TextStyle(
+                fontSize: 13,
+                height: 19 / 13,
+                color: palette.textMuted,
+              ),
             ),
           ),
+        const SizedBox(height: 16),
+        NebulaButton(
+          label: done != null
+              ? text.cleanIpScanning(done, _scanSize)
+              : text.cleanIpScan,
+          icon: Icons.radar,
+          busy: done != null,
+          onPressed: blocker != null || done != null
+              ? null
+              : () => _scan(host!),
+        ),
+        if (settings.cleanIp != null) ...<Widget>[
+          const SizedBox(height: 8),
+          NebulaButton.text(
+            label: text.cleanIpUseAutomatic,
+            onPressed: () => controller.setCleanIp(null),
+          ),
         ],
-      ),
+      ],
     );
   }
 }

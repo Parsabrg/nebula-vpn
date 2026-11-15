@@ -103,19 +103,20 @@ export function RequestRow({ request }: { request: AccountRequestListItem }) {
       </td>
       <td data-label="Requested">{requestedAt}</td>
       <td data-label="Actions" className="data-table__actions">
+        {/* Reject, then Approve: the design's order, the safe one first. */}
         <button
           type="button"
-          className="button button--primary"
-          onClick={openApprove}
-        >
-          Approve
-        </button>
-        <button
-          type="button"
-          className="button button--danger"
+          className="button button--small button--danger-outline"
           onClick={openReject}
         >
           Reject
+        </button>
+        <button
+          type="button"
+          className="button button--small button--primary"
+          onClick={openApprove}
+        >
+          Approve
         </button>
         <ConfirmDialog
           open={approveOpen}

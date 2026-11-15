@@ -180,6 +180,34 @@ void main() {
       expect(config.containsKey('nebulaAether'), isTrue);
     });
 
+    test('a relay in Iran is not dialled through WARP', () {
+      const XrayClientResult relayed = XrayClientResult(
+        clientId: 'c1',
+        uuid: 'a1b2c3d4-0000-0000-0000-000000000000',
+        serverAddress: '198.51.100.7',
+        port: 443,
+        sni: 'www.speedtest.net',
+        transport: 'raw',
+        transportSecurity: 'reality',
+        adBlock: false,
+        relayed: true,
+      );
+      final Map<String, dynamic> config = _render(
+        relayed,
+        const WarpSettings(throughWarp: true),
+      );
+      expect(jsonEncode(config), isNot(contains('warp-entry')));
+      expect(
+        reachesServerThroughWarp(
+          relayed,
+          AdvancedSettings.defaults.copyWith(
+            warp: const WarpSettings(throughWarp: true),
+          ),
+        ),
+        isFalse,
+      );
+    });
+
     test('off, the server config is as before, without Aether', () {
       final Map<String, dynamic> config = _render(
         _reality,

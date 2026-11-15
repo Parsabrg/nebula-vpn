@@ -22,13 +22,19 @@ class ResendAdapter:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
 
-    async def send(self, *, to: str, subject: str, body: str) -> str:
-        return await asyncio.to_thread(self._send_sync, to, subject, body)
+    async def send(self, *, to: str, subject: str, body: str, html: str | None = None) -> str:
+        return await asyncio.to_thread(self._send_sync, to, subject, body, html)
 
-    def _send_sync(self, to: str, subject: str, body: str) -> str:
-        payload = json.dumps(
-            {"from": self._settings.email_from, "to": [to], "subject": subject, "text": body}
-        ).encode("utf-8")
+    def _send_sync(self, to: str, subject: str, body: str, html: str | None = None) -> str:
+        message: dict[str, object] = {
+            "from": self._settings.email_from,
+            "to": [to],
+            "subject": subject,
+            "text": body,
+        }
+        if html is not None:
+            message["html"] = html
+        payload = json.dumps(message).encode("utf-8")
         # The URL is the fixed https constant above, never user input -- ruff
         # can prove that for Request() itself, but not through the request
         # object handed to urlopen(), which still needs S310 suppressed.

@@ -65,31 +65,44 @@ export default async function UsersPage({
 
       <FilterBar fields={FILTER_FIELDS} values={filterValues} />
 
-      <DataTable
-        caption="Users"
-        headers={["Email", "Username", "State", "Device limit", "Created"]}
-        emptyMessage="No users match these filters."
-        rows={page.items.map((user) => ({
-          key: user.id,
-          cells: [
-            <Link key={user.id} href={`/users/${user.id}`}>
-              {user.email}
-            </Link>,
-            user.username ?? "—",
-            label(user.state),
-            user.deviceLimit,
-            <LocalTime key="time-1" value={user.createdAt} />,
-          ],
-        }))}
-      />
+      <section className="status-card" aria-labelledby="users-list-title">
+        <h2 id="users-list-title">
+          Users
+          <span className="count-badge">{page.total}</span>
+        </h2>
+        <DataTable
+          caption="Users"
+          headers={["Email", "Username", "State", "Device limit", "Created"]}
+          emptyMessage="No users match these filters."
+          numeric={[3]}
+          rows={page.items.map((user) => ({
+            key: user.id,
+            cells: [
+              <Link key={user.id} href={`/users/${user.id}`}>
+                {user.email}
+              </Link>,
+              user.username ?? "—",
+              <span key="state" className={`badge badge--${user.state}`}>
+                {label(user.state)}
+              </span>,
+              <span key="limit" className="numeric">
+                {user.deviceLimit}
+              </span>,
+              <span key="created" className="muted">
+                <LocalTime value={user.createdAt} dateOnly />
+              </span>,
+            ],
+          }))}
+        />
 
-      <PaginationControls
-        total={page.total}
-        limit={page.limit}
-        offset={page.offset}
-        basePath="/users"
-        searchParams={filterValues}
-      />
+        <PaginationControls
+          total={page.total}
+          limit={page.limit}
+          offset={page.offset}
+          basePath="/users"
+          searchParams={filterValues}
+        />
+      </section>
     </>
   );
 }

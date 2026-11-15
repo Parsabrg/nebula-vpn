@@ -272,7 +272,12 @@ async def xray_client_for(
         # Through the relay: its address and port; TLS still names the exit,
         # and hopping is the exit's own port range, not forwarded.
         return _to_xray_response(result, None, resolvers_for(profile, own_dns)).model_copy(
-            update={"server_address": relay.host, "port": relay_port, "port_hop": None}
+            update={
+                "server_address": relay.host,
+                "port": relay_port,
+                "port_hop": None,
+                "relayed": True,
+            }
         )
     return _to_xray_response(
         result,

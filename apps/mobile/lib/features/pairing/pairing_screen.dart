@@ -84,26 +84,32 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
                 : null,
             onFieldSubmitted: (_) => _submit(),
           ),
-          if (qrScanAvailable)
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TextButton.icon(
-                onPressed: inProgress ? null : _scan,
-                icon: const Icon(Icons.qr_code_scanner),
-                label: Text(text.pairScan),
-              ),
-            ),
         ],
         action: PanelCta(
           label: inProgress ? text.pairInProgress : text.pairAction,
           onPressed: inProgress ? null : _submit,
         ),
-        // The other way in: no server at all.
-        footer: TextButton(
-          onPressed: inProgress
-              ? null
-              : () => ref.read(freeModeProvider.notifier).enter(),
-          child: Text(text.freeEnter),
+        footer: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            if (qrScanAvailable) ...<Widget>[
+              PanelCta(
+                label: text.pairScan,
+                icon: Icons.qr_code_scanner,
+                style: CtaStyle.secondary,
+                onPressed: inProgress ? null : _scan,
+              ),
+              const SizedBox(height: 8),
+            ],
+            // The other way in: no server at all.
+            TextButton(
+              onPressed: inProgress
+                  ? null
+                  : () => ref.read(freeModeProvider.notifier).enter(),
+              child: Text(text.freeEnter),
+            ),
+          ],
         ),
       ),
     );

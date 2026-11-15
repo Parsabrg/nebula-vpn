@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/routing/app_router.dart';
 import '../core/settings/locale_controller.dart';
+import '../core/theme/appearance_controller.dart';
+import '../core/theme/color_tokens.dart';
+import '../core/theme/look.dart';
 import '../core/theme/nebula_theme.dart';
 import '../core/theme/theme_mode_controller.dart';
 import '../l10n/app_localizations.dart';
@@ -14,6 +17,7 @@ class NebulaApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ThemeMode themeMode = ref.watch(themeModeProvider);
+    final AppearanceChoice appearance = ref.watch(appearanceProvider);
 
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
@@ -21,8 +25,11 @@ class NebulaApp extends ConsumerWidget {
       // launcher icon, and somebody looking for the app looks for this word
       // whatever language they read.
       title: 'Nebula VPN',
-      theme: NebulaTheme.light(),
-      darkTheme: NebulaTheme.dark(),
+      theme: NebulaTheme.resolve(Brightness.light, appearance),
+      darkTheme: NebulaTheme.resolve(Brightness.dark, appearance),
+      // Liquid glass draws its background once, behind every screen.
+      builder: (BuildContext context, Widget? child) =>
+          GlassBackdrop(child: child ?? const SizedBox.shrink()),
       themeMode: themeMode,
       // Null follows the device, which is what almost everybody wants. Only a
       // deliberate choice in Settings overrides it.

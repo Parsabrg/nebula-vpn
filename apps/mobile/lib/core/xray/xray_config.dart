@@ -1164,14 +1164,16 @@ int warpPortFor(LocalProxy localProxy) => localProxy.port + 1;
 
 /// Whether this connection reaches its server through WARP: switched on in
 /// WARP's settings, for the Xray transports (Hysteria2 runs its own client,
-/// and WARP mode is WARP already).
+/// and WARP mode is WARP already), and not to a relay in Iran, which Iran
+/// blocks coming in from abroad.
 bool reachesServerThroughWarp(
   XrayClientResult result,
   AdvancedSettings settings,
 ) =>
     settings.warp.throughWarp &&
     result.transport != kWarpTransport &&
-    result.transport != 'hysteria';
+    result.transport != 'hysteria' &&
+    !result.relayed;
 
 /// WARP mode with "Leave outside Iran": out through Psiphon. A server of
 /// ours reached through WARP leaves from that server already.

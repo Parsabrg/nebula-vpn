@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -32,6 +33,15 @@ export function ConfirmDialog({
   danger = false,
 }: ConfirmDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  // Rendered into <body>, not where it is written: a dialog opened from
+  // inside another one's form (Manage, then "Give every user this server")
+  // put a form inside a form, which HTML forbids and React's hydration
+  // failed on. The top layer is where a modal dialog is drawn anyway.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the portal needs the document, which only exists after mounting
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -43,9 +53,12 @@ export function ConfirmDialog({
     } else if (!open && dialog.open) {
       dialog.close();
     }
-  }, [open]);
+  }, [open, mounted]);
 
-  return (
+  if (!mounted) {
+    return null;
+  }
+  return createPortal(
     <dialog
       ref={dialogRef}
       className="dialog"
@@ -92,6 +105,7 @@ export function ConfirmDialog({
           </button>
         </div>
       </form>
-    </dialog>
+    </dialog>,
+    document.body,
   );
 }

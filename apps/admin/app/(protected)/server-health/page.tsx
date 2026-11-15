@@ -9,18 +9,16 @@ import {
 import { ReconcileNowControl } from "@/components/reconcile-now-control";
 import {
   ReconciliationSummary,
-  ServerChecked,
+  ServerCheckedText,
   ServerHealthLive,
-  ServerLiveFacts,
-  ServerVerdict,
+  ServerLiveBadge,
 } from "@/components/server-health-live";
-import { ServerNameControl } from "@/components/server-name-control";
-import { ServerStateControl } from "@/components/server-state-control";
-import { ServerForEveryone } from "@/components/everyone-access-button";
 import { DataTable } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { FilterBar } from "@/components/filter-bar";
 import { PaginationControls } from "@/components/pagination-controls";
+import { label } from "@/lib/labels";
+import { ServerManage } from "@/components/server-manage";
 
 export const metadata: Metadata = {
   title: "Server health",
@@ -128,20 +126,28 @@ export default async function ServerHealthPage({
 
   return (
     <ServerHealthLive>
-      <section className="page-heading" aria-labelledby="server-health-title">
-        <h1 id="server-health-title">Server health</h1>
-        <p>Each server, whether it works, and what it has carried.</p>
-        <p>
+      <section
+        className="page-heading page-heading--actions"
+        aria-labelledby="server-health-title"
+      >
+        <div>
+          <h1 id="server-health-title">Server health</h1>
+          <p>Each server, whether it works, and what it has carried.</p>
+        </div>
+        <div className="page-heading__actions">
           <Link className="button button--primary" href="/server-health/add">
+            <span className="icon" aria-hidden="true">
+              add
+            </span>
             Add server
-          </Link>{" "}
+          </Link>
           <Link className="button" href="/server-health/relays">
             Relays
           </Link>
           <Link className="button" href="/server-health/subscription-link">
             Subscription links
           </Link>
-        </p>
+        </div>
       </section>
 
       {servers.length === 0 ? (
@@ -152,51 +158,76 @@ export default async function ServerHealthPage({
           </p>
         </EmptyState>
       ) : (
-        <div className="server-cards">
-          {servers.map((server) => {
-            return (
-              <article
-                key={server.id}
-                className="status-card server-card"
-                aria-label={`Server ${server.displayName}`}
-              >
-                <header className="server-card__head">
-                  <div>
-                    <ServerNameControl
-                      serverId={server.id}
-                      code={server.code}
-                      initialName={server.displayName}
-                    />
-                    <p className="server-card__host">{server.publicHost}</p>
-                  </div>
-                  <ServerStateControl
-                    serverId={server.id}
-                    code={server.code}
-                    initialState={server.state}
-                    relayOnly={server.relayOnly}
-                  />
-                </header>
-                <ServerForEveryone
+        <section className="status-card" aria-labelledby="servers-title">
+          <h2 id="servers-title">Servers</h2>
+          <DataTable
+            caption="Servers"
+            headers={[
+              "Server",
+              "State",
+              "Agent",
+              "Xray",
+              "WireGuard",
+              "Device limit",
+              "Checked",
+              "",
+            ]}
+            emptyMessage="No servers yet."
+            rows={servers.map((server) => ({
+              key: server.id,
+              cells: [
+                <span key="name" className="cell-stack">
+                  <strong>{server.displayName}</strong>
+                  <span className="muted">{server.code}</span>
+                </span>,
+                <span
+                  key="state"
+                  className={`badge badge--${server.state}`}
+                  title={
+                    server.relayOnly && server.state === "disabled"
+                      ? "Not an exit any more, and still forwarding for a relay."
+                      : undefined
+                  }
+                >
+                  {server.relayOnly && server.state === "disabled"
+                    ? "Disabled (relay only)"
+                    : label(server.state)}
+                </span>,
+                <ServerLiveBadge
+                  key="agent"
                   serverId={server.id}
+                  check="agent"
+                />,
+                <ServerLiveBadge
+                  key="xray"
+                  serverId={server.id}
+                  check="xray"
+                />,
+                <ServerLiveBadge
+                  key="wireguard"
+                  serverId={server.id}
+                  check="wireguard"
+                />,
+                <span key="devices" className="numeric">
+                  {server.maximumDevices}
+                </span>,
+                <ServerCheckedText key="checked" serverId={server.id} />,
+                <ServerManage
+                  key="manage"
+                  serverId={server.id}
+                  code={server.code}
                   name={server.displayName}
-                />
-                <ServerVerdict serverId={server.id} />
-                <dl className="server-card__facts">
-                  <ServerLiveFacts serverId={server.id} />
-                  <dt>Devices</dt>
-                  <dd>up to {server.maximumDevices}</dd>
-                  <dt>Checked</dt>
-                  <ServerChecked serverId={server.id} />
-                </dl>
-              </article>
-            );
-          })}
-        </div>
+                  state={server.state}
+                />,
+              ],
+            }))}
+          />
+        </section>
       )}
 
-      <section aria-labelledby="traffic-summary-title">
-        <h2 id="traffic-summary-title">Traffic</h2>
-        <p className="section-note">
+      <section className="status-card" aria-labelledby="traffic-summary-title">
+        <h2 id="traffic-summary-title">Traffic by engine</h2>
+        <p className="status-card__desc">
           Totals since install, from the servers&apos; own counters.
         </p>
         <DataTable
@@ -220,13 +251,16 @@ export default async function ServerHealthPage({
         />
       </section>
 
-      <section aria-labelledby="reconciliation-title">
-        <h2 id="reconciliation-title">Reconciliation</h2>
-        <p className="section-note">
-          <ReconciliationSummary outstanding={outstanding} />
-        </p>
-        <p>
+      <section className="status-card" aria-labelledby="reconciliation-title">
+        <div className="status-card__head">
+          <h2 id="reconciliation-title">Reconciliation</h2>
           <ReconcileNowControl />
+        </div>
+        <p
+          className={`notice ${outstanding > 0 ? "notice--warning" : "notice--info"}`}
+          role="status"
+        >
+          <ReconciliationSummary outstanding={outstanding} />
         </p>
         {outstanding > 0 ? (
           <DataTable

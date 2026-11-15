@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme/color_tokens.dart';
+import '../../core/widgets/nebula/nebula_controls.dart';
+import '../../core/widgets/nebula/nebula_page.dart';
 import '../../l10n/app_localizations.dart';
 
 /// The privacy policy and the terms of use, as bundled with this build:
@@ -23,36 +25,27 @@ class LegalDocumentScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final NebulaPalette palette = context.palette;
-    return Scaffold(
-      backgroundColor: palette.bg,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: Text(title),
-      ),
-      body: SafeArea(
-        child: FutureBuilder<String>(
+    return NebulaPage(
+      title: title,
+      children: <Widget>[
+        FutureBuilder<String>(
           future: rootBundle.loadString(asset),
           builder: (BuildContext context, AsyncSnapshot<String> text) {
             if (!text.hasData) {
               return const SizedBox.shrink();
             }
             return SelectionArea(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
+                  const SizedBox(height: 12),
                   // The text is English; the page around it is not.
                   if (Localizations.localeOf(context).languageCode != 'en')
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        AppText.of(context).legalEnglishOnly,
-                        style: TextStyle(
-                          color: palette.textMuted,
-                          fontSize: 12,
-                        ),
+                      child: NebulaNotice(
+                        text: AppText.of(context).legalEnglishOnly,
+                        kind: NebulaNoticeKind.info,
                       ),
                     ),
                   Directionality(
@@ -67,7 +60,7 @@ class LegalDocumentScreen extends StatelessWidget {
             );
           },
         ),
-      ),
+      ],
     );
   }
 }

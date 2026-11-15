@@ -87,7 +87,8 @@ void main() {
       lines: <String>['failed to dial'],
     );
 
-    await tester.tap(find.byTooltip('Clear'));
+    await tester.ensureVisible(find.text('Clear'));
+    await tester.tap(find.text('Clear'));
     await tester.pumpAndSettle();
 
     expect(tunnel.clearLogCalls, 1);
@@ -97,11 +98,13 @@ void main() {
   testWidgets('there is nothing to clear or copy on an empty log', (
     WidgetTester tester,
   ) async {
-    // Controls that do nothing invite a tap that appears to fail.
-    await _pump(tester);
+    // Shown, as the design has them, but disabled: a tap does nothing.
+    final FakeXrayTunnelController tunnel = await _pump(tester);
 
-    expect(find.byTooltip('Clear'), findsNothing);
-    expect(find.byTooltip('Copy'), findsNothing);
+    await tester.ensureVisible(find.text('Clear'));
+    await tester.tap(find.text('Clear'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expect(tunnel.clearLogCalls, 0);
     expect(find.byTooltip('Refresh'), findsOneWidget);
   });
 

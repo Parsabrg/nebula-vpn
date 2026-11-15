@@ -43,6 +43,9 @@ Updated in the same pull request as the work (section 92).
 
 | Section | Item | State |
 | --- | --- | --- |
+| Redesign | The app, admin panel and emails redrawn from `nebula-redesign`: four looks and five accents, tab pages with their own headers, a side rail on wide windows, one layout on every size (checked by a sweep over phone, tablet and desktop sizes, text up to 2x); tabs go back to their first page when tapped; HTML emails with the code side by side | In progress 2026-11-15: merged with main, release 0.1.38 next; on the phone, Windows and Linux (WSL) as test builds |
+| 96, 4 | "Reach servers through WARP" leaves relays in Iran out (Iran blocks coming in from abroad; every protocol through Tehran failed with it on); Connect shows "through WARP" or "not through WARP" after the protocol | Done 2026-11-15; REALITY Vision to Germany through WARP checked on the phone (exit DE, 16-24 Mbit/s) |
+| l10n | The redesign's 34 new strings in all nine languages | Done 2026-11-15 |
 | plan 10 (server) | DNS tunnel, server half: CottenDNS release pinned by sha256, `nebula-cottendns.service` (unprivileged, hardened), loopback behind CottenRouter, fixed TCP target to VLESS Encryption, method 5, auto-detect off; agent-rendered config; key in /etc/nebula/secrets; `GET /v1/dns-tunnel/` for signed-in apps; in the offline bundle | Done; live on Germany since 2026-11-05 (nt.my-study-lab.org) |
 | plan 10 (app, step 1) | App fetches `/v1/dns-tunnel/` after each server list load and keeps names, key and server in secure storage; a 404 clears it, other failures keep it; cleared on sign-out | Done 2026-11-05 (#102) |
 | plan 10 (app, step 2) | Android engine: CottenDNS client from the pinned release zip (all four ABIs) run by the patched plugin before Xray, TCP mode on a loopback port; `-scan-only` resolver scan over the bundled Iran list; config renderer; notices | Done 2026-11-06 (#103) |

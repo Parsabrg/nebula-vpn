@@ -22,45 +22,63 @@ export default async function PairDevicePage() {
 
       <section className="status-card" aria-labelledby="pair-device-qr">
         <h2 id="pair-device-qr">Scan or share</h2>
-        {/* eslint-disable-next-line @next/next/no-img-element -- an inline data URL, nothing to optimise */}
-        <img
-          src={pairing.qrImage}
-          alt="QR code of the pairing link"
-          width={240}
-          height={240}
-        />
-        <p>
-          Send the link below to the person, or let them scan the code. Paste it
-          into the app&apos;s first screen.
+        <p className="status-card__desc">
+          Send the link to the person, or let them scan the code. Paste it into
+          the app&apos;s first screen.
         </p>
-        <p className="mfa-secret">{pairing.link}</p>
-        <CopyButton text={pairing.link} label="Copy link" />
+        {/* The design's pair: the code at the left, the link beside it. */}
+        <div className="pair-share">
+          {/* eslint-disable-next-line @next/next/no-img-element -- an inline data URL, nothing to optimise */}
+          <img
+            className="pair-share__qr"
+            src={pairing.qrImage}
+            alt="QR code of the pairing link"
+            width={168}
+            height={168}
+          />
+          <div className="pair-share__link">
+            <span className="kv-label">Pairing link</span>
+            <span className="numeric">{pairing.link}</span>
+          </div>
+        </div>
+        <div className="pair-share__copy">
+          <CopyButton text={pairing.link} label="Copy link" primary />
+        </div>
       </section>
 
       <section className="status-card" aria-labelledby="pair-device-trust">
         <h2 id="pair-device-trust">What the link proves</h2>
-        <dl className="facts">
-          <dt>Deployment</dt>
-          <dd>
-            <code>{pairing.deploymentId}</code>
-          </dd>
-          <dt>Certificate authority</dt>
-          <dd>
-            {pairing.caSha256 ? (
-              <>
-                This installation issues its own certificate. The app trusts
-                only the CA with SHA-256 <code>{pairing.caSha256}</code>, so
-                share the link itself, not just the address.
-              </>
-            ) : (
-              <>
-                A publicly trusted certificate. The app can also be paired by
-                typing this server&apos;s address.
-              </>
-            )}
-          </dd>
+        <dl className="kv-grid">
+          <div>
+            <dt>Deployment</dt>
+            <dd className="numeric">{pairing.deploymentId}</dd>
+          </div>
+          <div>
+            <dt>Certificate authority</dt>
+            {/* Short, as the design shows it; the whole of it on hover and
+                in the sentence below. */}
+            <dd className="numeric" title={pairing.caSha256 ?? undefined}>
+              {pairing.caSha256
+                ? `SHA-256 ${pairing.caSha256.slice(0, 4)} ${pairing.caSha256.slice(4, 8)} ${pairing.caSha256.slice(8, 12)} … ${pairing.caSha256.slice(-4)}`
+                : "Public"}
+            </dd>
+          </div>
         </dl>
-        <p>
+        <p className="status-card__desc">
+          {pairing.caSha256 ? (
+            <>
+              This installation issues its own certificate. The app trusts only
+              the CA with SHA-256 <code>{pairing.caSha256}</code>, so share the
+              link itself, not just the address.
+            </>
+          ) : (
+            <>
+              A publicly trusted certificate. The app can also be paired by
+              typing this server&apos;s address.
+            </>
+          )}
+        </p>
+        <p className="status-card__desc">
           The link holds no password or account. It tells the app which server
           to trust. Accounts are still requested and approved as before.
         </p>

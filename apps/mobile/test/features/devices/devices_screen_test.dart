@@ -1,10 +1,10 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nebula_mobile/core/account/account_repository.dart';
 import 'package:nebula_mobile/core/storage/locale_store.dart';
 import 'package:nebula_mobile/core/storage/storage_providers.dart';
+import 'package:nebula_mobile/core/widgets/nebula/nebula_controls.dart';
 import 'package:nebula_mobile/features/devices/devices_screen.dart';
 
 import '../../core/account/fake_account_repository.dart';
@@ -92,7 +92,7 @@ void main() {
 
     expect(find.text('Pixel 8'), findsOneWidget);
     expect(find.text('Windows desktop'), findsOneWidget);
-    expect(find.text('2 of 5'), findsOneWidget);
+    expect(find.text('2 / 5'), findsOneWidget);
   });
 
   testWidgets('marks this device and says where its peer is', (
@@ -151,12 +151,12 @@ void main() {
 
     await tester.tap(find.text('Revoke'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(TextButton, 'Revoke').last);
+    await tester.tap(find.text('Revoke').last);
     await tester.pumpAndSettle();
 
     expect(repository.revoked, <String>[_otherDeviceId]);
     expect(find.text('Windows desktop'), findsNothing);
-    expect(find.text('1 of 5'), findsOneWidget);
+    expect(find.text('1 / 5'), findsOneWidget);
   });
 
   testWidgets('a failed load offers a retry rather than an empty list', (
@@ -166,7 +166,7 @@ void main() {
       ..accountError = Exception('offline');
     await _pump(tester, repository);
 
-    expect(find.text('NO CONNECTION'), findsOneWidget);
+    expect(find.byType(NebulaNotice), findsOneWidget);
     expect(find.text('Try again'), findsOneWidget);
   });
 

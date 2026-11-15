@@ -40,7 +40,11 @@ export default async function AssignmentsPage({
           </p>
         </EmptyState>
       ) : (
-        <>
+        <section className="status-card" aria-labelledby="assigned-title">
+          <h2 id="assigned-title">
+            Server assignments
+            <span className="count-badge">{page.total}</span>
+          </h2>
           <DataTable
             caption="Assignments"
             headers={["User", "Server", "State", "Assigned", "Expires"]}
@@ -52,10 +56,16 @@ export default async function AssignmentsPage({
                   {item.userEmail}
                 </Link>,
                 item.serverDisplayName,
-                label(item.state),
-                <LocalTime key="time-1" value={item.assignedAt} />,
+                <span key="state" className={`badge badge--${item.state}`}>
+                  {label(item.state)}
+                </span>,
+                <span key="assigned" className="muted">
+                  <LocalTime value={item.assignedAt} dateOnly />
+                </span>,
                 item.expiresAt ? (
-                  <LocalTime key="time-2" value={item.expiresAt} />
+                  <span key="expires" className="muted">
+                    <LocalTime value={item.expiresAt} dateOnly />
+                  </span>
                 ) : (
                   "—"
                 ),
@@ -69,7 +79,7 @@ export default async function AssignmentsPage({
             basePath="/assignments"
             searchParams={{}}
           />
-        </>
+        </section>
       )}
     </>
   );
