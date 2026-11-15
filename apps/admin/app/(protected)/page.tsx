@@ -44,6 +44,10 @@ export default async function OverviewPage() {
       showAttention ? loadAttention() : Promise.resolve(null),
     ]);
 
+  // From the same checks as Needs attention, so the two agree.
+  const serversNeedingAttention =
+    attention?.filter((item) => item.where === "Servers").length ?? 0;
+
   return (
     <>
       <section className="page-heading" aria-labelledby="overview-title">
@@ -78,6 +82,11 @@ export default async function OverviewPage() {
           label={servers.length === 1 ? "VPN server" : "VPN servers"}
           value={servers.length}
           href="/server-health"
+          note={
+            serversNeedingAttention > 0
+              ? `${serversNeedingAttention} ${serversNeedingAttention === 1 ? "needs" : "need"} attention`
+              : undefined
+          }
         />
       </section>
 
