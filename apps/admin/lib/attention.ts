@@ -11,6 +11,8 @@ import type { VpnServerHealthItem } from "@/lib/topology";
 export interface AttentionItem {
   text: string;
   href: string;
+  /** The page that shows and fixes it, for the card's Where column. */
+  where: string;
   tone: "warning" | "danger";
 }
 
@@ -31,6 +33,7 @@ export function attentionItems(
       items.push({
         text: `${server.code}: ${server.state}`,
         href: "/server-health",
+        where: "Servers",
         tone: server.state === "unreachable" ? "danger" : "warning",
       });
     }
@@ -40,6 +43,7 @@ export function attentionItems(
       items.push({
         text: `${check.label}: ${check.detail}`,
         href: "/security",
+        where: "Security",
         tone: check.status === "failing" ? "danger" : "warning",
       });
     }
@@ -51,6 +55,7 @@ export function attentionItems(
           ? "1 email could not be delivered"
           : `${failedEmails} emails could not be delivered`,
       href: "/email-deliveries?state=failed",
+      where: "Email",
       tone: "danger",
     });
   }

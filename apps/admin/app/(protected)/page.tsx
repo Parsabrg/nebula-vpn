@@ -9,6 +9,7 @@ import { listEmailDeliveries } from "@/lib/email-deliveries";
 import { getSecurityStatus } from "@/lib/security";
 import { getVpnServerHealth, listVpnServers } from "@/lib/topology";
 import { listUsers } from "@/lib/users";
+import { DataTable } from "@/components/data-table";
 import { StatTile } from "@/components/stat-tile";
 
 /** The card's sources, each allowed to fail without taking the page down. */
@@ -59,6 +60,9 @@ export default async function OverviewPage() {
           }
           value={pendingRequests.length}
           href="/requests"
+          note={
+            pendingRequests.length > 0 ? "Waiting for a decision" : undefined
+          }
         />
         <StatTile
           label={activeUsers.total === 1 ? "Active user" : "Active users"}
@@ -83,23 +87,35 @@ export default async function OverviewPage() {
           aria-labelledby="attention-title"
         >
           <h2 id="attention-title">Needs attention</h2>
+          <p className="status-card__desc">
+            Collected from the Servers, Security and Email pages, where each one
+            is fixed.
+          </p>
           {attention.length === 0 ? (
             <p>Nothing needs attention.</p>
           ) : (
-            <ul>
-              {attention.map((item) => (
-                <li key={`${item.href}:${item.text}`}>
-                  <Link href={item.href}>
-                    <span
-                      className={`badge badge--${item.tone === "danger" ? "failed" : "pending"}`}
-                    >
-                      {item.tone === "danger" ? "Failing" : "Warning"}
-                    </span>
-                    {item.text}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <DataTable
+              caption="Needs attention"
+              headers={["Item", "Where", ""]}
+              emptyMessage="Nothing needs attention."
+              rows={attention.map((item) => ({
+                key: `${item.href}:${item.text}`,
+                cells: [
+                  <strong key="item">{item.text}</strong>,
+                  <span key="where" className="muted">
+                    {item.where}
+                  </span>,
+                  <Link
+                    key="open"
+                    className="button button--small"
+                    href={item.href}
+                    aria-label={`Open ${item.where}: ${item.text}`}
+                  >
+                    Open
+                  </Link>,
+                ],
+              }))}
+            />
           )}
         </section>
       ) : null}

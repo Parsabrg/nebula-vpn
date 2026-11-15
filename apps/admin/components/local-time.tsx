@@ -7,16 +7,19 @@ export function formatUtc(date: Date): string {
   return `${date.toISOString().slice(0, 16).replace("T", " ")} UTC`;
 }
 
-/** The viewer's own clock, with the zone named so nobody has to guess. */
-export function formatLocal(date: Date): string {
-  // Spelled out: dateStyle/timeStyle cannot be combined with timeZoneName.
-  return new Intl.DateTimeFormat(undefined, {
-    year: "numeric",
+/** The viewer's own clock, short as the design sets it: "14 Nov, 18:02",
+ * with the year only when it is not this one. The UTC time is in the
+ * title, for anybody who needs the zone. */
+export function formatLocal(date: Date, now: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    ...(date.getFullYear() === now.getFullYear()
+      ? {}
+      : { year: "numeric" as const }),
     month: "short",
     day: "numeric",
-    hour: "numeric",
+    hour: "2-digit",
     minute: "2-digit",
-    timeZoneName: "short",
+    hourCycle: "h23",
   }).format(date);
 }
 

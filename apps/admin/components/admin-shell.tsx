@@ -15,8 +15,13 @@ import { NavLinks } from "./nav-links";
  */
 export function AdminShell({
   role,
+  pendingRequests = 0,
   children,
-}: Readonly<{ role: AdminRole; children: ReactNode }>) {
+}: Readonly<{
+  role: AdminRole;
+  pendingRequests?: number;
+  children: ReactNode;
+}>) {
   const [open, setOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
   const nav = useRef<HTMLElement>(null);
@@ -80,7 +85,7 @@ export function AdminShell({
           className="admin-nav"
           aria-label="Primary navigation"
         >
-          <NavLinks />
+          <NavLinks pendingRequests={pendingRequests} />
         </nav>
         {open ? (
           <div

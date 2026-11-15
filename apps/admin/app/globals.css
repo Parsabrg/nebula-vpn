@@ -2145,3 +2145,190 @@ h2 {
 .admin-header__account > * {
   white-space: nowrap;
 }
+
+/* ---- Design match (2026-11-15) ----------------------------------------
+   The icon font the design draws the sidebar with, served from here. */
+@font-face {
+  font-family: "Material Icons Outlined";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("/fonts/MaterialIconsOutlined.woff2") format("woff2");
+}
+
+/* Sidebar items: a 19 px icon, 10 apart, 38 high (44 on a phone), 14 px
+   medium; the current one in the text colour. */
+.admin-nav .nav-list a {
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 12px;
+  font-weight: 500;
+}
+
+.nav-icon {
+  flex: none;
+  font-family: "Material Icons Outlined";
+  font-size: 19px;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+}
+
+.nav-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.nav-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 24%, var(--side));
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+:root[data-theme="light"] .nav-count {
+  background: color-mix(in srgb, var(--accent) 14%, var(--side));
+}
+
+@media (max-width: 599px) {
+  .admin-nav .nav-list a {
+    min-height: 44px;
+  }
+}
+
+/* The header reads "NEBULA  Administration": the second word as plain
+   text, not small capitals. */
+.admin-header .brand small {
+  margin-left: 10px;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Overview tiles: the figure, a 14 px label, and an optional warning line. */
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 16px;
+}
+
+.stat-tile .stat-tile__label {
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.stat-tile__note {
+  color: var(--warning-text);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.status-card__desc {
+  margin: 6px 0 14px;
+  max-width: 760px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.attention .data-table td:last-child {
+  text-align: right;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* Tables sit in a rounded hairline frame, the header row on the raised
+   surface; an Actions column reads from the right. */
+.data-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--border);
+  border-radius: min(var(--card-radius), 14px);
+  overflow: hidden;
+}
+
+.data-table th {
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.data-table td {
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.data-table td.data-table__actions,
+.data-table:has(td.data-table__actions) th:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.status-card > .data-table,
+.status-card > table {
+  width: 100%;
+  margin-top: 14px;
+}
+
+/* A count beside a card's title ("Pending account requests  3"). */
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 20px;
+  height: 20px;
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 24%, var(--surface));
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.status-card h2 {
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
+/* A quiet destructive button: an outline, the danger colour in the text. */
+.button--danger-outline {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--danger-text);
+}

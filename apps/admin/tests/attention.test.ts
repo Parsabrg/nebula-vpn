@@ -33,11 +33,22 @@ describe("needs attention", () => {
       2,
     );
     expect(items).toEqual([
-      { text: "ams-1: unreachable", href: "/server-health", tone: "danger" },
-      { text: "Backup: detail", href: "/security", tone: "danger" },
+      {
+        text: "ams-1: unreachable",
+        href: "/server-health",
+        where: "Servers",
+        tone: "danger",
+      },
+      {
+        text: "Backup: detail",
+        href: "/security",
+        where: "Security",
+        tone: "danger",
+      },
       {
         text: "2 emails could not be delivered",
         href: "/email-deliveries?state=failed",
+        where: "Email",
         tone: "danger",
       },
     ]);
