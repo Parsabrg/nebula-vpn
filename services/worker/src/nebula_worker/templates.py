@@ -119,14 +119,15 @@ def render(template_code: str, payload: dict[str, str]) -> RenderedEmail:
         if username:
             identifiers += f"  Username: {username}\n"
 
-        # Label above value, not a two-column table: a long address in mono
+        # Label and value side by side, as the design has them, in a table
+        # of fixed layout whose value column wraps: a long address in mono
         # ran past the box on a phone.
         def account_row(label: str, value: str) -> str:
             return (
-                f'<div style="margin-top:8px;font:400 13px/18px {_SANS};color:{_MUTED}">'
-                f"{label}</div>"
-                f'<div style="font:400 15px/22px {_MONO};color:{_INK};word-break:break-all">'
-                f"{escape(value)}</div>"
+                f'<tr><td style="width:84px;padding:3px 12px 3px 0;vertical-align:top;'
+                f'color:{_MUTED}">{label}</td>'
+                f'<td style="padding:3px 0;font-family:{_MONO};word-break:break-all">'
+                f"{escape(value)}</td></tr>"
             )
 
         account_rows = account_row("Email", email)
@@ -167,7 +168,9 @@ def render(template_code: str, payload: dict[str, str]) -> RenderedEmail:
                 f'<div style="margin-top:20px;padding:14px 16px;border:1px solid {_LINE};'
                 f'border-radius:10px"><div style="font:500 12px/16px {_SANS};color:{_MUTED}">'
                 "This account</div>"
-                f"{account_rows}</div>"
+                f'<table role="presentation" style="width:100%;table-layout:fixed;'
+                f"margin-top:8px;border-collapse:collapse;font:400 14px/20px {_SANS};"
+                f'color:{_INK}">{account_rows}</table></div>'
                 f'<h2 style="margin:24px 0 0;font:600 16px/22px {_SANS};color:{_INK}">'
                 "To finish setting it up</h2>"
                 f'<ol style="margin:10px 0 0;padding-left:22px;font:400 15px/24px {_SANS};'
