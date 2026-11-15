@@ -1024,38 +1024,9 @@ h2 {
   margin-left: 0.5rem;
 }
 
-.data-table--cards {
-  display: flex;
-  flex-direction: column;
-  margin-top: 1.5rem;
-  padding: 0;
-  list-style: none;
-  gap: 0.75rem;
-}
 
-.data-table__card {
-  display: flex;
-  flex-direction: column;
-  padding: 1rem;
-  border: 1px solid var(--border);
-  border-radius: 0.875rem;
-  background: var(--surface);
-  gap: 0.5rem;
-}
 
-.data-table__card-field {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-}
 
-.data-table__card-label {
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
 
 .filter-bar {
   display: flex;
@@ -1196,8 +1167,8 @@ h2 {
     flex-direction: column;
   }
 
-  /* Tables that are not DataTable (which turns into cards here) scroll
-     sideways inside their own box instead of widening the page. */
+  /* Every table scrolls sideways inside its own box on a narrow screen,
+     as the design keeps them, instead of widening the page. */
   table.data-table {
     display: block;
     max-width: 100%;
@@ -1217,71 +1188,10 @@ h2 {
     flex-direction: column;
   }
 
-  .data-table__card-field {
-    flex-direction: column;
-    gap: 0.15rem;
-  }
 
   /* Hand-built tables on a phone: a card per row, each value under its
      column name (data-label). Scrolled sideways, Approve and Reject sat off
      the screen (2026-11-01 sweep). */
-  table.data-table--stack,
-  table.data-table--stack tbody,
-  table.data-table--stack tr,
-  table.data-table--stack td {
-    display: block;
-    overflow: visible;
-  }
-
-  table.data-table--stack thead {
-    display: none;
-  }
-
-  table.data-table--stack tr {
-    margin-bottom: 0.75rem;
-    padding: 0.85rem 1rem;
-    border: 1px solid var(--border);
-    border-radius: 0.875rem;
-    background: var(--surface);
-  }
-
-  table.data-table--stack td {
-    padding: 0.35rem 0;
-    border: 0;
-    overflow-wrap: anywhere;
-  }
-
-  table.data-table--stack td[data-label]::before {
-    content: attr(data-label);
-    display: block;
-    color: var(--muted);
-    font-family: var(--mono);
-    font-size: 0.68rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
-  table.data-table--stack td[data-label="Actions"]::before {
-    content: none;
-  }
-
-  table.data-table--stack .data-table__actions {
-    display: flex;
-    flex-wrap: wrap;
-    padding-top: 0.6rem;
-    white-space: normal;
-    gap: 0.5rem;
-  }
-
-  table.data-table--stack .data-table__actions > .button {
-    flex: 1 1 8rem;
-  }
-
-  table.data-table--stack .data-table__actions > .button + .button {
-    margin-left: 0;
-  }
-
-  /* The menu scrolls sideways; fade its edge so it is clear there is more. */
   .nav-list {
     mask-image: linear-gradient(to right, #000 85%, transparent);
   }
@@ -2048,11 +1958,6 @@ h2 {
   background: var(--hover);
 }
 
-.data-table__card {
-  border: var(--card-border);
-  border-radius: var(--card-radius);
-  background: var(--surface);
-}
 
 .dialog {
   border: 1px solid var(--border);
@@ -2862,4 +2767,64 @@ h2 {
   .login-card {
     padding: 24px;
   }
+}
+
+/* The brand as the design sets it: 13 px mono, 2 px apart. */
+.admin-header .brand__mark {
+  font-size: 13px;
+  letter-spacing: 2px;
+}
+
+.admin-header__menu {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+}
+
+.admin-header__menu .icon {
+  margin: 0;
+  font-size: 22px;
+}
+
+@media (max-width: 899px) {
+  .admin-header__menu {
+    display: inline-flex;
+  }
+}
+
+/* A phone: the design's 22 px title and 14 px text. */
+@media (max-width: 599px) {
+  .page-heading h1 {
+    font-size: 22px;
+    line-height: 28px;
+  }
+
+  .page-heading > p,
+  .page-heading > div > p {
+    font-size: 14px;
+    line-height: 21px;
+  }
+
+  .page-shell {
+    padding: 20px 16px 40px;
+  }
+
+  .status-card,
+  .filter-bar {
+    padding: 16px;
+  }
+
+  /* Cells keep to one line; the table scrolls instead. */
+  .data-table th,
+  .data-table td {
+    white-space: nowrap;
+  }
+
 }

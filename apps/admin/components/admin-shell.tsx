@@ -60,8 +60,11 @@ export function AdminShell({
           aria-controls="admin-nav"
           onClick={() => setOpen((was) => !was)}
         >
-          <span aria-hidden="true" className="admin-header__menu-icon" />
-          Menu
+          {/* The design's ☰ alone; the name stays for screen readers. */}
+          <span aria-hidden="true" className="icon">
+            {open ? "close" : "menu"}
+          </span>
+          <span className="visually-hidden">Menu</span>
         </button>
         <Link
           className="brand"

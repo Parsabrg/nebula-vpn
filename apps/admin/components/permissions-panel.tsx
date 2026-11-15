@@ -53,10 +53,7 @@ export function PermissionsPanel({
       {permissions.length === 0 ? (
         <p role="status">This user has no protocol permissions.</p>
       ) : (
-        <table
-          className="data-table data-table--stack"
-          aria-label="Permissions"
-        >
+        <table className="data-table" aria-label="Permissions">
           <thead>
             <tr>
               <th scope="col">Profile</th>

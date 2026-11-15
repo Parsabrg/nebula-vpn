@@ -32,7 +32,7 @@ export function AdminsPanel({ initial }: { initial: AdminItem[] }) {
     <>
       <section className="status-card" aria-labelledby="admins-list-title">
         <h2 id="admins-list-title">Admins</h2>
-        <table className="data-table data-table--stack" aria-label="Admins">
+        <table className="data-table" aria-label="Admins">
           <thead>
             <tr>
               <th scope="col">Admin</th>

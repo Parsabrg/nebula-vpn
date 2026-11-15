@@ -1,7 +1,6 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useMediaQuery } from "@/lib/use-media-query";
 
 interface DataTableRow {
   key: string;
@@ -18,9 +17,8 @@ interface DataTableProps {
 }
 
 /**
- * Switches to a card layout via useMediaQuery rather than CSS alone: jsdom
- * does not evaluate media queries, so a CSS-only breakpoint would be real in
- * the browser but untestable here.
+ * A table; on a narrow screen it scrolls sideways, as the design keeps it,
+ * rather than turning into cards.
  */
 export function DataTable({
   caption,
@@ -29,27 +27,8 @@ export function DataTable({
   emptyMessage,
   numeric = [],
 }: DataTableProps) {
-  const isNarrow = useMediaQuery("(max-width: 48rem)");
-
   if (rows.length === 0) {
     return <p role="status">{emptyMessage}</p>;
-  }
-
-  if (isNarrow) {
-    return (
-      <ul className="data-table data-table--cards" aria-label={caption}>
-        {rows.map((row) => (
-          <li className="data-table__card" key={row.key}>
-            {headers.map((header, index) => (
-              <div className="data-table__card-field" key={header}>
-                <span className="data-table__card-label">{header}</span>
-                <span>{row.cells[index]}</span>
-              </div>
-            ))}
-          </li>
-        ))}
-      </ul>
-    );
   }
 
   return (
