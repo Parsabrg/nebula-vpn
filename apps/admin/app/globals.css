@@ -1024,10 +1024,6 @@ h2 {
   margin-left: 0.5rem;
 }
 
-
-
-
-
 .filter-bar {
   display: flex;
   flex-wrap: wrap;
@@ -1187,7 +1183,6 @@ h2 {
     align-items: flex-start;
     flex-direction: column;
   }
-
 
   /* Hand-built tables on a phone: a card per row, each value under its
      column name (data-label). Scrolled sideways, Approve and Reject sat off
@@ -1957,7 +1952,6 @@ h2 {
 .data-table tbody tr:hover {
   background: var(--hover);
 }
-
 
 .dialog {
   border: 1px solid var(--border);
@@ -2826,5 +2820,4 @@ h2 {
   .data-table td {
     white-space: nowrap;
   }
-
 }
