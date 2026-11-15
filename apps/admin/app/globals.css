@@ -2615,3 +2615,16 @@ h2 {
   line-height: 20px;
   overflow-wrap: anywhere;
 }
+
+.notice--success {
+  border-color: color-mix(in srgb, var(--ok) 35%, var(--surface));
+  background: color-mix(in srgb, var(--ok) 12%, var(--surface));
+}
+
+/* Row actions: side by side, wrapping at the row's right. */
+.data-table__actions .user-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}

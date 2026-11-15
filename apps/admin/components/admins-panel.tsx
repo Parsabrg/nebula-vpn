@@ -27,8 +27,27 @@ export function AdminsPanel({ initial }: { initial: AdminItem[] }) {
   const replace = (next: AdminItem) =>
     setAdmins((all) => all.map((a) => (a.id === next.id ? next : a)));
 
+  // The design's order: the admins in a table, then the form to add one.
   return (
     <>
+      <section className="status-card" aria-labelledby="admins-list-title">
+        <h2 id="admins-list-title">Admins</h2>
+        <table className="data-table data-table--stack" aria-label="Admins">
+          <thead>
+            <tr>
+              <th scope="col">Admin</th>
+              <th scope="col">Role</th>
+              <th scope="col">Added</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {admins.map((admin) => (
+              <AdminRow key={admin.id} admin={admin} onChange={replace} />
+            ))}
+          </tbody>
+        </table>
+      </section>
       <InviteAdmin
         onInvited={(admin) =>
           setAdmins((all) =>
@@ -36,11 +55,6 @@ export function AdminsPanel({ initial }: { initial: AdminItem[] }) {
           )
         }
       />
-      <ul className="admin-list">
-        {admins.map((admin) => (
-          <AdminRow key={admin.id} admin={admin} onChange={replace} />
-        ))}
-      </ul>
     </>
   );
 }
@@ -56,95 +70,105 @@ function AdminRow({
   const disabled = admin.state === "disabled";
 
   return (
-    <li className="admin-row">
-      <div className="admin-row__who">
-        <strong>{admin.email}</strong>
-        {admin.username ? <span> ({admin.username})</span> : null}
-        {admin.isYou ? <span className="badge">You</span> : null}
-        <span className={`badge badge--${admin.state}`}>
-          {disabled ? "Disabled" : "Active"}
-        </span>
-        <span className="badge">{roleLabel(admin.role)}</span>
-        {admin.hasAuthenticator ? null : (
-          <span className="badge badge--pending_activation">
-            Has not signed in yet
+    <tr>
+      <td data-label="Admin">
+        <span className="cell-stack">
+          <strong>{admin.email}</strong>
+          <span className="muted">
+            {admin.isYou
+              ? "You. Your own password, authenticator and sign-out are on the Security page."
+              : admin.username
+                ? `Username ${admin.username}`
+                : null}
           </span>
-        )}
-      </div>
-      <p className="admin-row__meta">
-        Added <LocalTime value={admin.createdAt} />
+          {disabled || !admin.hasAuthenticator ? (
+            <span>
+              {disabled ? (
+                <span className="badge badge--disabled">Disabled</span>
+              ) : null}
+              {admin.hasAuthenticator ? null : (
+                <span className="badge badge--pending_activation">
+                  Has not signed in yet
+                </span>
+              )}
+            </span>
+          ) : null}
+        </span>
+      </td>
+      <td data-label="Role">{roleLabel(admin.role)}</td>
+      <td data-label="Added" className="muted">
+        <LocalTime value={admin.createdAt} dateOnly />
         {admin.disabledAt ? (
           <>
-            {" "}
-            · disabled <LocalTime value={admin.disabledAt} />
+            {" · disabled "}
+            <LocalTime value={admin.disabledAt} dateOnly />
           </>
         ) : null}
-      </p>
-      {admin.isYou ? (
-        <p className="admin-row__meta">
-          Your own password, authenticator and sign-out are on the Security
-          page.
-        </p>
-      ) : (
-        <div className="user-actions">
-          <MutationButton
-            triggerLabel="Change role"
-            triggerClassName="button"
-            confirmTitle={`Role for ${admin.email}`}
-            confirmLabel="Save role"
-            confirmBody={
-              <>
-                <fieldset className="field">
-                  <legend className="field__label">Role</legend>
-                  {ADMIN_ROLES.map((option) => (
-                    <label key={option.value} className="radio">
-                      <input
-                        type="radio"
-                        name={`role-${admin.id}`}
-                        value={option.value}
-                        checked={role === option.value}
-                        onChange={() => setRole(option.value)}
-                      />{" "}
-                      <strong>{option.label}</strong>: {option.detail}
-                    </label>
-                  ))}
-                </fieldset>
-                <p>Their sessions end, so the new role applies at once.</p>
-              </>
-            }
-            action={() => changeAdminRole(admin.id, role)}
-            onSuccess={onChange}
-          />
-          {disabled ? (
+      </td>
+      <td data-label="Actions" className="data-table__actions">
+        {admin.isYou ? null : (
+          <div className="user-actions">
             <MutationButton
-              triggerLabel="Reactivate"
-              triggerClassName="button button--primary"
-              confirmTitle={`Reactivate ${admin.email}`}
-              confirmLabel="Reactivate"
+              triggerLabel="Change role"
+              triggerClassName="button button--small"
+              confirmTitle={`Role for ${admin.email}`}
+              confirmLabel="Save role"
               confirmBody={
-                <p>They can sign in again with their password and code.</p>
+                <>
+                  <fieldset className="field">
+                    <legend className="field__label">Role</legend>
+                    {ADMIN_ROLES.map((option) => (
+                      <label key={option.value} className="radio">
+                        <input
+                          type="radio"
+                          name={`role-${admin.id}`}
+                          value={option.value}
+                          checked={role === option.value}
+                          onChange={() => setRole(option.value)}
+                        />{" "}
+                        <strong>{option.label}</strong>: {option.detail}
+                      </label>
+                    ))}
+                  </fieldset>
+                  <p>Their sessions end, so the new role applies at once.</p>
+                </>
               }
-              action={() => setAdminDisabled(admin.id, false)}
+              action={() => changeAdminRole(admin.id, role)}
               onSuccess={onChange}
             />
-          ) : (
-            <MutationButton
-              triggerLabel="Disable"
-              triggerClassName="button"
-              confirmDanger
-              confirmTitle={`Disable ${admin.email}`}
-              confirmLabel="Disable"
-              confirmBody={
-                <p>Every session of theirs ends now and they cannot sign in.</p>
-              }
-              action={() => setAdminDisabled(admin.id, true)}
-              onSuccess={onChange}
-            />
-          )}
-          <AdminSessions adminId={admin.id} />
-        </div>
-      )}
-    </li>
+            {disabled ? (
+              <MutationButton
+                triggerLabel="Reactivate"
+                triggerClassName="button button--small button--primary"
+                confirmTitle={`Reactivate ${admin.email}`}
+                confirmLabel="Reactivate"
+                confirmBody={
+                  <p>They can sign in again with their password and code.</p>
+                }
+                action={() => setAdminDisabled(admin.id, false)}
+                onSuccess={onChange}
+              />
+            ) : (
+              <MutationButton
+                triggerLabel="Disable"
+                triggerClassName="button button--small button--danger-outline"
+                confirmDanger
+                confirmTitle={`Disable ${admin.email}`}
+                confirmLabel="Disable"
+                confirmBody={
+                  <p>
+                    Every session of theirs ends now and they cannot sign in.
+                  </p>
+                }
+                action={() => setAdminDisabled(admin.id, true)}
+                onSuccess={onChange}
+              />
+            )}
+            <AdminSessions adminId={admin.id} />
+          </div>
+        )}
+      </td>
+    </tr>
   );
 }
 
@@ -239,7 +263,7 @@ function InviteAdmin({ onInvited }: { onInvited: (admin: AdminItem) => void }) {
   } | null>(null);
 
   return (
-    <section className="card" aria-labelledby="invite-title">
+    <section className="status-card" aria-labelledby="invite-title">
       <h2 id="invite-title">Add an admin</h2>
       <p>
         They get a one-time password from you. At their first sign-in they set
