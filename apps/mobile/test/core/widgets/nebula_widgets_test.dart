@@ -210,4 +210,28 @@ void main() {
       );
     }
   }
+
+  testWidgets('a row takes a Flexible value without failing', (
+    WidgetTester tester,
+  ) async {
+    // Configuration passed its value as Flexible(...); inside the row's
+    // width cap that has no Flex parent, and a release build drew a grey
+    // box over the whole group (owner's phone, 2026-11-15).
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: NebulaTheme.dark(),
+        home: Scaffold(
+          body: Builder(
+            builder: (BuildContext context) => NebulaRow(
+              title: 'Address',
+              trailing: Flexible(
+                child: NebulaRowTrailing.value(context, '203.0.113.24 : 443'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(tester.takeException(), isNull);
+  });
 }

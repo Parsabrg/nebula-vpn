@@ -34,7 +34,7 @@ class ConfigurationScreen extends ConsumerWidget {
     final AppText text = AppText.of(context);
     NebulaRow info(String title, String value) => NebulaRow(
       title: title,
-      trailing: Flexible(child: NebulaRowTrailing.value(context, value)),
+      trailing: NebulaRowTrailing.value(context, value),
     );
 
     return NebulaPage(
@@ -60,7 +60,14 @@ class ConfigurationScreen extends ConsumerWidget {
       ),
       children: <Widget>[
         const SizedBox(height: 16),
-        NebulaNotice(text: text.peerOnlyNotice, kind: NebulaNoticeKind.warning),
+        // Only when it is true: the screen is also reached from Connection
+        // details while the tunnel is up, where it said "not tunnelling"
+        // about a working connection (owner, 2026-11-15).
+        if (!state.tunnelEstablished)
+          NebulaNotice(
+            text: text.peerOnlyNotice,
+            kind: NebulaNoticeKind.warning,
+          ),
         if (client == null)
           NebulaEmptyState(
             icon: Icons.description_outlined,

@@ -212,10 +212,14 @@ class NebulaRow extends StatelessWidget {
             ConstrainedBox(
               constraints: BoxConstraints(
                 maxWidth: box.hasBoundedWidth
-                    ? box.maxWidth * 0.4
+                    ? box.maxWidth * 0.52
                     : double.infinity,
               ),
-              child: trailing,
+              // A Flexible given as the trailing part (written for when it
+              // sat in the row itself) has no row here: show its child.
+              child: trailing is Flexible
+                  ? (trailing! as Flexible).child
+                  : trailing,
             ),
           ],
         ],
