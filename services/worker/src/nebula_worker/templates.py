@@ -40,12 +40,15 @@ def _p(text: str, *, muted: bool = False) -> str:
 
 
 def _code(label: str, code: str, note: str) -> str:
+    size, spacing = ("28px/36px", "3px") if len(code) <= 12 else ("18px/28px", "0")
     return (
         f'<div style="margin-top:24px;padding:18px 20px;border-radius:10px;'
         f'background:#F4F4F7;border:1px solid {_LINE}">'
         f'<div style="font:500 12px/16px {_SANS};color:{_MUTED}">{escape(label)}</div>'
-        f'<div style="margin-top:6px;font:500 28px/36px {_MONO};letter-spacing:3px;'
-        f'color:{_INK}">{escape(code)}</div>'
+        # Real codes are 46 characters: set smaller and allowed to wrap, or
+        # they run off a phone screen.
+        f'<div style="margin-top:6px;font:500 {size} {_MONO};letter-spacing:{spacing};'
+        f'color:{_INK};word-break:break-all">{escape(code)}</div>'
         f'<div style="margin-top:6px;font:400 13px/19px {_SANS};color:{_MUTED}">'
         f"{escape(note)}</div></div>"
     )
@@ -56,9 +59,9 @@ def _page(heading: str, content: str) -> str:
         '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         f"<title>{escape(heading)}</title></head>"
-        f'<body style="margin:0;padding:32px 16px;background:#F4F4F7">'
+        f'<body style="margin:0;padding:24px 10px;background:#F4F4F7">'
         f'<div style="max-width:520px;margin:0 auto;background:#FFFFFF;'
-        f'border:1px solid {_LINE};border-radius:12px;padding:36px 32px 32px;color:{_INK}">'
+        f'border:1px solid {_LINE};border-radius:12px;padding:32px 22px 28px;color:{_INK}">'
         f'<div style="font:500 13px/18px {_MONO};letter-spacing:2px;color:{_MUTED}">NEBULA</div>'
         f'<h1 style="margin:20px 0 0;font:600 24px/30px {_SANS};letter-spacing:-0.4px;'
         f'color:{_INK}">{escape(heading)}</h1>'
@@ -115,15 +118,20 @@ def render(template_code: str, payload: dict[str, str]) -> RenderedEmail:
         identifiers = f"  Email:    {email}\n"
         if username:
             identifiers += f"  Username: {username}\n"
-        account_rows = (
-            f'<tr><td style="padding:3px 12px 3px 0;color:{_MUTED}">Email</td>'
-            f'<td style="font-family:{_MONO}">{escape(email)}</td></tr>'
-        )
-        if username:
-            account_rows += (
-                f'<tr><td style="padding:3px 12px 3px 0;color:{_MUTED}">Username</td>'
-                f'<td style="font-family:{_MONO}">{escape(username)}</td></tr>'
+
+        # Label above value, not a two-column table: a long address in mono
+        # ran past the box on a phone.
+        def account_row(label: str, value: str) -> str:
+            return (
+                f'<div style="margin-top:8px;font:400 13px/18px {_SANS};color:{_MUTED}">'
+                f"{label}</div>"
+                f'<div style="font:400 15px/22px {_MONO};color:{_INK};word-break:break-all">'
+                f"{escape(value)}</div>"
             )
+
+        account_rows = account_row("Email", email)
+        if username:
+            account_rows += account_row("Username", username)
         steps = "".join(
             f"<li>{escape(step)}</li>"
             for step in (
@@ -159,8 +167,7 @@ def render(template_code: str, payload: dict[str, str]) -> RenderedEmail:
                 f'<div style="margin-top:20px;padding:14px 16px;border:1px solid {_LINE};'
                 f'border-radius:10px"><div style="font:500 12px/16px {_SANS};color:{_MUTED}">'
                 "This account</div>"
-                f'<table role="presentation" style="margin-top:8px;border-collapse:collapse;'
-                f'font:400 14px/20px {_SANS};color:{_INK}">{account_rows}</table></div>'
+                f"{account_rows}</div>"
                 f'<h2 style="margin:24px 0 0;font:600 16px/22px {_SANS};color:{_INK}">'
                 "To finish setting it up</h2>"
                 f'<ol style="margin:10px 0 0;padding-left:22px;font:400 15px/24px {_SANS};'
