@@ -2802,3 +2802,64 @@ h2 {
   margin: 0;
   font-size: 18px;
 }
+
+/* Sign in: a card centred in the window, 420 wide. */
+.login-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px 16px;
+  box-sizing: border-box;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  box-sizing: border-box;
+  padding: 32px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: var(--card-blur);
+}
+
+.login-card__brand {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 2px;
+}
+
+.login-card h1 {
+  margin: 10px 0 0;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 32px;
+  letter-spacing: -0.5px;
+}
+
+.login-card .auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.login-card .auth-form input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.login-card .auth-form > .button {
+  width: 100%;
+  margin-top: 4px;
+}
+
+@media (max-width: 599px) {
+  .login-card {
+    padding: 24px;
+  }
+}

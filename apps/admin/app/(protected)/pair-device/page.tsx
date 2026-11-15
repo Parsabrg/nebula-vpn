@@ -22,13 +22,13 @@ export default async function PairDevicePage() {
 
       <section className="status-card" aria-labelledby="pair-device-qr">
         <h2 id="pair-device-qr">Scan or share</h2>
-        {/* eslint-disable-next-line @next/next/no-img-element -- an inline data URL, nothing to optimise */}
         <p className="status-card__desc">
           Send the link to the person, or let them scan the code. Paste it into
           the app&apos;s first screen.
         </p>
         {/* The design's pair: the code at the left, the link beside it. */}
         <div className="pair-share">
+          {/* eslint-disable-next-line @next/next/no-img-element -- an inline data URL, nothing to optimise */}
           <img
             className="pair-share__qr"
             src={pairing.qrImage}
