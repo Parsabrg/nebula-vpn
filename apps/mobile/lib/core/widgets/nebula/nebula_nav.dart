@@ -312,7 +312,7 @@ class NebulaSideNav extends StatelessWidget {
           child: column,
         ),
         NebulaLook.glass => Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 0, 12),
+          padding: const EdgeInsetsDirectional.fromSTEB(12, 12, 0, 12),
           child: NebulaPanel(child: column),
         ),
         NebulaLook.expressive => ColoredBox(color: p.surface, child: column),

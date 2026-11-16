@@ -534,13 +534,19 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
       );
       _recordWriting = writing;
       await writing;
-    } catch (_) {}
+    } catch (error) {
+      // Not fatal, but a stale record is what a later launch adopts
+      // (review Q-04): said in the log, by type only.
+      _mark('connection record not saved: ${error.runtimeType}');
+    }
   }
 
   Future<void> _forgetConnection() async {
     try {
       await _records.clear();
-    } catch (_) {}
+    } catch (error) {
+      _mark('connection record not cleared: ${error.runtimeType}');
+    }
   }
 
   /// The DNS tunnel's details, then (Android, weekly, on Wi-Fi) its
@@ -560,7 +566,9 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
       if (details != null && ref.mounted) {
         await ref.read(dnsTunnelResolversProvider).refreshIfDue(details);
       }
-    } catch (_) {}
+    } catch (error) {
+      _mark('DNS tunnel refresh failed: ${error.runtimeType}');
+    }
   }
 
   Future<void> load() async {

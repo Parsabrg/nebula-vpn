@@ -5,6 +5,8 @@
 /// will actually accept, and both ends of that are already in MainActivity.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
@@ -95,5 +97,38 @@ final FutureProvider<List<InstalledApp>> installedAppsProvider =
 
 final FutureProviderFamily<Uint8List?, String> appIconProvider =
     FutureProvider.family<Uint8List?, String>((Ref ref, String packageName) {
-      return ref.watch(installedAppCatalogueProvider).icon(packageName);
+      final InstalledAppCatalogue catalogue = ref.watch(
+        installedAppCatalogueProvider,
+      );
+      return _iconQueue.run(() => catalogue.icon(packageName));
     });
+
+/// At most four icons asked for at once. The picker opens with every row
+/// built, and Android draws each icon on its main thread: a few hundred
+/// requests at once froze the screen (review Q-01).
+final _Limiter _iconQueue = _Limiter(4);
+
+class _Limiter {
+  _Limiter(this._max);
+
+  final int _max;
+  int _running = 0;
+  final List<Completer<void>> _waiting = <Completer<void>>[];
+
+  Future<T> run<T>(Future<T> Function() task) async {
+    if (_running >= _max) {
+      final Completer<void> turn = Completer<void>();
+      _waiting.add(turn);
+      await turn.future;
+    }
+    _running++;
+    try {
+      return await task();
+    } finally {
+      _running--;
+      if (_waiting.isNotEmpty) {
+        _waiting.removeAt(0).complete();
+      }
+    }
+  }
+}

@@ -114,6 +114,11 @@ TARGET = MOBILE / "third_party" / PLUGIN
 PATCH = HERE / f"{PLUGIN}-{VERSION}.patch"
 
 
+def patch_digest() -> str:
+    """SHA-256 of the patch, line endings normalised as git stores it."""
+    return hashlib.sha256(PATCH.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
 def download(url: str) -> bytes:
     """The file at [url], or its copy in NEBULA_VENDOR_CACHE (a folder of
     files named as the URL ends) when one is there. For networks where large
@@ -296,6 +301,10 @@ def main() -> None:
     )
     if result.returncode != 0 or "Skipped patch" in result.stderr:
         raise SystemExit(f"patch failed:\n{result.stderr}")
+    # Which patch this copy was made from: the Android build compares it
+    # with the patch in the tree and refuses a stale copy (review Q-06; a
+    # copy from before the Aether hunks built fine and lacked them).
+    (TARGET / ".patch-sha256").write_text(patch_digest() + "\n", encoding="ascii")
 
     print("fetching Hysteria2 binaries (pinned by digest)")
     for abi, (asset, digest) in BINARIES.items():

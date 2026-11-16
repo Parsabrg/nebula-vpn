@@ -1,6 +1,9 @@
 package org.nebulavpn.nebula_mobile
 
 import android.content.ActivityNotFoundException
+import android.content.ClipData
+import android.content.ClipDescription
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
@@ -12,6 +15,7 @@ import android.net.TrafficStats
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
+import android.os.PersistableBundle
 import android.provider.Settings
 import com.wireguard.android.backend.Backend
 import com.wireguard.android.backend.GoBackend
@@ -82,6 +86,10 @@ class MainActivity : FlutterActivity() {
                     "hasPermission" -> result.success(VpnState.consentHeld(this))
                     "vpnOwner" -> result.success(VpnState.owner(this))
                     "hasNetwork" -> result.success(VpnState.hasNetwork(this))
+                    "copySensitive" -> {
+                        copySensitive(call.argument<String>("text") ?: "")
+                        result.success(null)
+                    }
                     "takeDisconnectRequest" -> {
                         result.success(disconnectRequested)
                         disconnectRequested = false
@@ -180,13 +188,53 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    /**
+     * A credential on the clipboard, marked sensitive: Android 13 and later
+     * keep it out of the clipboard preview and keyboard suggestions
+     * (review S-07). Cleared after a minute from Dart.
+     */
+    private fun copySensitive(text: String) {
+        val clipboard = getSystemService(ClipboardManager::class.java) ?: return
+        val clip = ClipData.newPlainText("Nebula", text)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            clip.description.extras = PersistableBundle().apply {
+                putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)
+            }
+        }
+        clipboard.setPrimaryClip(clip)
+    }
+
     private fun noteDisconnectRequest(intent: Intent?): Boolean {
         if (intent?.action != disconnectAction) {
+            return false
+        }
+        // This activity is exported: any app can send the action. Only the
+        // notification's button carries the token from this app's private
+        // files (V2rayCoreManager.disconnectToken) -- review S-01.
+        if (!disconnectTokenMatches(intent.getStringExtra("NEBULA_DISCONNECT_TOKEN"))) {
+            intent.action = Intent.ACTION_MAIN
             return false
         }
         disconnectRequested = true
         intent.action = Intent.ACTION_MAIN
         return true
+    }
+
+    private fun disconnectTokenMatches(given: String?): Boolean {
+        if (given.isNullOrEmpty()) {
+            return false
+        }
+        return try {
+            val file = java.io.File(filesDir, "disconnect_token")
+            val expected = file.readText(Charsets.US_ASCII).trim()
+            expected.length == 64 &&
+                java.security.MessageDigest.isEqual(
+                    expected.toByteArray(Charsets.US_ASCII),
+                    given.toByteArray(Charsets.US_ASCII),
+                )
+        } catch (error: Exception) {
+            false
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

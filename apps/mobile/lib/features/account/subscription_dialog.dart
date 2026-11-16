@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/account/account_repository.dart';
 import '../../core/network/error_copy.dart';
+import '../../core/platform/sensitive_clipboard.dart';
 import '../../core/theme/color_tokens.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -91,7 +91,7 @@ class _SubscriptionDialogState extends State<_SubscriptionDialog> {
         else
           FilledButton(
             onPressed: () {
-              Clipboard.setData(ClipboardData(text: link));
+              copySensitive(link);
               ScaffoldMessenger.of(
                 context,
               ).showSnackBar(SnackBar(content: Text(text.subscriptionCopied)));

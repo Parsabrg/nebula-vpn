@@ -1,3 +1,4 @@
+import java.security.MessageDigest
 import java.util.Base64
 import java.util.Properties
 
@@ -173,6 +174,26 @@ dependencies {
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+// The patched plugin is generated (third_party_src/vendor_plugin.py) and
+// gitignored. A copy made from an older patch built fine and lacked whole
+// features (review Q-06), so the build compares its stamp with the patch.
+val pluginPatch = file("../../third_party_src/flutter_v2ray_client-3.4.1.patch")
+val pluginStamp = file("../../third_party/flutter_v2ray_client/.patch-sha256")
+tasks.named("preBuild") {
+    doFirst {
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(String(pluginPatch.readBytes(), Charsets.UTF_8).replace("\r\n", "\n").toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+        val stamped = if (pluginStamp.isFile) pluginStamp.readText().trim() else ""
+        if (stamped != digest) {
+            throw GradleException(
+                "third_party/flutter_v2ray_client is not from the current patch: " +
+                    "run `python third_party_src/vendor_plugin.py` in apps/mobile.",
+            )
+        }
     }
 }
 

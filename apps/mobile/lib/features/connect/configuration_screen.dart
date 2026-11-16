@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/platform/sensitive_clipboard.dart';
 import '../../core/servers/server_repository.dart';
 import '../../core/storage/storage_providers.dart';
 import '../../core/theme/color_tokens.dart';
@@ -116,7 +116,7 @@ class ConfigurationScreen extends ConsumerWidget {
     BuildContext context,
     XrayClientResult client,
   ) async {
-    await Clipboard.setData(ClipboardData(text: clientSummary(client)));
+    await copySensitive(clientSummary(client));
     if (!context.mounted) {
       return;
     }

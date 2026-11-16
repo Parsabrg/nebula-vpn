@@ -87,7 +87,12 @@ class NebulaPage extends StatelessWidget {
                       ),
                     ),
                     Padding(
-                      padding: EdgeInsets.fromLTRB(minimal ? 0 : 4, 4, 0, 4),
+                      padding: EdgeInsetsDirectional.fromSTEB(
+                        minimal ? 0 : 4,
+                        4,
+                        0,
+                        4,
+                      ),
                       child: heading,
                     ),
                   ] else

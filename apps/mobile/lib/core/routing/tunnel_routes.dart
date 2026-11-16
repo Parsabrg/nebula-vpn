@@ -42,14 +42,15 @@ const List<String> kLocalRanges = <String>[
 /// outside the tunnel.
 const List<String> kAllIPv4 = <String>['0.0.0.0/0'];
 
-/// IPv6 is claimed but not carried.
+/// IPv6 is always claimed, so it never leaves outside the tunnel.
 ///
-/// Nothing downstream forwards it -- tun2socks is started with IPv4 netif
-/// arguments only -- so these packets enter the tunnel and are dropped. That
-/// is the intent: on an IPv6-capable network, *not* claiming it leaks the real
-/// address to every host that supports it while the app still reports
-/// connected. Clients see IPv6 as unreachable and fall back to IPv4 over the
-/// tunnel, which is what keeps the address hidden.
+/// On Android it is claimed but not carried: the VPN interface has an IPv4
+/// address only (V2rayVPNService), so these packets enter the tunnel and are
+/// dropped. That is the intent: on an IPv6-capable network, *not* claiming it
+/// leaks the real address to every host that supports it while the app still
+/// reports connected. Clients see IPv6 as unreachable and fall back to IPv4
+/// over the tunnel, which is what keeps the address hidden. On Windows,
+/// Xray's own TUN carries IPv6 out through the server (local_proxy.dart).
 const String kIPv6Everything = '::/0';
 
 class _Span {

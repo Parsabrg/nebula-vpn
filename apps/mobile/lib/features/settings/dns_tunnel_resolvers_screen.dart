@@ -249,7 +249,7 @@ class _DnsTunnelResolversScreenState
                   ],
                 ),
                 Padding(
-                  padding: EdgeInsets.fromLTRB(
+                  padding: EdgeInsetsDirectional.fromSTEB(
                     palette.look == NebulaLook.minimal ? 0 : 8,
                     10,
                     0,

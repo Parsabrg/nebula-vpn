@@ -206,7 +206,7 @@ class _QrScanPageState extends State<_QrScanPage> {
                 ),
         ),
         Padding(
-          padding: EdgeInsets.fromLTRB(
+          padding: EdgeInsetsDirectional.fromSTEB(
             p.look == NebulaLook.minimal ? 0 : 8,
             10,
             0,
