@@ -181,3 +181,21 @@ def test_resend_adapter_rejects_an_unparseable_response(tmp_path: Any) -> None:
     with patch("urllib.request.urlopen", return_value=response):
         with pytest.raises(EmailSendError):
             asyncio.run(adapter.send(to="user@example.com", subject="Subject", body="Body"))
+
+
+def test_smtp_sends_html_as_an_alternative_to_the_text() -> None:
+    fake_smtp = MagicMock()
+    fake_smtp.__enter__.return_value = fake_smtp
+    fake_smtp.__exit__.return_value = False
+
+    with patch("smtplib.SMTP", return_value=fake_smtp):
+        asyncio.run(
+            SmtpAdapter(Settings()).send(
+                to="u@example.com", subject="S", body="Plain", html="<p>Rich</p>"
+            )
+        )
+
+    message = fake_smtp.send_message.call_args.args[0]
+    assert message.get_content_type() == "multipart/alternative"
+    parts = [part.get_content_type() for part in message.iter_parts()]
+    assert parts == ["text/plain", "text/html"]

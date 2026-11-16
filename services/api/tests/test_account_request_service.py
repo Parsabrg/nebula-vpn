@@ -205,7 +205,7 @@ def active_activation(*, raw_token: str, keys_material: AuthKeyMaterial) -> User
 
 
 def test_submit_request_creates_pending_request_and_notifies_admins() -> None:
-    session = ScriptedSession(scalars_values=[[admin()]])
+    session = ScriptedSession(scalar_values=[None], scalars_values=[[admin()]])
     factory = ScriptedFactory(session)
     instance, _redis, outbox = service(factory)
 
@@ -223,6 +223,27 @@ def test_submit_request_creates_pending_request_and_notifies_admins() -> None:
     assert added_types == {"AccountRequest", "AccountRequestEvent", "AuditLog", "EmailDelivery"}
     assert len(outbox.staged) == 1
     assert outbox.staged[0][3] is True
+
+
+def test_submit_request_skips_review_emails_sent_within_the_window() -> None:
+    # AUD-017: a recent review email means no new round; the request is kept.
+    session = ScriptedSession(scalar_values=[uuid4()])
+    factory = ScriptedFactory(session)
+    instance, _redis, outbox = service(factory)
+
+    asyncio.run(
+        instance.submit_request(
+            email="applicant@example.com",
+            username="applicant",
+            network_prefix="203.0.113.0/24",
+            request_id=REQUEST_ID,
+        )
+    )
+
+    added_types = {type(item).__name__ for item in session.added}
+    assert "AccountRequest" in added_types
+    assert "EmailDelivery" not in added_types
+    assert outbox.staged == []
 
 
 def test_submit_request_with_invalid_email_records_denial_without_creating_request() -> None:
@@ -246,7 +267,7 @@ def test_submit_request_with_invalid_email_records_denial_without_creating_reque
 
 
 def test_submit_request_stays_neutral_on_duplicate_pending_email() -> None:
-    session = DuplicateOnCommitSession(scalars_values=[[]])
+    session = DuplicateOnCommitSession(scalar_values=[None], scalars_values=[[]])
     factory = ScriptedFactory(session)
     instance, _redis, outbox = service(factory)
 

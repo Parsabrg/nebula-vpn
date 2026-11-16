@@ -134,10 +134,13 @@ class UpdateInstaller {
       if (Platform.isAndroid) {
         await _channel.installApk(file.path);
       } else {
-        // The installer closes the running app itself before replacing it.
+        // The installer closes the running app itself before replacing it,
+        // so it must outlive the app. On Windows everything the app starts
+        // ends with it (a job object, see windows/runner/main.cpp); Explorer
+        // starting the installer puts it outside that.
         await Process.start(
-          file.path,
-          const <String>[],
+          Platform.isWindows ? 'explorer.exe' : file.path,
+          Platform.isWindows ? <String>[file.path] : const <String>[],
           mode: ProcessStartMode.detached,
         );
       }

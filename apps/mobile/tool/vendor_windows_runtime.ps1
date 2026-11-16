@@ -11,6 +11,11 @@ $hysteriaHash = '807AE5332A8FEFEEFF804923E057B6942ACCEAA11706AC7FA3DB42F192C2FDE
 # The DNS tunnel's engine (docs/runbooks/dns-tunnel.md): the same release Android ships.
 $cottenVersion = 'v2026.11.03.161534-be99443'
 $cottenHash = 'B62C43CA8E75890598F4FAEB4EBCFD3BB0D0709A98B25CD1F3E3A8440B342B43'
+# Cloudflare WARP (patterniha/Aether, AGPL-3.0): the release Android ships.
+# aether.exe and its Psiphon ("Leave outside Iran"), found beside it;
+# the archive also carries Tor's, unused.
+$aetherVersion = 'v2.4.0'
+$aetherHash = '84ABF564B5549D4FEC2E6B8ECDE17A8309FFD4A829B3F96A412322CFB0E5E3BE'
 
 New-Item -ItemType Directory -Path $destination -Force | Out-Null
 
@@ -24,20 +29,38 @@ function Get-VerifiedAsset([string]$Url, [string]$Destination, [string]$Expected
 
 $temporary = Join-Path $env:TEMP 'nebula-xray-windows.zip'
 $cottenZip = Join-Path $env:TEMP 'nebula-cottendns-windows.zip'
+$aetherZip = Join-Path $env:TEMP 'nebula-aether-windows.zip'
 try {
     Get-VerifiedAsset "https://github.com/XTLS/Xray-core/releases/download/$xrayVersion/Xray-windows-64.zip" $temporary $xrayHash
     Expand-Archive -LiteralPath $temporary -DestinationPath $destination -Force
     if (-not (Test-Path -LiteralPath (Join-Path $destination 'wintun.dll'))) {
         throw 'The official Xray Windows archive did not contain wintun.dll.'
     }
+    # Its routing data, cut to what the app names (26 MB of every country).
+    python (Join-Path $root 'tool\trim_geodata.py') $destination
+    if ($LASTEXITCODE -ne 0) { throw 'Trimming the Xray routing data failed.' }
     Get-VerifiedAsset 'https://github.com/HyNetworks/hysteria/releases/download/app/v2.12.2/hysteria-windows-amd64.exe' (Join-Path $destination 'hysteria.exe') $hysteriaHash
     Get-VerifiedAsset "https://github.com/WhiteDNS/CottenDNS/releases/download/$cottenVersion/CottenDns_Client_Windows_AMD64.zip" $cottenZip $cottenHash
     $cottenFolder = Join-Path $env:TEMP 'nebula-cottendns-windows'
     Expand-Archive -LiteralPath $cottenZip -DestinationPath $cottenFolder -Force
     Copy-Item -LiteralPath (Join-Path $cottenFolder "CottenDns_Client_Windows_AMD64_$cottenVersion.exe") -Destination (Join-Path $destination 'cottendns_client.exe') -Force
     Remove-Item -LiteralPath $cottenFolder -Recurse -Force
+    Get-VerifiedAsset "https://github.com/patterniha/Aether/releases/download/$aetherVersion/aether-windows-x86_64.zip" $aetherZip $aetherHash
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archive = [IO.Compression.ZipFile]::OpenRead($aetherZip)
+    try {
+        foreach ($pair in @(@('aether.exe', 'aether.exe'), @('pt/psiphon-tunnel-core.exe', 'psiphon-tunnel-core.exe'))) {
+            $entry = $archive.GetEntry($pair[0])
+            if ($null -eq $entry) { throw "The Aether Windows archive did not contain $($pair[0])." }
+            [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, (Join-Path $destination $pair[1]), $true)
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
 }
 finally {
     if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force }
     if (Test-Path -LiteralPath $cottenZip) { Remove-Item -LiteralPath $cottenZip -Force }
+    if (Test-Path -LiteralPath $aetherZip) { Remove-Item -LiteralPath $aetherZip -Force }
 }

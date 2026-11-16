@@ -1,23 +1,27 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/account/account_repository.dart';
 import '../../core/format/dates.dart';
 import '../../core/theme/color_tokens.dart';
-import '../../core/theme/type_scale.dart';
+import '../../core/widgets/nebula/nebula_controls.dart';
+import '../../core/widgets/nebula/nebula_data.dart';
+import '../../core/widgets/nebula/nebula_feedback.dart';
+import '../../core/widgets/nebula/nebula_page.dart';
+import '../../core/widgets/nebula/nebula_rows.dart';
 import '../../core/widgets/panel/panel_atoms.dart';
-import '../../core/widgets/panel/panel_list_row.dart';
 import '../../core/widgets/refresh_while_visible.dart';
 import '../../l10n/app_localizations.dart';
 import '../account/account_controller.dart';
 
-/// View and revoke the devices on this account.
+/// View, rename and revoke the devices on this account.
 ///
-/// Scope is deliberately those two things. No renaming, no connecting another
-/// device, no reading another device's configuration -- a screen that can act
-/// on a device you are not holding should be able to do as little as possible.
+/// Scope is deliberately that. No connecting another device, no reading
+/// another device's configuration -- a screen that can act on a device you
+/// are not holding should be able to do as little as possible.
 class DevicesScreen extends ConsumerStatefulWidget {
   const DevicesScreen({super.key});
 
@@ -41,8 +45,6 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen>
   Widget build(BuildContext context) {
     final AppText text = AppText.of(context);
     final AccountState state = ref.watch(accountControllerProvider);
-    final NebulaPalette palette = context.palette;
-    final NebulaTypography type = context.type;
 
     ref.listen<AccountState>(accountControllerProvider, (
       AccountState? previous,
@@ -50,112 +52,91 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen>
     ) {
       final String? message = next.actionErrorMessage;
       if (message != null && message != previous?.actionErrorMessage) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(message)));
+        showNebulaSnackbar(context, message);
       }
     });
 
-    return Scaffold(
-      backgroundColor: palette.bg,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.only(top: 28, bottom: 20),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: <Widget>[
-                    Text(
-                      text.devicesHeading,
-                      style: type.wordmark.copyWith(color: palette.textMuted),
-                    ),
-                    const Spacer(),
-                    if (state.account != null)
-                      Text(
-                        text.devicesInUseOfLimit(
-                          state.account!.devicesInUse,
-                          state.account!.deviceLimit,
-                        ),
-                        style: type.topBarMeta.copyWith(
-                          color: palette.textMuted,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              Expanded(child: _body(context, state)),
-            ],
-          ),
-        ),
-      ),
+    return NebulaPage(
+      title: text.tabDevices,
+      showBack: false,
+      children: _body(context, state),
     );
   }
 
-  Widget _body(BuildContext context, AccountState state) {
+  List<Widget> _body(BuildContext context, AccountState state) {
     final AppText text = AppText.of(context);
     final NebulaPalette palette = context.palette;
-    final NebulaTypography type = context.type;
 
     switch (state.loadStatus) {
       case AccountLoadStatus.loading:
-        return const Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[_SkeletonDeviceRow(), _SkeletonDeviceRow()],
-        );
+        return const <Widget>[
+          SizedBox(height: 16),
+          _SkeletonDeviceRow(),
+          _SkeletonDeviceRow(),
+        ];
 
       case AccountLoadStatus.failed:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            StatusLine(tone: StatusTone.error, text: text.statusNoConnection),
-            const SizedBox(height: 12),
-            Text(
-              state.loadErrorMessage ?? text.couldNotLoadDevices,
-              style: type.rowLabel.copyWith(color: palette.textMuted),
-            ),
-            const SizedBox(height: 20),
-            TextButton(
+        return <Widget>[
+          const SizedBox(height: 16),
+          NebulaNotice(
+            text: state.loadErrorMessage ?? text.couldNotLoadDevices,
+            kind: NebulaNoticeKind.error,
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: NebulaButton.text(
+              label: text.ctaTryAgain,
               onPressed: () =>
                   ref.read(accountControllerProvider.notifier).load(),
-              child: Text(text.ctaTryAgain),
             ),
-          ],
-        );
+          ),
+        ];
 
       case AccountLoadStatus.loaded:
-        return ListView(
-          children: <Widget>[
-            for (final AccountDevice device in state.devices)
-              PanelListRow(
-                title: device.name,
-                leading: _platformIcon(device.platform),
-                meta: _meta(context, text, device),
-                metaColor: device.isCurrent
-                    ? palette.blueText
-                    : palette.textMuted,
-                // The current device has no Revoke: revoking the device you
-                // are holding would drop your own tunnel, and the server
-                // refuses it anyway.
-                action: device.isCurrent
-                    ? null
-                    : _RevokeAction(
-                        device: device,
-                        busy: state.revokingDeviceId == device.id,
-                      ),
-              ),
-            const SizedBox(height: 16),
-            Text(
-              text.revokeFootnote,
-              style: type.listMeta.copyWith(color: palette.textMuted),
+        final AccountSummary account = state.account!;
+        return <Widget>[
+          NebulaLedeMeter(
+            label: text.devicesOfLimit(
+              account.devicesInUse,
+              account.deviceLimit,
             ),
-            const SizedBox(height: 24),
-          ],
-        );
+            value: '${account.devicesInUse} / ${account.deviceLimit}',
+            fraction: account.deviceLimit <= 0
+                ? 0
+                : account.devicesInUse / account.deviceLimit,
+          ),
+          NebulaSectionLabel(text.devicesSignedIn),
+          NebulaRowGroup(
+            children: <Widget>[
+              for (final AccountDevice device in state.devices)
+                NebulaRow(
+                  icon: _platformIcon(device.platform),
+                  title: device.name,
+                  subtitle: _meta(context, text, device),
+                  onTap: () => _renameDevice(context, ref, device),
+                  // The current device has no Revoke: revoking the device
+                  // you are holding would drop your own tunnel, and the
+                  // server refuses it anyway.
+                  trailing: device.isCurrent
+                      ? NebulaRowTrailing.badge(
+                          context,
+                          text.deviceThisDeviceBadge,
+                        )
+                      : _RevokeAction(
+                          device: device,
+                          busy: state.revokingDeviceId == device.id,
+                        ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '${text.devicesRenameHint} ${text.revokeFootnote}',
+            style: TextStyle(fontSize: 12, color: palette.textMuted),
+          ),
+          const SizedBox(height: 8),
+        ];
     }
   }
 
@@ -186,6 +167,8 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen>
         return Icons.smartphone;
       case 'windows':
         return Icons.laptop_windows;
+      case 'linux':
+        return Icons.computer;
       default:
         return Icons.devices_other;
     }
@@ -202,43 +185,40 @@ class _RevokeAction extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (busy) {
       return SizedBox(
-        width: 18,
-        height: 18,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          color: context.palette.textMuted,
+        width: 44,
+        height: 44,
+        child: Center(
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: context.palette.textMuted,
+            ),
+          ),
         ),
       );
     }
-    return TextButton(
-      onPressed: () => _confirm(context, ref),
-      child: Text(AppText.of(context).revoke),
+    final AppText text = AppText.of(context);
+    return NebulaButton.rowAction(
+      label: text.revoke,
+      danger: true,
+      onPressed: () async {
+        final bool confirmed = await showNebulaConfirm(
+          context,
+          title: text.revokeDeviceQuestion(device.name),
+          body: text.revokeDeviceBody,
+          action: text.revoke,
+          cancel: text.cancel,
+          destructive: true,
+        );
+        if (confirmed) {
+          await ref
+              .read(accountControllerProvider.notifier)
+              .revokeDevice(device.id);
+        }
+      },
     );
-  }
-
-  Future<void> _confirm(BuildContext context, WidgetRef ref) async {
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: Text(AppText.of(context).revokeDeviceQuestion(device.name)),
-        content: Text(AppText.of(context).revokeDeviceBody),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(AppText.of(context).cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(AppText.of(context).revoke),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) {
-      await ref
-          .read(accountControllerProvider.notifier)
-          .revokeDevice(device.id);
-    }
   }
 }
 
@@ -266,4 +246,47 @@ class _SkeletonDeviceRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Asks for a new name for [device] and saves it.
+Future<void> _renameDevice(
+  BuildContext context,
+  WidgetRef ref,
+  AccountDevice device,
+) async {
+  final AppText text = AppText.of(context);
+  final TextEditingController field = TextEditingController(text: device.name);
+  final String? name = await showDialog<String>(
+    context: context,
+    builder: (BuildContext context) => NebulaDialog(
+      title: text.renameDevice,
+      content: NebulaField(
+        label: text.deviceNameLabel,
+        controller: field,
+        autofocus: true,
+        inputFormatters: <TextInputFormatter>[
+          LengthLimitingTextInputFormatter(80),
+        ],
+        onSubmitted: (String value) => Navigator.of(context).pop(value),
+      ),
+      actions: <Widget>[
+        NebulaButton.secondary(
+          label: text.cancel,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        NebulaButton(
+          label: text.save,
+          onPressed: () => Navigator.of(context).pop(field.text),
+        ),
+      ],
+    ),
+  );
+  field.dispose();
+  final String? trimmed = name?.trim();
+  if (trimmed == null || trimmed.isEmpty || trimmed == device.name) {
+    return;
+  }
+  await ref
+      .read(accountControllerProvider.notifier)
+      .renameDevice(device.id, trimmed);
 }

@@ -25,5 +25,5 @@ Only the latest release is supported.
 
 ## What is already written down
 
-`docs/threat-model.md` and `docs/runbooks/production-readiness-audit.md`
-describe the known risks and what was done about each.
+`docs/threat-model.md` describes the known risks and what is done about
+each.

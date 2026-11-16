@@ -248,7 +248,10 @@ jobs:
         run: |
           set -eu
           mkdir -p /tmp/bad && cp /tmp/release/* /tmp/bad/
-          sed -i 's/^./0/' /tmp/bad/SHA256SUMS.txt
+          # Change the first digit for certain: 's/^./0/' left a hash that
+          # began with 0 as it was, one run in sixteen, and the signature held.
+          sed -i 's/^0/1/;t;s/^./0/' /tmp/bad/SHA256SUMS.txt
+          ! cmp -s /tmp/bad/SHA256SUMS.txt /tmp/release/SHA256SUMS.txt
           mkdir -p /tmp/src && tar -xzf /tmp/release/nebula-vpn-v0.0.0-server-linux-amd64.tar.gz -C /tmp/src
           if sudo -E env NEBULA_RELEASE_SIGNERS=/tmp/ci-signers /tmp/src/nebula/install.sh \
                --bundle /tmp/bad/nebula-vpn-v0.0.0-server-linux-amd64.tar.gz </dev/null >/tmp/bad.log 2>&1; then

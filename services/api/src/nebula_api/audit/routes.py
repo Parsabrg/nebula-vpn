@@ -5,8 +5,9 @@ from typing import cast
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
+from fastapi.responses import StreamingResponse
 
-from nebula_api.audit.chain import chain_lines
+from nebula_api.audit.chain import ChainStart, chain_lines_async
 from nebula_api.audit.schemas import AuditLogListItem, AuditLogListResponse
 from nebula_api.audit.service import AuditLogEntry, AuditLogFilters, AuditLogService
 from nebula_api.auth.admin_authorization import require_admin_session
@@ -75,9 +76,15 @@ async def export_audit_log(request: Request) -> Response:
 
     await require_admin_session(request)
     until = datetime.now(UTC) - _EXPORT_SETTLE
-    entries = await _service(request).export_events(until=until)
-    response = Response(
-        content="".join(chain_lines(entries, until=until)),
+    service = _service(request)
+    checkpoint = await service.latest_checkpoint()
+    start, since = ChainStart(), None
+    if checkpoint is not None:
+        start, since = ChainStart(checkpoint[0], checkpoint[1]), checkpoint[2]
+    response = StreamingResponse(
+        chain_lines_async(
+            service.export_events(until=until, since=since), until=until, start=start
+        ),
         media_type="application/x-ndjson",
         headers={
             "Content-Disposition": (

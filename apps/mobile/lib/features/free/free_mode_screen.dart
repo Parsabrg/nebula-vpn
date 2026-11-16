@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,9 +9,12 @@ import '../../core/free/free_mode.dart';
 import '../../core/free/subscriptions.dart';
 import '../../core/routing/route_paths.dart';
 import '../../core/theme/color_tokens.dart';
-import '../../core/theme/type_scale.dart';
-import '../../core/widgets/panel/panel_cta.dart';
-import '../../core/widgets/panel/panel_row.dart';
+import '../../core/warp/warp_settings.dart';
+import '../../core/widgets/nebula/nebula_controls.dart';
+import '../../core/widgets/nebula/nebula_data.dart';
+import '../../core/widgets/nebula/nebula_feedback.dart';
+import '../../core/widgets/nebula/nebula_page.dart';
+import '../../core/widgets/nebula/nebula_rows.dart';
 import '../../l10n/app_localizations.dart';
 import '../devices/devices_controller.dart';
 
@@ -108,27 +112,27 @@ class _FreeModeScreenState extends ConsumerState<FreeModeScreen> {
     );
     final String? name = await showDialog<String>(
       context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: Text(text.subscriptionRename),
-        content: TextField(
-          // Not a credential: no password manager offering one here.
-          autofillHints: null,
+      builder: (BuildContext context) => NebulaDialog(
+        title: text.subscriptionRename,
+        content: NebulaField(
+          label: text.subscriptionRename,
+          labelVisible: false,
           controller: field,
           autofocus: true,
-          maxLength: 40,
-          decoration: InputDecoration(
-            hintText: Uri.tryParse(subscription.url)?.host,
-          ),
+          hint: Uri.tryParse(subscription.url)?.host,
+          inputFormatters: <TextInputFormatter>[
+            LengthLimitingTextInputFormatter(40),
+          ],
           onSubmitted: (String value) => Navigator.of(context).pop(value),
         ),
         actions: <Widget>[
-          TextButton(
+          NebulaButton.secondary(
+            label: text.cancel,
             onPressed: () => Navigator.of(context).pop(),
-            child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
           ),
-          TextButton(
+          NebulaButton(
+            label: text.save,
             onPressed: () => Navigator.of(context).pop(field.text),
-            child: Text(MaterialLocalizations.of(context).okButtonLabel),
           ),
         ],
       ),
@@ -210,7 +214,6 @@ class _FreeModeScreenState extends ConsumerState<FreeModeScreen> {
   @override
   Widget build(BuildContext context) {
     final NebulaPalette palette = context.palette;
-    final NebulaTypography type = context.type;
     final AppText text = AppText.of(context);
     // A subscription's connections are summed up in its own row below; the
     // list here is the person's own.
@@ -221,246 +224,169 @@ class _FreeModeScreenState extends ConsumerState<FreeModeScreen> {
     final List<Subscription> subscriptions =
         ref.watch(subscriptionsProvider).value ?? const <Subscription>[];
 
-    return Scaffold(
-      backgroundColor: palette.bg,
-      appBar: widget.ownLinks
-          ? AppBar(
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.of(context).maybePop(),
-              ),
-              title: Text(text.ownLinksTitle),
-            )
-          : null,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    TextStyle intro() =>
+        TextStyle(fontSize: 14, height: 20 / 14, color: palette.textMuted);
+
+    return NebulaPage(
+      title: widget.ownLinks ? text.ownLinksTitle : text.freeTab,
+      showBack: widget.ownLinks,
+      footer: widget.ownLinks
+          ? null
+          : NebulaButton.secondary(label: text.freeLeave, onPressed: _leave),
+      children: <Widget>[
+        const SizedBox(height: 8),
+        Text(
+          widget.ownLinks ? text.ownLinksIntro : text.freeIntro,
+          style: intro(),
+        ),
+        if (!widget.ownLinks && warpSupported) ...<Widget>[
+          NebulaSectionLabel(text.freeBuiltIn),
+          NebulaRowGroup(
             children: <Widget>[
-              if (!widget.ownLinks)
-                Padding(
-                  padding: const EdgeInsets.only(top: 28, bottom: 20),
-                  child: Text(
-                    text.freeHeading,
-                    style: type.wordmark.copyWith(color: palette.textMuted),
-                  ),
-                ),
-              Expanded(
-                child: ListView(
-                  children: <Widget>[
-                    Text(
-                      widget.ownLinks ? text.ownLinksIntro : text.freeIntro,
-                      style: TextStyle(color: palette.textMuted, height: 1.5),
-                    ),
-                    const SizedBox(height: 20),
-                    if (!widget.ownLinks &&
-                        profiles.isEmpty &&
-                        subscriptions.isEmpty)
-                      Text(
-                        text.freeNoRelays,
-                        style: TextStyle(color: palette.amberText, height: 1.5),
-                      ),
-                    for (final FreeProfile profile in profiles)
-                      Container(
-                        decoration: BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(color: palette.hairline),
-                          ),
-                        ),
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(
-                            profile.name,
-                            style: TextStyle(color: palette.textPrimary),
-                          ),
-                          subtitle: Text(
-                            text.freeRelayYours,
-                            style: TextStyle(color: palette.textMuted),
-                          ),
-                          trailing: IconButton(
-                            tooltip: text.freeRemove,
-                            icon: const Icon(Icons.close),
-                            onPressed: () => _remove(profile),
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 24),
-                    Text(
-                      text.freeAddIntro,
-                      style: TextStyle(color: palette.textMuted, height: 1.5),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Expanded(
-                          child: TextField(
-                            // Not a credential: no password manager offering one here.
-                            autofillHints: null,
-                            controller: _field,
-                            keyboardType: TextInputType.url,
-                            autocorrect: false,
-                            enableSuggestions: false,
-                            textInputAction: TextInputAction.done,
-                            onSubmitted: (_) => _add(),
-                            decoration: InputDecoration(
-                              hintText: 'vless:// trojan:// ss:// hysteria2://',
-                              errorText: _invalid ? text.freeAddInvalid : null,
-                              // The whole sentence: cut at three lines it
-                              // lost the part about refused links.
-                              errorMaxLines: 6,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        FilledButton(
-                          // The theme's buttons are as wide as they are
-                          // allowed to be; beside a field that took the
-                          // whole row.
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size(0, 56),
-                          ),
-                          onPressed: _add,
-                          child: Text(text.freeAdd),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 32),
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Text(
-                            text.freeSubscriptions,
-                            style: TextStyle(
-                              color: palette.textMax,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        if (subscriptions.isNotEmpty)
-                          TextButton(
-                            onPressed: _refreshing
-                                ? null
-                                : () => _refreshSubscriptions(force: true),
-                            child: Text(text.freeSubscriptionsRefresh),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      text.freeSubscriptionsIntro,
-                      style: TextStyle(color: palette.textMuted, height: 1.5),
-                    ),
-                    for (final Subscription subscription in subscriptions)
-                      Container(
-                        decoration: BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(color: palette.hairline),
-                          ),
-                        ),
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(
-                            subscription.name,
-                            style: TextStyle(color: palette.textPrimary),
-                          ),
-                          subtitle: Text(
-                            _subscriptionStatus(text, subscription),
-                            style: TextStyle(
-                              color: subscription.failure == null
-                                  ? palette.textMuted
-                                  : palette.amberText,
-                            ),
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              IconButton(
-                                tooltip: text.subscriptionRename,
-                                icon: const Icon(Icons.edit_outlined),
-                                onPressed: () =>
-                                    _renameSubscription(subscription),
-                              ),
-                              IconButton(
-                                tooltip: text.freeRemove,
-                                icon: const Icon(Icons.close),
-                                onPressed: () =>
-                                    _removeSubscription(subscription),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 12),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Expanded(
-                          child: TextField(
-                            // Not a credential: no password manager offering one here.
-                            autofillHints: null,
-                            controller: _subscriptionField,
-                            keyboardType: TextInputType.url,
-                            autocorrect: false,
-                            enableSuggestions: false,
-                            textInputAction: TextInputAction.done,
-                            onSubmitted: (_) => _addSubscription(),
-                            decoration: InputDecoration(
-                              hintText: 'https://',
-                              errorText: _subscriptionInvalid
-                                  ? text.freeSubscriptionInvalid
-                                  : null,
-                              errorMaxLines: 3,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        FilledButton(
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size(0, 56),
-                          ),
-                          onPressed: _refreshing ? null : _addSubscription,
-                          child: _refreshing
-                              ? const SizedBox.square(
-                                  dimension: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Text(text.freeAdd),
-                        ),
-                      ],
-                    ),
-                    if (!widget.ownLinks) ...<Widget>[
-                      const SizedBox(height: 28),
-                      PanelRowGroup(
-                        rows: <PanelRow>[
-                          PanelRow(
-                            label: text.rowSettings,
-                            value: text.open,
-                            onTap: () => context.push(RoutePaths.homeSettings),
-                          ),
-                        ],
-                      ),
-                    ],
-                    const SizedBox(height: 16),
-                  ],
-                ),
+              NebulaRow(
+                icon: Icons.cloud_outlined,
+                title: text.warpTitle,
+                subtitle: text.warpRowMeta,
+                trailing: NebulaRowTrailing.chevron(context),
+                onTap: () => context.push(RoutePaths.homeWarp),
               ),
-              if (!widget.ownLinks)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: PanelCta(
-                    label: text.freeLeave,
-                    style: CtaStyle.secondary,
-                    onPressed: _leave,
+            ],
+          ),
+        ],
+        NebulaSectionLabel(text.ownLinksTitle),
+        if (!widget.ownLinks && profiles.isEmpty && subscriptions.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              text.freeNoRelays,
+              style: intro().copyWith(color: palette.amberText),
+            ),
+          ),
+        if (profiles.isNotEmpty) ...<Widget>[
+          NebulaRowGroup(
+            children: <Widget>[
+              for (final FreeProfile profile in profiles)
+                NebulaRow(
+                  title: profile.name,
+                  subtitle: text.freeRelayYours,
+                  trailing: _IconAction(
+                    icon: Icons.close,
+                    tooltip: text.freeRemove,
+                    onPressed: () => _remove(profile),
                   ),
                 ),
             ],
           ),
+          const SizedBox(height: 16),
+        ],
+        Text(text.freeAddIntro, style: intro()),
+        const SizedBox(height: 12),
+        NebulaField(
+          label: text.freeLinkLabel,
+          controller: _field,
+          hint: 'vless:// trojan:// ss:// hysteria2://',
+          keyboardType: TextInputType.url,
+          autocorrect: false,
+          mono: true,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => _add(),
+          errorText: _invalid ? text.freeAddInvalid : null,
+          addLabel: text.freeAdd,
+          onAdd: _add,
         ),
-      ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: <Widget>[
+            Expanded(child: NebulaSectionLabel(text.freeSubscriptions)),
+            if (subscriptions.isNotEmpty)
+              NebulaButton.text(
+                label: text.freeSubscriptionsRefresh,
+                busy: _refreshing,
+                onPressed: () => _refreshSubscriptions(force: true),
+              ),
+          ],
+        ),
+        Text(text.freeSubscriptionsIntro, style: intro()),
+        const SizedBox(height: 12),
+        if (subscriptions.isNotEmpty) ...<Widget>[
+          NebulaRowGroup(
+            children: <Widget>[
+              for (final Subscription subscription in subscriptions)
+                NebulaRow(
+                  title: subscription.name,
+                  subtitle: _subscriptionStatus(text, subscription),
+                  subtitleColor: subscription.failure == null
+                      ? null
+                      : palette.amberText,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      _IconAction(
+                        icon: Icons.edit_outlined,
+                        tooltip: text.subscriptionRename,
+                        onPressed: () => _renameSubscription(subscription),
+                      ),
+                      _IconAction(
+                        icon: Icons.close,
+                        tooltip: text.freeRemove,
+                        onPressed: () => _removeSubscription(subscription),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+        ],
+        NebulaField(
+          label: text.freeSubscriptionAddress,
+          controller: _subscriptionField,
+          hint: 'https://',
+          keyboardType: TextInputType.url,
+          autocorrect: false,
+          mono: true,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => _addSubscription(),
+          errorText: _subscriptionInvalid ? text.freeSubscriptionInvalid : null,
+          addLabel: text.freeAdd,
+          onAdd: _refreshing ? null : _addSubscription,
+        ),
+        if (!widget.ownLinks) ...<Widget>[
+          const SizedBox(height: 24),
+          NebulaRowGroup(
+            children: <Widget>[
+              NebulaRow(
+                icon: Icons.tune,
+                title: text.rowSettings,
+                trailing: NebulaRowTrailing.chevron(context),
+                onTap: () => context.push(RoutePaths.homeSettings),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 8),
+      ],
     );
   }
+}
+
+/// A 44 px icon button in a row, named for screen readers.
+class _IconAction extends StatelessWidget {
+  const _IconAction({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+    tooltip: tooltip,
+    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+    icon: Icon(icon, size: 20, color: context.palette.textMuted),
+    onPressed: onPressed,
+  );
 }

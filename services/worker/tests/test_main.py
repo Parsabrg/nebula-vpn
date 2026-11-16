@@ -132,7 +132,7 @@ def test_busy_worker_records_progress_before_the_whole_batch_finishes(
     heartbeat = MagicMock()
 
     class ProgressCheckingAdapter(FakeAdapter):
-        async def send(self, *, to: str, subject: str, body: str) -> str:
+        async def send(self, *, to: str, subject: str, body: str, html: str | None = None) -> str:
             # Earlier deliveries have refreshed the heartbeat before the
             # next provider call starts, including failed delivery attempts.
             assert heartbeat.touch.call_count == len(self.calls)

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/routing/route_paths.dart';
 import '../../core/theme/type_scale.dart';
+import '../../core/widgets/nebula/nebula_data.dart';
 import '../../core/widgets/panel/auth_scaffold.dart';
 import '../../core/widgets/panel/panel_cta.dart';
 import '../../core/widgets/password_field.dart';
@@ -65,16 +66,19 @@ class _ActivationScreenState extends ConsumerState<ActivationScreen> {
         subline: text.codeFromEmail,
         errorMessage: state is SubmissionFailure ? state.message : null,
         fields: <Widget>[
-          TextFormField(
-            controller: _tokenController,
-            // Mono with a little tracking: this is a long opaque string
-            // someone is checking character by character against an email.
-            style: context.type.rowValue.copyWith(letterSpacing: 1),
-            decoration: InputDecoration(hintText: text.fieldActivationCode),
-            validator: (String? value) =>
-                (value == null || value.trim().length < 10)
-                ? text.validateActivationCode
-                : null,
+          NebulaLabeledField(
+            label: text.fieldActivationCode,
+            child: TextFormField(
+              controller: _tokenController,
+              // Mono with a little tracking: this is a long opaque string
+              // someone is checking character by character against an email.
+              style: context.type.rowValue.copyWith(letterSpacing: 1),
+              decoration: const InputDecoration(),
+              validator: (String? value) =>
+                  (value == null || value.trim().length < 10)
+                  ? text.validateActivationCode
+                  : null,
+            ),
           ),
           PasswordField(
             controller: _passwordController,

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nebula_mobile/core/format/bytes.dart';
 import 'package:nebula_mobile/core/servers/server_repository.dart';
 import 'package:nebula_mobile/core/theme/color_tokens.dart';
 import 'package:nebula_mobile/core/tunnel/tunnel_traffic.dart';
 import 'package:nebula_mobile/features/connect/connect_screen.dart';
 import 'package:nebula_mobile/features/connect/connect_view.dart';
+import 'package:nebula_mobile/features/connect/connection_details_screen.dart';
 import 'package:nebula_mobile/features/devices/devices_state.dart';
 
 import '../../support/localised_app.dart';
@@ -30,7 +32,11 @@ Future<void> _pump(
           body: ListView(
             children: <Widget>[
               ConnectStateBlock(view: view, state: state, traffic: traffic),
-              ConnectMessages(state: state),
+              ConnectMessages(state: state, view: view),
+              if (view != ConnectView.loading &&
+                  view != ConnectView.unreachable &&
+                  view != ConnectView.noServers)
+                ConnectServerRow(view: view, state: state),
             ],
           ),
         ),
@@ -140,9 +146,10 @@ void main() {
   ) async {
     await _pump(tester, ConnectView.off, _state());
     expect(find.text('Off'), findsOneWidget);
-    expect(find.text('DISCONNECTED'), findsOneWidget);
-    expect(find.text('Server'), findsOneWidget);
-    expect(find.text('Protocol'), findsOneWidget);
+    expect(find.text('Disconnected'), findsOneWidget);
+    // One row: the server, its protocol, and "Change" to pick either.
+    expect(find.text('Frankfurt'), findsOneWidget);
+    expect(find.text('Change'), findsOneWidget);
   });
 
   testWidgets('protected uses textMax, the brightest token', (
@@ -171,7 +178,9 @@ void main() {
       WidgetTester tester,
     ) async {
       await _pump(tester, ConnectView.notProtected, _state(connected: true));
-      expect(find.text('Protocol'), findsOneWidget);
+      // The protocol under the server, and "Change" opens both.
+      expect(find.text('Choose'), findsOneWidget);
+      expect(find.text('Change'), findsOneWidget);
     });
 
     testWidgets('offers the server, as "try another server" says', (
@@ -203,14 +212,14 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('NO TUNNEL'), findsOneWidget);
-      expect(find.textContaining('PEER'), findsNothing);
+      expect(find.text('No tunnel'), findsOneWidget);
+      expect(find.textContaining('Peer'), findsNothing);
       expect(find.text('Registered on'), findsNothing);
     });
 
     testWidgets('the status line names the cause', (WidgetTester tester) async {
       await _pump(tester, ConnectView.notProtected, _state(connected: true));
-      expect(find.text('PEER ONLY · NO TUNNEL'), findsOneWidget);
+      expect(find.text('Peer only · no tunnel'), findsOneWidget);
     });
 
     testWidgets('the word is amber, never the success colours', (
@@ -320,7 +329,7 @@ void _trafficTests() {
     expect(find.text('340 MB'), findsOneWidget);
     expect(find.text('Uploaded'), findsOneWidget);
     expect(find.text('12 MB'), findsOneWidget);
-    expect(find.text('7:04'), findsOneWidget);
+    expect(find.text('Session · 7:04'), findsOneWidget);
   });
 
   testWidgets('no reading yet is an em dash, not a zero', (
@@ -366,8 +375,9 @@ void _trafficTests() {
       traffic: const TunnelTraffic(rxBytes: 5 * mib, txBytes: mib),
     );
 
-    expect(find.text('Session'), findsOneWidget);
-    expect(find.text('0:00'), findsNothing);
+    expect(find.textContaining('Session'), findsNothing);
+    expect(find.textContaining('0:00'), findsNothing);
+    expect(find.text('Connected'), findsOneWidget);
   });
 
   testWidgets('traffic is not offered on a screen with no tunnel', (
@@ -402,6 +412,72 @@ void _trafficTests() {
 
     expect(find.text('Protected'), findsNothing);
     expect(find.text('On'), findsOneWidget);
-    expect(find.textContaining('SANCTIONED SERVICES ONLY'), findsOneWidget);
+    expect(find.textContaining('sanctioned services only'), findsOneWidget);
+  });
+
+  testWidgets('says whether the connection goes through WARP', (
+    WidgetTester tester,
+  ) async {
+    // With "Reach servers through WARP" on, the protocol line says whether
+    // this connection really does: Hysteria2 and WireGuard cannot.
+    for (final (bool? through, String? expected) in <(bool?, String?)>[
+      (true, 'through WARP'),
+      (false, 'not through WARP'),
+      (null, null),
+    ]) {
+      await _pump(
+        tester,
+        ConnectView.protected,
+        DevicesState(
+          loadStatus: DevicesLoadStatus.loaded,
+          servers: const <AvailableServer>[_frankfurt],
+          selectedServerCode: 'de-fra-1',
+          xrayClient: _client,
+          tunnelEstablished: true,
+          throughWarp: through,
+        ),
+      );
+      if (expected == null) {
+        expect(find.textContaining('WARP'), findsNothing);
+      } else {
+        expect(find.textContaining('· $expected'), findsOneWidget);
+      }
+    }
+  });
+
+  testWidgets('details: an unknown session is a dash, a known one a clock', (
+    WidgetTester tester,
+  ) async {
+    Future<void> details(TunnelTraffic traffic) => tester.pumpWidget(
+      ProviderScope(
+        child: localisedApp(
+          Scaffold(
+            body: ListView(
+              children: <Widget>[
+                ConnectionDetailsBody(
+                  state: _state(connected: true, tunnel: true),
+                  traffic: traffic,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await details(const TunnelTraffic(rxBytes: 5 * mib, txBytes: mib));
+    expect(find.text('Session'), findsOneWidget);
+    expect(find.text('0:00'), findsNothing);
+    expect(find.text(formatBytes(5 * mib)), findsOneWidget);
+    expect(find.text('fra.example.org'), findsOneWidget);
+
+    await details(
+      const TunnelTraffic(
+        rxBytes: 0,
+        txBytes: 0,
+        elapsed: Duration(minutes: 7, seconds: 4),
+      ),
+    );
+    expect(find.text('7:04'), findsOneWidget);
+    expect(find.text('0 B'), findsNWidgets(2));
   });
 }

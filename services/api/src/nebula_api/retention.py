@@ -33,13 +33,16 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import Select, delete, exists, func, select
+from sqlalchemy import Select, delete, exists, func, select, text
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import ProgrammingError
 
+from nebula_api.audit.chain import ChainStart, advance
+from nebula_api.audit.service import audit_entry
 from nebula_api.db.engine import SessionFactory
 from nebula_api.models.operations import (
     AgentOperation,
+    AuditChainCheckpoint,
     AuditLog,
     EmailDelivery,
     ReconciliationRecord,
@@ -156,6 +159,10 @@ async def prune_history(
 
     for table, doomed in passes:
         try:
+            if table == AuditLog.__tablename__:
+                # Without it the export could no longer prove an older one
+                # (AUD-009); a failure here keeps the rows.
+                await _checkpoint_audit_chain(session_factory, audit_cutoff)
             deleted[table] = await _delete_in_batches(session_factory, table, doomed)
         except ProgrammingError as error:
             # The application credential cannot delete audit rows, by design.
@@ -170,6 +177,37 @@ async def prune_history(
         ", ".join(f"{table}={count}" for table, count in deleted.items()) or "nothing",
     )
     return summary
+
+
+async def _checkpoint_audit_chain(session_factory: SessionFactory, cutoff: datetime) -> None:
+    """Fold every audit event recorded before [cutoff] into a checkpoint, from
+    the previous one on, so the export chains on from it once they are gone."""
+
+    async with session_factory() as session:
+        await session.execute(text("SET LOCAL statement_timeout = '600s'"))
+        latest = await session.scalar(
+            select(AuditChainCheckpoint).order_by(AuditChainCheckpoint.until.desc()).limit(1)
+        )
+        start = ChainStart()
+        conditions = [AuditLog.recorded_at < cutoff]
+        if latest is not None:
+            if latest.until >= cutoff:
+                return
+            start = ChainStart(latest.head, latest.event_count)
+            conditions.append(AuditLog.recorded_at >= latest.until)
+        rows = await session.stream_scalars(
+            select(AuditLog)
+            .where(*conditions)
+            .order_by(AuditLog.recorded_at, AuditLog.id)
+            .execution_options(yield_per=1000)
+        )
+        end = start
+        async for row in rows:
+            end = advance(end, (audit_entry(row),))
+        if end.count == start.count:
+            return
+        session.add(AuditChainCheckpoint(until=cutoff, event_count=end.count, head=end.head))
+        await session.commit()
 
 
 async def _delete_in_batches(

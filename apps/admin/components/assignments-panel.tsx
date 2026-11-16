@@ -49,10 +49,7 @@ export function AssignmentsPanel({
       {assignments.length === 0 ? (
         <p role="status">This user has no server assignments.</p>
       ) : (
-        <table
-          className="data-table data-table--stack"
-          aria-label="Assignments"
-        >
+        <table className="data-table" aria-label="Assignments">
           <thead>
             <tr>
               <th scope="col">Server</th>

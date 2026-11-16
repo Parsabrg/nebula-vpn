@@ -215,6 +215,8 @@ def test_relay_hands_out_the_exits_credential_at_its_own_address() -> None:
     assert response.status_code == 200
     got = response.json()
     assert (got["server_address"], got["port"], got["port_hop"]) == ("198.51.100.7", 443, None)
+    # The app keeps a relay in Iran out of WARP.
+    assert got["relayed"] is True
     # TLS still names the exit, whose certificate the app checks.
     assert got["sni"] == "vps1.example.com"
     # One credential: asked for and revoked on the exit itself.

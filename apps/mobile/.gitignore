@@ -65,3 +65,7 @@ app.*.map.json
 # two cannot drift apart. Every CI job runs `flutter pub get` first, which is
 # what produces these.
 lib/l10n/app_localizations*.dart
+
+# Local test builds (tool/build_windows_portable.ps1 output); 355 MB of them
+# were committed once by mistake.
+/dist*/

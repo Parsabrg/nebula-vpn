@@ -133,6 +133,16 @@ class MainActivity : FlutterActivity() {
                     "hardwareId" -> result.success(
                         Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID),
                     )
+                    // The name a new device is given in Devices: maker and
+                    // model, e.g. "Xiaomi 2201117TG", the maker left out when
+                    // the model already starts with it ("Pixel 8" stays).
+                    "deviceModel" -> {
+                        val maker = Build.MANUFACTURER.replaceFirstChar { it.uppercase() }
+                        val model = Build.MODEL.trim()
+                        result.success(
+                            if (model.startsWith(maker, ignoreCase = true)) model else "$maker $model",
+                        )
+                    }
                     "appIcon" -> appIcon(call.argument("packageName"), result)
                     else -> result.notImplemented()
                 }

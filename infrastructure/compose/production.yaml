@@ -70,20 +70,24 @@ services:
 
   redis:
     image: redis:8.10.2-alpine3.23
+    # The password reaches redis-server through a config file, not its
+    # command line, which any process on the host can read with ps (audit
+    # AUD-020); redis-cli takes it from REDISCLI_AUTH.
+    environment:
+      REDISCLI_AUTH: ${NEBULA_REDIS_PASSWORD:?NEBULA_REDIS_PASSWORD must be set}
     command:
-      [
-        "redis-server",
-        "--appendonly",
-        "yes",
-        "--appendfsync",
-        "everysec",
-        "--requirepass",
-        "${NEBULA_REDIS_PASSWORD:?NEBULA_REDIS_PASSWORD must be set}",
-      ]
+      - sh
+      - -c
+      - |
+        umask 077
+        printf 'requirepass %s\n' "$$REDISCLI_AUTH" > /tmp/redis.conf
+        chown redis /tmp/redis.conf
+        # Through the image's entrypoint, which drops root for redis-server.
+        exec docker-entrypoint.sh redis-server /tmp/redis.conf --appendonly yes --appendfsync everysec
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${NEBULA_REDIS_PASSWORD:?}", "--no-auth-warning", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -322,8 +326,12 @@ services:
       NEBULA_SMTP_IMPLICIT_TLS: ${NEBULA_SMTP_IMPLICIT_TLS:-false}
       NEBULA_SMTP_PASSWORD_FILE: /etc/nebula/secrets/smtp_password
       NEBULA_RESEND_API_KEY_FILE: /etc/nebula/secrets/resend_api_key
+    # Only the two files it reads, not the JWT key, peppers and the rest
+    # (AUD-020). install.sh creates both, empty if unused, so neither mount
+    # source is ever missing.
     volumes:
-      - /etc/nebula/secrets:/etc/nebula/secrets:ro
+      - /etc/nebula/secrets/smtp_password:/etc/nebula/secrets/smtp_password:ro
+      - /etc/nebula/secrets/resend_api_key:/etc/nebula/secrets/resend_api_key:ro
     # See the identical note on the api service above.
     group_add:
       - "9443"

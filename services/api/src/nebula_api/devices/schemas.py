@@ -61,6 +61,9 @@ class XrayClientResponse(AuthModel):
     service_name: str | None = None
     obfs_password: str | None = None
     port_hop: str | None = None
+    # Through a relay (a server in Iran forwarding to the exit): the app
+    # does not reach it through WARP, which Iran blocks coming in from abroad.
+    relayed: bool = False
     reality_public_key: str | None = None
     reality_short_id: str | None = None
     flow: str | None = None

@@ -6,11 +6,16 @@ last line names the head hash and the count. Changing, removing, reordering
 or inserting an event anywhere breaks every hash after it, so an export kept
 off the server proves what the log held: a later export must contain it
 unchanged (`verify_extends`).
+
+Retention deletes the oldest events. Before it does, it stores where the
+chain stood after them (a checkpoint: head hash and count); an export then
+opens with that checkpoint and chains on from it, so an export kept from
+before the prune still verifies against one made after (audit AUD-009).
 """
 
 import hashlib
 import json
-from collections.abc import Iterable, Iterator
+from collections.abc import AsyncIterable, AsyncIterator, Iterable, Iterator
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -25,11 +30,24 @@ class AuditChainError(ValueError):
 
 
 @dataclass(frozen=True, slots=True)
+class ChainStart:
+    """Where the chain stands before the first exported event."""
+
+    head: str = GENESIS
+    count: int = 0
+
+
+_FROM_GENESIS = ChainStart()
+
+
+@dataclass(frozen=True, slots=True)
 class ChainSummary:
     count: int
     head: str
     until: str
     hashes: tuple[str, ...]
+    # Events folded into a checkpoint before the first exported one.
+    start: ChainStart = ChainStart()
 
 
 def _canonical(entry: AuditLogEntry) -> dict[str, str | None]:
@@ -58,21 +76,66 @@ def _link(prev: str, event: dict[str, str | None]) -> str:
     return hashlib.sha256((prev + _dump(event)).encode()).hexdigest()
 
 
-def chain_lines(entries: Iterable[AuditLogEntry], *, until: datetime) -> Iterator[str]:
+def _event_line(prev: str, entry: AuditLogEntry) -> tuple[str, str]:
+    event = _canonical(entry)
+    digest = _link(prev, event)
+    return digest, _dump({**event, "prev": prev, "hash": digest}) + "\n"
+
+
+def _opening(start: ChainStart) -> str:
+    return _dump({"format": FORMAT, "checkpoint": start.head, "skipped": start.count}) + "\n"
+
+
+def _closing(prev: str, count: int, until: datetime) -> str:
+    return (
+        _dump({"format": FORMAT, "count": count, "head": prev, "until": until.isoformat()}) + "\n"
+    )
+
+
+def chain_lines(
+    entries: Iterable[AuditLogEntry], *, until: datetime, start: ChainStart = _FROM_GENESIS
+) -> Iterator[str]:
     """Newline-terminated export lines for `entries`, oldest first."""
 
-    prev, count = GENESIS, 0
+    if start.count:
+        yield _opening(start)
+    prev, count = start.head, 0
     for entry in entries:
-        event = _canonical(entry)
-        digest = _link(prev, event)
-        yield _dump({**event, "prev": prev, "hash": digest}) + "\n"
-        prev, count = digest, count + 1
-    yield _dump({"format": FORMAT, "count": count, "head": prev, "until": until.isoformat()}) + "\n"
+        prev, line = _event_line(prev, entry)
+        count += 1
+        yield line
+    yield _closing(prev, count, until)
+
+
+async def chain_lines_async(
+    entries: AsyncIterable[AuditLogEntry], *, until: datetime, start: ChainStart = _FROM_GENESIS
+) -> AsyncIterator[str]:
+    """chain_lines over a streamed query."""
+
+    if start.count:
+        yield _opening(start)
+    prev, count = start.head, 0
+    async for entry in entries:
+        prev, line = _event_line(prev, entry)
+        count += 1
+        yield line
+    yield _closing(prev, count, until)
+
+
+def advance(start: ChainStart, entries: Iterable[AuditLogEntry]) -> ChainStart:
+    """The checkpoint after `entries` (oldest first) are folded into `start`."""
+
+    head, count = start.head, start.count
+    for entry in entries:
+        head = _link(head, _canonical(entry))
+        count += 1
+    return ChainStart(head, count)
 
 
 def verify(lines: Iterable[str]) -> ChainSummary:
     """Recompute every link; raise AuditChainError on the first break."""
 
+    start = ChainStart()
     prev, hashes = GENESIS, []
     trailer: dict[str, object] | None = None
     for number, line in enumerate((line for line in lines if line.strip()), start=1):
@@ -84,6 +147,18 @@ def verify(lines: Iterable[str]) -> ChainSummary:
             raise AuditChainError(f"line {number}: not JSON") from error
         if not isinstance(record, dict):
             raise AuditChainError(f"line {number}: not an object")
+        if "checkpoint" in record:
+            head, skipped = record.get("checkpoint"), record.get("skipped")
+            if (
+                number != 1
+                or record.get("format") != FORMAT
+                or not isinstance(head, str)
+                or not isinstance(skipped, int)
+                or skipped < 1
+            ):
+                raise AuditChainError(f"line {number}: a misplaced or malformed checkpoint")
+            start, prev = ChainStart(head, skipped), head
+            continue
         if "format" in record:
             trailer = record
             continue
@@ -98,15 +173,31 @@ def verify(lines: Iterable[str]) -> ChainSummary:
         raise AuditChainError("no closing line: the export is cut short")
     if trailer.get("count") != len(hashes) or trailer.get("head") != prev:
         raise AuditChainError("the closing line does not match the events")
-    return ChainSummary(len(hashes), prev, str(trailer.get("until")), tuple(hashes))
+    return ChainSummary(len(hashes), prev, str(trailer.get("until")), tuple(hashes), start)
 
 
 def verify_extends(older: Iterable[str], newer: Iterable[str]) -> ChainSummary:
-    """Both exports intact, and the newer one holds the older one unchanged."""
+    """Both exports intact, and the newer one holds the older one unchanged.
+
+    Events are numbered from the start of the log, checkpoints included, so
+    one comparison at the older export's last event settles it: equal hashes
+    there mean every event up to it is the same, pruned or not.
+    """
 
     old, new = verify(older), verify(newer)
-    if old.count and (new.count < old.count or new.hashes[old.count - 1] != old.head):
+    if not old.count:
+        return new
+    last = old.start.count + old.count - 1
+    first = new.start.count
+    if first - 1 <= last < first + new.count:
+        held = new.start.head if last == first - 1 else new.hashes[last - first]
+        if held == old.head:
+            return new
+    elif last < first - 1:
         raise AuditChainError(
-            f"the newer export does not contain the older one's {old.count} events unchanged"
+            "the newer export's checkpoint is past every event of the older one; "
+            "compare it with an export made after the older one"
         )
-    return new
+    raise AuditChainError(
+        f"the newer export does not contain the older one's {old.count} events unchanged"
+    )

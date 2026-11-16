@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/routing/route_paths.dart';
-import '../../core/theme/color_tokens.dart';
+import '../../core/widgets/nebula/nebula_controls.dart';
+import '../../core/widgets/nebula/nebula_data.dart';
 import '../../core/widgets/panel/auth_scaffold.dart';
 import '../../core/widgets/panel/panel_cta.dart';
 import '../../core/widgets/submission_state.dart';
@@ -88,20 +89,26 @@ class _RequestForm extends StatelessWidget {
         subline: text.requestAccessSubline,
         errorMessage: errorMessage,
         fields: <Widget>[
-          TextFormField(
-            controller: emailController,
-            keyboardType: TextInputType.emailAddress,
-            // No autofill: with an email hint Google Password Manager offered
-            // the saved sign-in password over a form that has none.
-            autofillHints: null,
-            decoration: InputDecoration(hintText: text.fieldEmail),
-            validator: (String? value) =>
-                looksLikeEmail(value) ? null : text.validateEmail,
+          NebulaLabeledField(
+            label: text.fieldEmail,
+            child: TextFormField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              // No autofill: with an email hint Google Password Manager offered
+              // the saved sign-in password over a form that has none.
+              autofillHints: null,
+              decoration: const InputDecoration(),
+              validator: (String? value) =>
+                  looksLikeEmail(value) ? null : text.validateEmail,
+            ),
           ),
-          TextFormField(
-            controller: usernameController,
-            autofillHints: null,
-            decoration: InputDecoration(hintText: text.fieldUsernameOptional),
+          NebulaLabeledField(
+            label: text.fieldUsernameOptional,
+            child: TextFormField(
+              controller: usernameController,
+              autofillHints: null,
+              decoration: const InputDecoration(),
+            ),
           ),
         ],
         action: PanelCta(
@@ -124,12 +131,10 @@ class _RequestSubmitted extends StatelessWidget {
     final AppText text = AppText.of(context);
     return AuthScaffold(
       title: text.requestAccessTitle,
-      subline: text.requestSubmitted,
       fields: <Widget>[
-        Icon(
-          Icons.mark_email_read_outlined,
-          size: 32,
-          color: context.palette.blueText,
+        NebulaNotice(
+          text: text.requestSubmitted,
+          kind: NebulaNoticeKind.success,
         ),
       ],
       action: PanelCta(

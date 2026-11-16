@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/home/desktop_frame.dart';
 import '../theme/motion_tokens.dart';
 import '../theme/reduced_motion.dart';
 
@@ -15,7 +16,10 @@ CustomTransitionPage<void> buildNebulaPage(
   final Duration duration = effectiveDuration(context, NebulaMotion.standard);
   return CustomTransitionPage<void>(
     key: state.pageKey,
-    child: child,
+    // A screen pushed inside the app keeps the desktop sidebar beside it.
+    child: state.uri.path.startsWith('/home')
+        ? DesktopFrame(location: state.uri.path, child: child)
+        : child,
     transitionDuration: duration,
     reverseTransitionDuration: duration,
     transitionsBuilder:

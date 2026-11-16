@@ -16,6 +16,7 @@ from nebula_api.accounts.email_outbox import (
     stage_email_payload,
 )
 from nebula_api.auth.audit import add_audit_event
+from nebula_api.auth.denial_audit import first_denial
 from nebula_api.auth.key_material import AuthKeyMaterial
 from nebula_api.auth.opaque_tokens import OpaqueTokenError, digest_opaque_token, issue_opaque_token
 from nebula_api.auth.redis_state import RateBucket, RedisAuthState
@@ -34,6 +35,9 @@ _ACTIVATION_NAMESPACE = "activation"
 _INVALID_EMAIL_SENTINEL = "invalid"
 _NOTIFICATION_PAYLOAD_TTL_SECONDS = 7 * 24 * 3_600
 _LOGGER = logging.getLogger(__name__)
+
+
+_REVIEW_EMAIL_WINDOW = timedelta(minutes=10)
 
 
 class AccountRequestRejected(Exception):
@@ -86,6 +90,7 @@ class AccountRequestService:
         self._outbox_client = outbox_client
         self._keys = key_material
         self._settings = settings
+        self._denials_audited: dict[str, float] = {}
         self._clock = clock
 
     async def submit_request(
@@ -154,9 +159,27 @@ class AccountRequestService:
                 request_id=request_id,
                 reason_code="submitted",
             )
+            # One round of review emails per window, however many requests
+            # arrive: unlimited networks times requests times admins could
+            # flood the admins' inboxes and the provider's quota (AUD-017).
+            # The panel lists every pending request either way.
+            recently_told = await session.scalar(
+                select(EmailDelivery.id)
+                .where(
+                    EmailDelivery.template_code == "account_request_review",
+                    EmailDelivery.available_at > now - _REVIEW_EMAIL_WINDOW,
+                )
+                .limit(1)
+            )
             reviewers = (
-                await session.scalars(select(AdminUser).where(AdminUser.state == AdminState.ACTIVE))
-            ).all()
+                []
+                if recently_told is not None
+                else (
+                    await session.scalars(
+                        select(AdminUser).where(AdminUser.state == AdminState.ACTIVE)
+                    )
+                ).all()
+            )
             notification_ids: list[UUID] = []
             for admin in reviewers:
                 delivery_id = uuid4()
@@ -714,18 +737,19 @@ class AccountRequestService:
             window_seconds=self._settings.auth_rate_window_seconds,
         ):
             return
-        add_audit_event(
-            session,
-            actor_kind="anonymous",
-            actor_id=None,
-            target_kind="auth_attempt",
-            target_id=request_id,
-            event_code="auth_rate_limited",
-            outcome="denied",
-            request_id=request_id,
-            reason_code="rate_limited",
-        )
-        await session.commit()
+        if first_denial(self._denials_audited, buckets, self._settings.auth_rate_window_seconds):
+            add_audit_event(
+                session,
+                actor_kind="anonymous",
+                actor_id=None,
+                target_kind="auth_attempt",
+                target_id=request_id,
+                event_code="auth_rate_limited",
+                outcome="denied",
+                request_id=request_id,
+                reason_code="rate_limited",
+            )
+            await session.commit()
         raise AccountRequestRateLimited(self._settings.auth_rate_window_seconds)
 
     async def _require_rate_limit_without_session(

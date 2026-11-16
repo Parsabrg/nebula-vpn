@@ -6,15 +6,18 @@ import { useState } from "react";
 export function CopyButton({
   text,
   label = "Copy",
+  primary = false,
 }: {
   text: string;
   label?: string;
+  /** The page's main action ("Copy link" on Pair a device). */
+  primary?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
       type="button"
-      className="button"
+      className={primary ? "button button--primary" : "button"}
       onClick={() => {
         void navigator.clipboard.writeText(text).then(() => {
           setCopied(true);
@@ -22,6 +25,9 @@ export function CopyButton({
         });
       }}
     >
+      <span className="icon" aria-hidden="true">
+        content_copy
+      </span>
       {copied ? "Copied" : label}
     </button>
   );
