@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart';
+
 import '../../core/servers/server_repository.dart';
 import '../../core/tunnel/tunnel_traffic.dart';
 import '../../core/xray/local_proxy.dart';
+import '../../core/xray/xray_config.dart';
 
 enum DevicesLoadStatus { loading, failed, loaded }
 
@@ -46,6 +49,23 @@ class ProtocolDelay {
 /// hierarchy) because most fields are meaningful across every load status
 /// once a first load has completed -- e.g. an in-flight connect action's
 /// error should stay visible even if a background reload starts.
+/// The settings that change how a connection behaves: on/off ones, and
+/// how many websites and apps leave outside it.
+@immutable
+class ConnectionTraits {
+  const ConnectionTraits({
+    this.on = const <ConnectionTrait>{},
+    this.bypassSites = 0,
+    this.bypassApps = 0,
+  });
+
+  static const ConnectionTraits none = ConnectionTraits();
+
+  final Set<ConnectionTrait> on;
+  final int bypassSites;
+  final int bypassApps;
+}
+
 /// Why a connected tunnel is not answering right now.
 enum TunnelStall {
   /// A network is there and the tunnel is not answering through it: it
@@ -75,6 +95,7 @@ class DevicesState {
     this.sanctionsOnly = false,
     this.throughWarp,
     this.stall,
+    this.traits = ConnectionTraits.none,
     this.fromSavedCredential = false,
     this.protocolDelays = const <String, ProtocolDelay>{},
     this.protocolDelaysServer,
@@ -126,6 +147,11 @@ class DevicesState {
   /// is there, the minute before it counts as dead is running) or waiting
   /// for a network to come back. Null while it answers.
   final TunnelStall? stall;
+
+  /// The settings that change how this connection behaves, recorded when
+  /// it came up (like [sanctionsOnly]): a setting flipped meanwhile
+  /// changes the next connection, not this one.
+  final ConnectionTraits traits;
 
   /// This connection was raised from a credential already on the phone,
   /// because the server could not be reached to issue a fresh one. Recorded
@@ -245,6 +271,7 @@ class DevicesState {
     bool? sanctionsOnly,
     bool? Function()? throughWarp,
     TunnelStall? Function()? stall,
+    ConnectionTraits? traits,
     bool? fromSavedCredential,
     Map<String, ProtocolDelay>? protocolDelays,
     String? Function()? protocolDelaysServer,
@@ -290,6 +317,7 @@ class DevicesState {
       sanctionsOnly: sanctionsOnly ?? this.sanctionsOnly,
       throughWarp: throughWarp != null ? throughWarp() : this.throughWarp,
       stall: stall != null ? stall() : this.stall,
+      traits: traits ?? this.traits,
       fromSavedCredential: fromSavedCredential ?? this.fromSavedCredential,
       protocolDelays: protocolDelays ?? this.protocolDelays,
       protocolDelaysServer: protocolDelaysServer != null

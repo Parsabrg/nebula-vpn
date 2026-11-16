@@ -581,8 +581,6 @@
   "@dnsTunnelResolversField": {"description": "Label above the box where DNS tunnel resolver addresses are pasted."},
   "viaWarp": "über WARP",
   "@viaWarp": {"description": "After the protocol on Connect: this connection reaches the server through Cloudflare WARP."},
-  "notViaWarp": "nicht über WARP",
-  "@notViaWarp": {"description": "After the protocol on Connect: Reach servers through WARP is on, but this protocol (Hysteria2, WireGuard) connects on its own."},
   "wordReconnecting": "Verbindet erneut",
   "@wordReconnecting": {"description": "Connect's big word while a connected tunnel is not answering and a network is there; it is given a minute before it counts as dead."},
   "statusRecovering": "Keine Antwort · versucht es bis zu einer Minute",
@@ -590,5 +588,17 @@
   "wordNoNetwork": "Kein Netzwerk",
   "@wordNoNetwork": {"description": "Connect's big word while connected but the phone has no Wi-Fi or mobile data at all."},
   "statusWaitingForNetwork": "Wartet auf WLAN oder mobile Daten · weiterhin verbunden",
-  "@statusWaitingForNetwork": {"description": "Under No network on Connect: the VPN stays on and carries on once a network is back."}
+  "@statusWaitingForNetwork": {"description": "Under No network on Connect: the VPN stays on and carries on once a network is back."},
+  "traitIranDirect": "iranische Seiten direkt",
+  "@traitIranDirect": {"description": "After the protocol on Connect: Iranian sites skip the VPN on this connection."},
+  "traitSanctionsOnly": "nur sanktionierte Dienste",
+  "@traitSanctionsOnly": {"description": "After the protocol on Connect: only sanctioned services go through the server."},
+  "traitSplitHandshake": "geteilter Handshake",
+  "@traitSplitHandshake": {"description": "After the protocol on Connect: the TLS handshake is split (fragment)."},
+  "traitMux": "Multiplexing",
+  "@traitMux": {"description": "After the protocol on Connect: multiplexing is on for this connection."},
+  "traitAdBlock": "Werbeblocker",
+  "@traitAdBlock": {"description": "After the protocol on Connect: the ad-block profile."},
+  "traitSitesSkip": "{count, plural, =1{1 Website ausgenommen} other{{count} Websites ausgenommen}}",
+  "@traitSitesSkip": {"description": "After the protocol on Connect: how many listed websites skip the VPN.", "placeholders": {"count": {"type": "int"}}}
 }

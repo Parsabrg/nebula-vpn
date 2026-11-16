@@ -1028,6 +1028,63 @@ bool routingChanged(AdvancedSettings before, AdvancedSettings after) =>
     before.iranDirect != after.iranDirect ||
     !listEquals(before.bypassDomains, after.bypassDomains);
 
+/// A setting that changes how a connection behaves, shown with it.
+enum ConnectionTrait {
+  /// Reaches its server through Cloudflare WARP.
+  warp,
+
+  /// Iranian websites and addresses leave directly.
+  iranDirect,
+
+  /// Only sanctioned services go through the server.
+  sanctionsOnly,
+
+  /// The TLS hello is written in pieces.
+  fragment,
+
+  /// TCP connections share one connection to the server.
+  mux,
+
+  /// Ads are blocked (the ad-block profile).
+  adBlock,
+}
+
+/// What changes how this connection behaves: each only where it takes
+/// effect -- the same rules the config is built with -- so a setting that
+/// is on but does nothing for this protocol is not listed.
+Set<ConnectionTrait> connectionTraits(
+  XrayClientResult result,
+  AdvancedSettings settings,
+) {
+  final bool warpMode = result.transport == kWarpTransport;
+  final bool hysteria = result.transport == 'hysteria';
+  final bool throughWarp =
+      !warpMode && reachesServerThroughWarp(result, settings);
+  final bool vision = result.flow == 'xtls-rprx-vision';
+  final bool encrypted =
+      result.encryption != null && result.encryption != 'none';
+  return <ConnectionTrait>{
+    if (throughWarp) ConnectionTrait.warp,
+    if (routesIranDirect(result, settings)) ConnectionTrait.iranDirect,
+    if (routesSanctionsOnly(result, settings)) ConnectionTrait.sanctionsOnly,
+    // WARP carries the hello in place of the fragment hop.
+    if (settings.fragment.enabled && !warpMode && !hysteria && !throughWarp)
+      ConnectionTrait.fragment,
+    if (settings.muxEnabled &&
+        !warpMode &&
+        !hysteria &&
+        !vision &&
+        !encrypted &&
+        <String>{'vless', 'trojan'}.contains(result.protocol))
+      ConnectionTrait.mux,
+    if (result.adBlock) ConnectionTrait.adBlock,
+  };
+}
+
+/// Whether websites the person listed leave directly.
+bool routesBypassSites(XrayClientResult result, AdvancedSettings settings) =>
+    result.transport != 'hysteria' && settings.bypassDomains.isNotEmpty;
+
 /// Whether Iranian addresses and websites leave directly.
 bool routesIranDirect(XrayClientResult result, AdvancedSettings settings) {
   return settings.iranDirect && result.transport != 'hysteria';
