@@ -174,6 +174,9 @@ dependencies {
     // protocol, matching how the Windows client shells out to the official
     // wireguard.exe rather than reimplementing it there either.
     implementation("com.wireguard.android:tunnel:1.0.20260102")
+
+    // Plain JVM tests of the native checks (GuardedInputsTest; review Q-07).
+    testImplementation("junit:junit:4.13.2")
 }
 
 kotlin {

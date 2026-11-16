@@ -211,30 +211,13 @@ class MainActivity : FlutterActivity() {
         // This activity is exported: any app can send the action. Only the
         // notification's button carries the token from this app's private
         // files (V2rayCoreManager.disconnectToken) -- review S-01.
-        if (!disconnectTokenMatches(intent.getStringExtra("NEBULA_DISCONNECT_TOKEN"))) {
+        if (!GuardedInputs.disconnectTokenMatches(filesDir, intent.getStringExtra("NEBULA_DISCONNECT_TOKEN"))) {
             intent.action = Intent.ACTION_MAIN
             return false
         }
         disconnectRequested = true
         intent.action = Intent.ACTION_MAIN
         return true
-    }
-
-    private fun disconnectTokenMatches(given: String?): Boolean {
-        if (given.isNullOrEmpty()) {
-            return false
-        }
-        return try {
-            val file = java.io.File(filesDir, "disconnect_token")
-            val expected = file.readText(Charsets.US_ASCII).trim()
-            expected.length == 64 &&
-                java.security.MessageDigest.isEqual(
-                    expected.toByteArray(Charsets.US_ASCII),
-                    given.toByteArray(Charsets.US_ASCII),
-                )
-        } catch (error: Exception) {
-            false
-        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -263,9 +246,8 @@ class MainActivity : FlutterActivity() {
      * list, hash) to the system installer, which asks the person to confirm.
      * Only files in this app's update folder. */
     private fun installApk(path: String?, result: MethodChannel.Result) {
-        val folder = java.io.File(cacheDir, "updates").canonicalFile
-        val file = path?.let { java.io.File(it).canonicalFile }
-        if (file == null || file.parentFile != folder || !file.isFile || !file.name.endsWith(".apk")) {
+        val file = GuardedInputs.installableUpdate(cacheDir, path)
+        if (file == null) {
             result.success(false)
             return
         }

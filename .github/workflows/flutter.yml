@@ -101,3 +101,9 @@ jobs:
       - name: Build APK
         working-directory: apps/mobile
         run: flutter build apk --debug --target-platform android-arm64
+      # The native checks on what reaches the app from outside it -- the
+      # notification's Disconnect token, the update installer's path -- on a
+      # plain JVM (GuardedInputsTest; review Q-07).
+      - name: Android unit tests
+        working-directory: apps/mobile/android
+        run: ./gradlew :app:testDebugUnitTest -Ptarget-platform=android-arm64 --console=plain
