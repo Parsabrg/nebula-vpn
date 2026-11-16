@@ -8,7 +8,9 @@ import '../../core/network/api_exception.dart';
 import '../../core/network/error_copy.dart';
 import '../../core/settings/locale_controller.dart';
 import '../../core/theme/color_tokens.dart';
-import '../../core/theme/type_scale.dart';
+import '../../core/theme/look.dart';
+import '../../core/widgets/nebula/nebula_controls.dart';
+import '../../core/widgets/nebula/nebula_page.dart';
 import '../../core/widgets/panel/auth_scaffold.dart';
 import '../../core/widgets/panel/panel_cta.dart';
 import '../../core/widgets/password_field.dart';
@@ -38,37 +40,28 @@ class _Frame extends StatelessWidget {
   final Widget action;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: context.palette.bg,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: Text(title),
+  Widget build(BuildContext context) =>
+      NebulaPage(title: title, footer: action, children: fields);
+}
+
+/// The design's body text (15/22, muted) and small print (13/19).
+Widget _text(BuildContext context, String value, {bool small = false}) {
+  final NebulaPalette p = context.palette;
+  return Padding(
+    padding: EdgeInsets.only(
+      top: small ? 10 : 12,
+      left: p.look == NebulaLook.minimal ? 0 : (small ? 8 : 4),
+      right: p.look == NebulaLook.minimal ? 0 : (small ? 8 : 4),
+    ),
+    child: Text(
+      value,
+      style: TextStyle(
+        fontSize: small ? 13 : 15,
+        height: small ? 19 / 13 : 22 / 15,
+        color: p.textMuted,
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Expanded(
-                child: ListView(
-                  children: <Widget>[const SizedBox(height: 12), ...fields],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: action,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+    ),
+  );
 }
 
 class ChangePasswordScreen extends ConsumerStatefulWidget {
@@ -135,13 +128,8 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       child: _Frame(
         title: text.changePasswordTitle,
         fields: <Widget>[
-          Text(
-            text.changePasswordIntro,
-            style: context.type.listMeta.copyWith(
-              color: context.palette.textMuted,
-            ),
-          ),
-          const SizedBox(height: 20),
+          _text(context, text.changePasswordIntro),
+          const SizedBox(height: 16),
           PasswordField(
             controller: _current,
             labelText: text.fieldCurrentPassword,
@@ -149,7 +137,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
             validator: (String? value) =>
                 (value == null || value.isEmpty) ? text.validatePassword : null,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           PasswordField(
             controller: _next,
             labelText: text.fieldNewPassword,
@@ -159,19 +147,14 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                 ? text.validateNewPassword
                 : null,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           PasswordRequirementNote(
             satisfied: _next.text.length >= 12,
             text: text.passwordMinimum,
           ),
           if (_error != null) ...<Widget>[
             const SizedBox(height: 16),
-            Text(
-              _error!,
-              style: context.type.listMeta.copyWith(
-                color: context.palette.redText,
-              ),
-            ),
+            NebulaNotice(text: _error!, kind: NebulaNoticeKind.error),
           ],
         ],
         action: PanelCta(
@@ -235,22 +218,18 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
   @override
   Widget build(BuildContext context) {
     final AppText text = AppText.of(context);
-    final NebulaPalette palette = context.palette;
     return Form(
       key: _formKey,
       child: _Frame(
         title: text.deleteAccountTitle,
         fields: <Widget>[
-          Text(
-            text.deleteAccountIntro,
-            style: context.type.listMeta.copyWith(color: palette.redText),
+          const SizedBox(height: 16),
+          NebulaNotice(
+            text: text.deleteAccountIntro,
+            kind: NebulaNoticeKind.error,
           ),
-          const SizedBox(height: 12),
-          Text(
-            text.deleteAccountKept,
-            style: context.type.listMeta.copyWith(color: palette.textMuted),
-          ),
-          const SizedBox(height: 20),
+          _text(context, text.deleteAccountKept, small: true),
+          const SizedBox(height: 16),
           PasswordField(
             controller: _password,
             labelText: text.fieldPassword,
@@ -260,15 +239,11 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
           ),
           if (_error != null) ...<Widget>[
             const SizedBox(height: 16),
-            Text(
-              _error!,
-              style: context.type.listMeta.copyWith(color: palette.redText),
-            ),
+            NebulaNotice(text: _error!, kind: NebulaNoticeKind.error),
           ],
         ],
-        action: PanelCta(
+        action: NebulaButton.danger(
           label: _busy ? text.deletingAccount : text.deleteAccountAction,
-          style: CtaStyle.secondary,
           onPressed: _busy ? null : _submit,
         ),
       ),

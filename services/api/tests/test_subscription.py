@@ -233,9 +233,10 @@ def test_link_lists_share_links_with_usage(monkeypatch: pytest.MonkeyPatch) -> N
     assert answer.headers["subscription-userinfo"] == (
         "upload=0; download=300; total=1000; expire=1798761600"
     )
-    # Cached: a second fetch provisions nothing.
+    # One profile failed: not cached, so the next fetch asks again (AUD-018),
+    # and answers with what it has.
     assert client.get(f"/v1/sub/{_SECRET}").text == answer.text
-    assert asked == ["vless-reality", "broken"]
+    assert asked == ["vless-reality", "broken", "vless-reality", "broken"]
 
 
 def test_missing_service_is_503() -> None:

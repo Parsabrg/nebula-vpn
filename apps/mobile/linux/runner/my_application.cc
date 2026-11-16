@@ -52,7 +52,8 @@ static void my_application_activate(GApplication* application) {
     gtk_window_set_title(window, "Nebula VPN");
   }
 
-  gtk_window_set_default_size(window, 420, 720);
+  // The redesign's desktop window: wide enough for the sidebar layout.
+  gtk_window_set_default_size(window, 1040, 700);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(

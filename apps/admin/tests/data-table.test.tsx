@@ -47,7 +47,8 @@ describe("DataTable", () => {
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
   });
 
-  it("switches to a card layout at narrow viewports", () => {
+  it("stays a table at narrow viewports, scrolling sideways", () => {
+    // The design keeps tables on a phone; cards were the old layout.
     stubMatchMedia(true);
     render(
       <DataTable
@@ -57,7 +58,6 @@ describe("DataTable", () => {
         emptyMessage="Nothing here."
       />,
     );
-    expect(screen.getByRole("list", { name: "Things" })).toBeVisible();
-    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Things" })).toBeVisible();
   });
 });

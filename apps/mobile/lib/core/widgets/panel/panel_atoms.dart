@@ -2,10 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../format/case.dart';
 import '../../theme/color_tokens.dart';
 import '../../theme/reduced_motion.dart';
-import '../../theme/type_scale.dart';
 
 /// What the dot beside the status line is saying.
 enum StatusTone {
@@ -189,67 +187,6 @@ class _ArcPainter extends CustomPainter {
   bool shouldRepaint(_ArcPainter oldDelegate) => oldDelegate.color != color;
 }
 
-/// The uppercase mono line above the state word: dot, then text.
-class StatusLine extends StatelessWidget {
-  const StatusLine({required this.tone, required this.text, super.key});
-
-  final StatusTone tone;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final NebulaPalette palette = context.palette;
-    final Color color;
-    switch (tone) {
-      case StatusTone.error:
-        color = palette.redText;
-      case StatusTone.warning:
-        color = palette.amberDim;
-      case StatusTone.live:
-      case StatusTone.working:
-      case StatusTone.off:
-        color = palette.textMuted;
-    }
-
-    // A minimum rather than a fixed height: 16 fits Latin text, but Arabic
-    // letters with descenders need more, and a fixed box clipped them.
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 16),
-      child: Row(
-        children: <Widget>[
-          StatusDot(tone: tone),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              upperCaseFor(context, text),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: context.type.statusLine.copyWith(color: color),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The uppercase mono rule above a group of rows.
-class SectionHeader extends StatelessWidget {
-  const SectionHeader(this.label, {super.key});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      upperCaseFor(context, label),
-      style: context.type.sectionHeader.copyWith(
-        color: context.palette.textMuted,
-      ),
-    );
-  }
-}
-
 /// A pill-shaped placeholder that breathes on a 1.6s cycle.
 ///
 /// The handoff is specific that the loading state is a skeleton and not a
@@ -299,50 +236,6 @@ class _SkeletonBarState extends State<SkeletonBar>
         end: 1,
       ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
       child: bar,
-    );
-  }
-}
-
-/// A protocol chip.
-///
-/// 100px radius so it is a true pill at any label length, and 9x14 padding
-/// per the spec. Selected takes a blue border over a 10% blue wash rather
-/// than a solid fill -- a filled chip at this size competes with the CTA,
-/// which is the only thing on the screen that should read as the action.
-class PanelChip extends StatelessWidget {
-  const PanelChip({
-    required this.label,
-    required this.selected,
-    super.key,
-    this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final NebulaPalette palette = context.palette;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(100),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 14),
-        decoration: BoxDecoration(
-          color: selected
-              ? palette.blue.withValues(alpha: 0.1)
-              : Colors.transparent,
-          border: Border.all(color: selected ? palette.blue : palette.border),
-          borderRadius: BorderRadius.circular(100),
-        ),
-        child: Text(
-          label,
-          style: context.type.chipLabel.copyWith(
-            color: selected ? palette.blueText : palette.textMuted,
-          ),
-        ),
-      ),
     );
   }
 }

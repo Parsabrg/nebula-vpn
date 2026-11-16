@@ -14,6 +14,7 @@ import '../network/dns_tunnel_sync.dart';
 import '../network/route_fallback.dart';
 import '../settings/locale_controller.dart';
 import '../storage/storage_providers.dart';
+import '../warp/warp_settings.dart';
 
 class AvailableProfile {
   const AvailableProfile({
@@ -125,6 +126,7 @@ class XrayClientResult {
     this.serviceName,
     this.obfsPassword,
     this.portHop,
+    this.relayed = false,
     this.clientDns = const <String>[],
     this.caCertificate,
     this.echConfigList,
@@ -197,6 +199,10 @@ class XrayClientResult {
   /// Hysteria2 only: the UDP range ("20000-50000") the server also
   /// answers on; the client moves between its ports.
   final String? portHop;
+
+  /// Through a relay: a server in Iran forwarding to the exit. Not
+  /// reached through WARP, as Iran blocks coming in from abroad.
+  final bool relayed;
 
   /// True when the connected profile was an ad-blocking sibling --
   /// [renderXrayClientConfigJson] uses this to decide whether to add a
@@ -435,6 +441,7 @@ class DioServerRepository implements ServerRepository {
         serviceName: data['service_name'] as String?,
         obfsPassword: data['obfs_password'] as String?,
         portHop: data['port_hop'] as String?,
+        relayed: data['relayed'] == true,
         // VLESS + REALITY: the server's public key, short id and flow.
         flow: data['flow'] as String?,
         realityPublicKey: data['reality_public_key'] as String?,
@@ -481,6 +488,8 @@ final serverRepositoryProvider = Provider<ServerRepository>((Ref ref) {
       store: ref.watch(freeLinkStoreProvider),
       subscriptions: ref.watch(subscriptionStoreProvider),
       importedName: () => ref.read(appTextProvider).ownLinksImported,
+      offersWarp: () =>
+          warpSupported ? ref.read(appTextProvider).warpServerName : null,
     );
   }
   // Signed in: the server's list, then the links and subscriptions added on
@@ -498,6 +507,8 @@ final serverRepositoryProvider = Provider<ServerRepository>((Ref ref) {
       subscriptions: ref.watch(subscriptionStoreProvider),
       // Asked when the list is built, in the language of the moment.
       importedName: () => ref.read(appTextProvider).ownLinksImported,
+      offersWarp: () =>
+          warpSupported ? ref.read(appTextProvider).warpServerName : null,
     ),
   );
 });

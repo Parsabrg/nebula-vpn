@@ -20,6 +20,7 @@ from nebula_api.account.service import (
     AccountEntry,
     AccountService,
     DeviceEntry,
+    DeviceRenameRefused,
     DeviceRevocationRefused,
 )
 from nebula_api.auth.http import install_auth_http_safeguards
@@ -99,6 +100,7 @@ class FakeAccountService:
         account: AccountEntry | None = _DEFAULT,
         devices: list[DeviceEntry] | None = None,
         revoke_error: Exception | None = None,
+        rename_error: Exception | None = None,
     ) -> None:
         # A sentinel rather than None, so a test can say "this user is gone"
         # and get a missing account instead of the default one.
@@ -106,12 +108,21 @@ class FakeAccountService:
         self.devices = devices if devices is not None else []
         self.revoke_error = revoke_error
         self.revoked: list[tuple[UUID, UUID, UUID]] = []
+        self.rename_error = rename_error
+        self.renamed: list[tuple[UUID, UUID, str]] = []
 
     async def get_account(self, _user_id: UUID) -> AccountEntry | None:
         return self.account
 
     async def list_devices(self, _user_id: UUID, _current_device_id: UUID) -> list[DeviceEntry]:
         return self.devices
+
+    async def rename_device(
+        self, *, user_id: UUID, device_id: UUID, name: str, request_id: UUID
+    ) -> None:
+        if self.rename_error is not None:
+            raise self.rename_error
+        self.renamed.append((user_id, device_id, name))
 
     async def revoke_device(
         self,
@@ -311,6 +322,52 @@ class TestRevokeDevice:
 
         assert response.status_code == 422
         assert service.revoked == []
+
+
+class TestRenameDevice:
+    def test_requires_authentication(self) -> None:
+        with make_client() as client:
+            response = client.post(
+                f"/v1/account/devices/{DEVICE_ID}/name", json={"name": "Pixel 8"}
+            )
+
+        assert response.status_code == 401
+
+    def test_renames_with_the_name_trimmed(self) -> None:
+        service = FakeAccountService()
+        with make_client(service) as client:
+            response = client.post(
+                f"/v1/account/devices/{DEVICE_ID}/name",
+                json={"name": "  Xiaomi 2201117TG  "},
+                headers=AUTH_HEADERS,
+            )
+
+        assert response.status_code == 204
+        assert service.renamed == [(USER_ID, DEVICE_ID, "Xiaomi 2201117TG")]
+
+    @pytest.mark.parametrize("name", ["", "   ", "x" * 81, "bad\nname"])
+    def test_an_empty_long_or_unprintable_name_is_refused(self, name: str) -> None:
+        service = FakeAccountService()
+        with make_client(service) as client:
+            response = client.post(
+                f"/v1/account/devices/{DEVICE_ID}/name",
+                json={"name": name},
+                headers=AUTH_HEADERS,
+            )
+
+        assert response.status_code == 422
+        assert service.renamed == []
+
+    def test_another_users_device_is_not_found(self) -> None:
+        service = FakeAccountService(rename_error=DeviceRenameRefused())
+        with make_client(service) as client:
+            response = client.post(
+                f"/v1/account/devices/{uuid4()}/name",
+                json={"name": "Pixel 8"},
+                headers=AUTH_HEADERS,
+            )
+
+        assert response.status_code == 404
 
 
 class TestPasswordAndDeletion:

@@ -7,17 +7,39 @@ export function formatUtc(date: Date): string {
   return `${date.toISOString().slice(0, 16).replace("T", " ")} UTC`;
 }
 
-/** The viewer's own clock, with the zone named so nobody has to guess. */
-export function formatLocal(date: Date): string {
-  // Spelled out: dateStyle/timeStyle cannot be combined with timeZoneName.
-  return new Intl.DateTimeFormat(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
+/** The viewer's own clock, short as the design sets it: "14 Nov, 18:02",
+ * with the year only when it is not this one. The UTC time is in the
+ * title, for anybody who needs the zone. */
+export function formatLocal(date: Date, now: Date = new Date()): string {
+  const time = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
     minute: "2-digit",
-    timeZoneName: "short",
+    hourCycle: "h23",
   }).format(date);
+  return date.getFullYear() === now.getFullYear()
+    ? `${date.getDate()} ${MONTHS[date.getMonth()]}, ${time}`
+    : `${formatLocalDate(date)}, ${time}`;
+}
+
+/** Three-letter months ("Sep", not en-GB's "Sept"), as the design writes. */
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/** "2 Sep 2026". */
+export function formatLocalDate(date: Date): string {
+  return `${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
 }
 
 /**
@@ -29,7 +51,14 @@ export function formatLocal(date: Date): string {
  * and the browser's differ: React error #418 on every page with a time, and
  * some times left in UTC beside others in local time (2026-11-01 sweep).
  */
-export function LocalTime({ value }: { value: string | Date }) {
+export function LocalTime({
+  value,
+  dateOnly = false,
+}: {
+  value: string | Date;
+  /** "2 Sep 2026": the day only, as the design shows a creation date. */
+  dateOnly?: boolean;
+}) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     // Deliberate: the one render that must differ from the server's is the
@@ -43,7 +72,11 @@ export function LocalTime({ value }: { value: string | Date }) {
   }
   return (
     <time dateTime={date.toISOString()} title={formatUtc(date)}>
-      {mounted ? formatLocal(date) : formatUtc(date)}
+      {mounted
+        ? dateOnly
+          ? formatLocalDate(date)
+          : formatLocal(date)
+        : formatUtc(date)}
     </time>
   );
 }

@@ -231,7 +231,7 @@ else
   if [ "$engine_name" = hysteria ]; then
     # Hysteria cannot mark its socket, so the server's own address -- the
     # one the app pinned on the server line -- is kept out by a rule.
-    server_ip="$(sed -n 's/^server:[[:space:]]*\([0-9.]*\):[0-9]*[[:space:]]*$/\1/p' "$run_config" | head -1)"
+    server_ip="$(sed -n 's/^server:[[:space:]]*\([0-9.]*\):[0-9,-]*[[:space:]]*$/\1/p' "$run_config" | head -1)"
     [[ "$server_ip" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || fail "Linux refused a VPN server that is not an address."
     # Its TUN gives itself its address; the routes are the helper's.
     "$ENGINE" client -c "$run_config" > "$OUT/engine.out" 2> "$OUT/engine.err" &

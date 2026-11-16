@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../network/dns_tunnel_engine.dart';
+import '../platform/owned_process.dart';
 import '../tunnel/tunnel_traffic.dart';
+import '../warp/desktop_aether.dart';
 import 'linux_tunnel_config.dart';
 import 'linux_vpn_supervisor.dart';
 import 'windows_tunnel_config.dart';
@@ -76,7 +78,16 @@ class LinuxXrayRuntime {
   Directory? _state;
   int? _localXrayPid;
   int? _dnsTunnelPid;
+  Process? _aether;
   final List<String> _logs = <String>[];
+
+  void _log(String line) {
+    _logs.add(line);
+    if (_logs.length > 500) {
+      _logs.removeRange(0, _logs.length - 500);
+    }
+  }
+
   final StreamController<TunnelTraffic> _trafficController =
       StreamController<TunnelTraffic>.broadcast();
   Timer? _trafficTimer;
@@ -124,6 +135,35 @@ class LinuxXrayRuntime {
         }
         _dnsTunnelPid = await _startDnsTunnel(dnsTunnel, state);
       }
+      // Cloudflare WARP, as on Windows (desktop_aether.dart): registered
+      // first; in a full tunnel started after it, through the bridge, whose
+      // outbound carries the tunnel's mark.
+      final Map<String, dynamic>? aether =
+          source.remove('nebulaAether') as Map<String, dynamic>?;
+      final List<String> aetherArgs = <String>[
+        for (final dynamic arg in (aether?['args'] as List<dynamic>?) ?? [])
+          arg as String,
+      ];
+      final String aetherReady =
+          aether?['ready'] as String? ?? 'socks5 server listening';
+      final String? aetherEngine = aether == null
+          ? null
+          : await _runtimeBinary('aether');
+      if (aetherArgs.contains('--psiphon')) {
+        // Run by Aether from beside it; this sets its executable bit.
+        await _runtimeBinary('psiphon-tunnel-core');
+      }
+      if (aetherEngine != null) {
+        await registerAether(aetherEngine, aetherArgs, _log);
+        if (proxyOnly) {
+          _aether = await startAether(
+            aetherEngine,
+            aetherArgs,
+            aetherReady,
+            _log,
+          );
+        }
+      }
       final String xray = await _runtimeBinary('xray');
       final File configFile = File('${state.path}/xray.json');
       if (proxyOnly) {
@@ -137,7 +177,7 @@ class LinuxXrayRuntime {
       }
       final List<String> resolvers = windowsTunnelDnsServers(source);
       final Map<String, dynamic> routed;
-      if (dnsTunnel != null) {
+      if (dnsTunnel != null || aether != null) {
         routed = source;
       } else {
         final String? host = _upstreamAddress(source);
@@ -148,8 +188,16 @@ class LinuxXrayRuntime {
         }
         routed = windowsXrayPinnedUpstream(source, host, upstreamIp);
       }
+      final AetherBridge? bridge = aether == null
+          ? null
+          : AetherBridge((aether['port'] as int) + 1);
+      final Map<String, dynamic> tun = linuxXrayTunConfig(routed, resolvers);
       await configFile.writeAsString(
-        jsonEncode(linuxXrayTunConfig(routed, resolvers)),
+        jsonEncode(
+          bridge == null
+              ? tun
+              : withAetherBridge(tun, bridge, mark: linuxTunnelMark),
+        ),
       );
       await startLinuxVpnHelper(
         engine: xray,
@@ -160,6 +208,15 @@ class LinuxXrayRuntime {
         killSwitch: killSwitch && dnsTunnel == null,
         bypass: bypass,
       );
+      if (aetherEngine != null) {
+        _aether = await startAether(
+          aetherEngine,
+          aetherArgs,
+          aetherReady,
+          _log,
+          upstream: bridge!.upstream,
+        );
+      }
       _startTrafficMonitoring();
     } catch (_) {
       await stop();
@@ -222,6 +279,11 @@ class LinuxXrayRuntime {
     if (dnsTunnelPid != null) {
       Process.killPid(dnsTunnelPid);
     }
+    if (_aether != null) {
+      _aether!.kill(ProcessSignal.sigkill);
+      killStrayPsiphon('linux_runtime/psiphon-tunnel-core');
+    }
+    _aether = null;
     final Directory? state = _state;
     _state = null;
     if (state != null) {
@@ -241,6 +303,10 @@ class LinuxXrayRuntime {
             '${linuxSessionOutputs(state.path)}/xray.pid',
           ).readAsString().catchError((Object _) => ''),
         );
+    final Process? aether = _aether;
+    if (aether != null && !await Directory('/proc/${aether.pid}').exists()) {
+      return false;
+    }
     return enginePid == null ? null : Directory('/proc/$enginePid').exists();
   }
 
@@ -436,9 +502,13 @@ class LinuxXrayRuntime {
   }
 
   static Future<int> _startQuiet(String executable, List<String> args) async {
-    final Process process = await Process.start(
+    final (String command, List<String> arguments) = ownedCommand(
       executable,
       args,
+    );
+    final Process process = await Process.start(
+      command,
+      arguments,
       workingDirectory: File(executable).parent.path,
       mode: ProcessStartMode.detached,
     );

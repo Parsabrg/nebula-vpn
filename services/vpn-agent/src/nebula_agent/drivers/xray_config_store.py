@@ -398,7 +398,7 @@ def render_xray_server_config(
         # an address first, and `domainStrategy` below is what asks for that.
         # And a deployment that keeps this process off loopback entirely --
         # the firewall rule that backs up these rules, see
-        # docs/runbooks/production-readiness-audit.md -- cannot also rely on
+        # docs/runbooks/deployment.md -- cannot also rely on
         # systemd-resolved at 127.0.0.53, which is what /etc/resolv.conf
         # points at on this distribution.
         "dns": {"servers": list(RESOLVERS)},

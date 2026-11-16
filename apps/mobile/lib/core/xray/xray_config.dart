@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../routing/sanctioned_domains.dart';
 import '../servers/server_repository.dart';
 import '../storage/advanced_settings_store.dart';
+import '../warp/warp_settings.dart';
 import 'ech_source.dart';
 import 'local_proxy.dart';
 import 'windows_tunnel_config.dart';
@@ -218,16 +219,31 @@ String renderXrayClientConfigJson(
     'outbounds': <Map<String, dynamic>>[
       // First outbound is Xray's default route, so the real one stays first
       // and the blackhole is only ever reached by an explicit rule below.
-      _withFragment(
-        _withMux(
-          result.transport == 'hysteria'
-              ? _hysteriaOutbound(result)
-              : _vlessOutbound(result),
+      if (result.transport == kWarpTransport)
+        _aetherSocksOutbound(
+          'proxy',
+          leavesThroughPsiphon(result, settings)
+              ? psiphonPortFor(warpPortFor(localProxy))
+              : warpPortFor(localProxy),
+        )
+      else
+        _withWarpEntry(
+          _withFragment(
+            _withMux(
+              result.transport == 'hysteria'
+                  ? _hysteriaOutbound(result)
+                  : _vlessOutbound(result),
+              settings,
+            ),
+            settings,
+          ),
+          result,
           settings,
         ),
-        settings,
-      ),
-      if (settings.fragment.enabled) fragmentOutbound(settings.fragment),
+      if (settings.fragment.enabled && result.transport != kWarpTransport)
+        fragmentOutbound(settings.fragment),
+      if (reachesServerThroughWarp(result, settings))
+        _aetherSocksOutbound(_warpEntryTag, warpPortFor(localProxy)),
       if (result.adBlock)
         <String, dynamic>{'tag': 'ad-block', 'protocol': 'blackhole'},
       if (routesAnythingDirect(result, settings))
@@ -317,6 +333,28 @@ String renderXrayClientConfigJson(
         ],
       },
   };
+  if (result.transport == kWarpTransport ||
+      reachesServerThroughWarp(result, settings)) {
+    final bool psiphon = leavesThroughPsiphon(result, settings);
+    if (psiphon) {
+      // Psiphon reaches no IPv6 address (refused at once, measured): apps
+      // trying a site's IPv6 first got nothing, and the traffic watch took
+      // the tunnel down within a minute. Answered IPv4 only, they use that.
+      config['dns'] = <String, dynamic>{
+        ...config['dns'] as Map<String, dynamic>,
+        'queryStrategy': 'UseIPv4',
+      };
+    }
+    config['nebulaAether'] = <String, dynamic>{
+      'args': aetherArguments(
+        settings.warp,
+        warpPortFor(localProxy),
+        psiphon: psiphon,
+      ),
+      'port': warpPortFor(localProxy),
+      'ready': aetherReadyLine(warpPortFor(localProxy), psiphon: psiphon),
+    };
+  }
   // A clean Cloudflare address chosen for this very route: the tunnel dials
   // it, while TLS and the Host header keep the route's name. Only the CDN
   // transports go through Cloudflare.
@@ -1113,6 +1151,68 @@ Map<String, dynamic> _withFragment(
 }
 
 const String _fragmentTag = 'fragment';
+
+/// The transport of WARP mode's profile: its traffic leaves through
+/// Cloudflare WARP (Aether), not a server of ours.
+const String kWarpTransport = 'warp';
+
+const String _warpEntryTag = 'warp-entry';
+
+/// Aether's loopback port: the one after the local proxy's, which is picked
+/// free for each connection.
+int warpPortFor(LocalProxy localProxy) => localProxy.port + 1;
+
+/// Whether this connection reaches its server through WARP: switched on in
+/// WARP's settings, for the Xray transports (Hysteria2 runs its own client,
+/// and WARP mode is WARP already), and not to a relay in Iran, which Iran
+/// blocks coming in from abroad.
+bool reachesServerThroughWarp(
+  XrayClientResult result,
+  AdvancedSettings settings,
+) =>
+    settings.warp.throughWarp &&
+    result.transport != kWarpTransport &&
+    result.transport != 'hysteria' &&
+    !result.relayed;
+
+/// WARP mode with "Leave outside Iran": out through Psiphon. A server of
+/// ours reached through WARP leaves from that server already.
+bool leavesThroughPsiphon(XrayClientResult result, AdvancedSettings settings) =>
+    result.transport == kWarpTransport && settings.warp.leaveOutsideIran;
+
+/// Aether serves SOCKS5 with no account: it binds loopback only, on a port
+/// chosen per connection.
+Map<String, dynamic> _aetherSocksOutbound(String tag, int port) =>
+    <String, dynamic>{
+      'tag': tag,
+      'protocol': 'socks',
+      'settings': <String, dynamic>{
+        'servers': <Map<String, dynamic>>[
+          <String, dynamic>{'address': '127.0.0.1', 'port': port},
+        ],
+      },
+    };
+
+/// Opens the server connection through WARP: the network sees Cloudflare
+/// only, and the server sees WARP's address. In place of the fragment hop,
+/// which has nothing left to hide once WARP carries the handshake.
+Map<String, dynamic> _withWarpEntry(
+  Map<String, dynamic> outbound,
+  XrayClientResult result,
+  AdvancedSettings settings,
+) {
+  if (!reachesServerThroughWarp(result, settings)) {
+    return outbound;
+  }
+  final Map<String, dynamic> streamSettings = <String, dynamic>{
+    ...?(outbound['streamSettings'] as Map<String, dynamic>?),
+  };
+  streamSettings['sockopt'] = <String, dynamic>{
+    ...?(streamSettings['sockopt'] as Map<String, dynamic>?),
+    'dialerProxy': _warpEntryTag,
+  };
+  return <String, dynamic>{...outbound, 'streamSettings': streamSettings};
+}
 
 /// The core's logging, both halves of it.
 ///

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/routing/route_paths.dart';
-import '../../core/theme/color_tokens.dart';
+import '../../core/widgets/nebula/nebula_data.dart';
 import '../../core/widgets/panel/auth_scaffold.dart';
 import '../../core/widgets/panel/panel_cta.dart';
 import '../../core/widgets/submission_state.dart';
@@ -51,13 +51,7 @@ class _PasswordResetRequestScreenState
       return AuthScaffold(
         title: text.checkEmailTitle,
         subline: text.checkEmailSubline,
-        fields: <Widget>[
-          Icon(
-            Icons.mark_email_read_outlined,
-            size: 32,
-            color: context.palette.blueText,
-          ),
-        ],
+        fields: const <Widget>[],
         action: PanelCta(
           label: text.haveACode,
           style: CtaStyle.secondary,
@@ -81,13 +75,16 @@ class _PasswordResetRequestScreenState
         subline: text.resetPasswordSubline,
         errorMessage: state is SubmissionFailure ? state.message : null,
         fields: <Widget>[
-          TextFormField(
-            controller: _identifierController,
-            decoration: InputDecoration(hintText: text.fieldEmailOrUsername),
-            validator: (String? value) =>
-                (value == null || value.trim().length < 3)
-                ? text.validateEmailOrUsername
-                : null,
+          NebulaLabeledField(
+            label: text.fieldEmailOrUsername,
+            child: TextFormField(
+              controller: _identifierController,
+              decoration: const InputDecoration(),
+              validator: (String? value) =>
+                  (value == null || value.trim().length < 3)
+                  ? text.validateEmailOrUsername
+                  : null,
+            ),
           ),
         ],
         action: PanelCta(

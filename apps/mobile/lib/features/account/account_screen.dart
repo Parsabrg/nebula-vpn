@@ -10,14 +10,19 @@ import '../../core/auth/auth_state.dart';
 import '../../core/auth/user_principal.dart';
 import '../../core/format/bidi.dart';
 import '../../core/format/bytes.dart';
+import '../../core/format/case.dart';
 import '../../core/format/dates.dart';
 import '../../core/routing/route_paths.dart';
 import '../../core/theme/color_tokens.dart';
-import '../../core/theme/type_scale.dart';
+import '../../core/theme/look.dart';
 import '../../core/updates/update_check.dart';
+import '../../core/widgets/nebula/nebula_controls.dart';
+import '../../core/widgets/nebula/nebula_data.dart';
+import '../../core/widgets/nebula/nebula_feedback.dart';
+import '../../core/widgets/nebula/nebula_page.dart';
+import '../../core/widgets/nebula/nebula_rows.dart';
+import '../../core/widgets/nebula/nebula_surface.dart';
 import '../../core/widgets/panel/panel_atoms.dart';
-import '../../core/widgets/panel/panel_cta.dart';
-import '../../core/widgets/panel/panel_row.dart';
 import '../../core/widgets/refresh_while_visible.dart';
 import '../../l10n/app_localizations.dart';
 import '../devices/devices_controller.dart';
@@ -49,101 +54,73 @@ class _AccountScreenState extends ConsumerState<AccountScreen>
   @override
   Widget build(BuildContext context) {
     final AccountState state = ref.watch(accountControllerProvider);
-    final NebulaPalette palette = context.palette;
+    final AppText text = AppText.of(context);
 
-    return Scaffold(
-      backgroundColor: palette.bg,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.only(top: 28, bottom: 20),
-                child: Text(
-                  AppText.of(context).accountHeading,
-                  style: context.type.wordmark.copyWith(
-                    color: palette.textMuted,
-                  ),
-                ),
-              ),
-              Expanded(child: _body(context, state)),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: PanelCta(
-                  label: AppText.of(context).signOut,
-                  style: CtaStyle.secondary,
-                  onPressed: () async {
-                    // Disconnect while the session can still tell the server.
-                    await ref
-                        .read(devicesControllerProvider.notifier)
-                        .disconnectBeforeSignOut();
-                    await ref.read(authNotifierProvider.notifier).logout();
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
+    return NebulaPage(
+      title: text.tabAccount,
+      showBack: false,
+      // Settings is not a tab -- this gear is the way in.
+      trailing: NebulaHeaderAction(
+        icon: Icons.settings_outlined,
+        label: text.rowSettings,
+        onTap: () => context.push(RoutePaths.homeSettings),
       ),
+      children: _body(context, state),
     );
   }
 
-  Widget _body(BuildContext context, AccountState state) {
+  List<Widget> _body(BuildContext context, AccountState state) {
     final AppText text = AppText.of(context);
-    final NebulaPalette palette = context.palette;
-    final NebulaTypography type = context.type;
 
     switch (state.loadStatus) {
       case AccountLoadStatus.loading:
-        return const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            SkeletonBar(width: 180, height: 34),
-            SizedBox(height: 32),
-            _SkeletonRow(),
-            _SkeletonRow(),
-            _SkeletonRow(),
-          ],
-        );
+        return const <Widget>[
+          SizedBox(height: 24),
+          SkeletonBar(width: 180, height: 34),
+          SizedBox(height: 32),
+          _SkeletonRow(),
+          _SkeletonRow(),
+          _SkeletonRow(),
+        ];
 
       case AccountLoadStatus.failed:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            StatusLine(tone: StatusTone.error, text: text.statusNoConnection),
-            const SizedBox(height: 12),
-            Text(
-              state.loadErrorMessage ?? text.couldNotLoadAccount,
-              style: type.rowLabel.copyWith(color: palette.textMuted),
-            ),
-            const SizedBox(height: 20),
-            TextButton(
+        return <Widget>[
+          const SizedBox(height: 16),
+          NebulaNotice(
+            text: state.loadErrorMessage ?? text.couldNotLoadAccount,
+            kind: NebulaNoticeKind.error,
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: NebulaButton.text(
+              label: text.ctaTryAgain,
               onPressed: () =>
                   ref.read(accountControllerProvider.notifier).load(),
-              child: Text(text.ctaTryAgain),
             ),
-            // Settings live on this device and need no server, so they stay
-            // reachable when the account cannot load. They used to vanish with
-            // it -- when the server is unreachable, which is exactly when
-            // someone needs them (fragment, DNS, the local network). Seen on
-            // a phone.
-            const SizedBox(height: 28),
-            PanelRowGroup(
-              rows: <PanelRow>[
-                PanelRow(
-                  label: text.rowSettings,
-                  value: text.open,
-                  onTap: () => context.push(RoutePaths.homeSettings),
-                ),
-              ],
-            ),
-          ],
-        );
+          ),
+          // Settings live on this device and need no server, so they stay
+          // reachable when the account cannot load. They used to vanish with
+          // it -- when the server is unreachable, which is exactly when
+          // someone needs them (fragment, DNS, the local network). Seen on
+          // a phone.
+          const SizedBox(height: 12),
+          NebulaRowGroup(
+            children: <Widget>[
+              NebulaRow(
+                icon: Icons.tune,
+                title: text.rowSettings,
+                trailing: NebulaRowTrailing.chevron(context),
+                onTap: () => context.push(RoutePaths.homeSettings),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          const _SignOutButton(),
+        ];
 
       case AccountLoadStatus.loaded:
-        return _Details(account: state.account!);
+        return <Widget>[_Details(account: state.account!)];
     }
   }
 }
@@ -157,7 +134,6 @@ class _Details extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AppText text = AppText.of(context);
     final NebulaPalette palette = context.palette;
-    final NebulaTypography type = context.type;
 
     final AuthState authState = ref.watch(authNotifierProvider);
     final UserPrincipal? me = authState is AuthAuthenticated
@@ -166,90 +142,114 @@ class _Details extends ConsumerWidget {
 
     final bool expired = account.hasExpiredAt(DateTime.now());
     final AvailableUpdate? update = ref.watch(availableUpdateProvider).value;
+    // Three different things, and they must not collapse into one
+    // reassuring string: an expiry in the future, one that has passed, and
+    // no expiry at all.
+    final String until = account.expiresAt == null
+        ? text.noExpiry
+        : formatLongDate(context, account.expiresAt!);
+    final bool healthy = account.state == 'active' && !expired;
 
-    return ListView(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Text(
-          account.username ?? account.email,
-          style: type.authTitle.copyWith(color: palette.textPrimary),
+        _Profile(name: account.username, email: account.email),
+        _Plan(
+          status: '${_stateLabel(text, account.state)} · $until',
+          healthy: healthy,
+          account: account,
         ),
-        const SizedBox(height: 8),
-        Text(
-          text.devicesOfLimit(account.devicesInUse, account.deviceLimit),
-          style: type.topBarMeta.copyWith(color: palette.textMuted),
-        ),
-        const SizedBox(height: 28),
-        _UsageBlock(account: account),
-        const SizedBox(height: 28),
-        PanelRowGroup(
-          rows: <PanelRow>[
-            PanelRow(
-              label: text.rowAccessUntil,
-              // Three different things, and they must not collapse into one
-              // reassuring string: an expiry in the future, one that has
-              // passed, and no expiry at all.
-              value: account.expiresAt == null
-                  ? text.noExpiry
-                  : formatLongDate(context, account.expiresAt!),
-              valueColor: expired ? palette.amberText : null,
+        NebulaSectionLabel(text.sectionDetails),
+        NebulaRowGroup(
+          children: <Widget>[
+            NebulaRow(
+              title: text.rowEmail,
+              // Mono, as the design sets an address.
+              trailing: NebulaRowTrailing.value(context, account.email),
             ),
-            PanelRow(
-              label: text.rowEmail,
-              value: account.email,
-              valueIsMono: false,
+            NebulaRow(
+              title: text.rowStatus,
+              trailing: NebulaRowTrailing.value(
+                context,
+                _stateLabel(text, account.state),
+                mono: false,
+              ),
             ),
-            PanelRow(
-              label: text.rowStatus,
-              value: _stateLabel(text, account.state),
+            NebulaRow(
+              title: text.rowAccessUntil,
+              trailing: Text(
+                until,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: expired ? palette.amberText : palette.textMuted,
+                ),
+              ),
             ),
             if (me != null)
-              PanelRow(
-                label: text.rowSessionId,
-                value: _truncate(me.sessionId),
+              NebulaRow(
+                title: text.rowSessionId,
+                trailing: NebulaRowTrailing.value(
+                  context,
+                  _truncate(me.sessionId),
+                ),
               ),
+          ],
+        ),
+        NebulaSectionLabel(text.sectionApp),
+        NebulaRowGroup(
+          children: <Widget>[
             if (update != null)
-              PanelRow(
-                label: text.rowUpdate,
-                value: text.updateAvailable(update.version),
-                valueColor: palette.blueText,
+              NebulaRow(
+                icon: Icons.system_update_outlined,
+                title: text.rowUpdate,
+                subtitle: text.updateAvailable(update.version),
+                subtitleColor: palette.blueText,
+                trailing: NebulaRowTrailing.chevron(context),
                 onTap: () => offerUpdate(context, ref, update),
               ),
-            PanelRow(
-              label: text.rowSubscriptionLink,
-              value: text.open,
+            NebulaRow(
+              icon: Icons.phone_iphone,
+              title: text.rowSubscriptionLink,
+              subtitle: text.subscriptionTitle,
+              trailing: NebulaRowTrailing.chevron(context),
               onTap: () => showSubscriptionLink(context, ref),
             ),
-            PanelRow(
-              label: text.rowPassword,
-              value: text.change,
+            NebulaRow(
+              icon: Icons.password,
+              title: text.rowPassword,
+              trailing: NebulaRowTrailing.valueChevron(context, text.change),
               onTap: () => context.push(RoutePaths.homeChangePassword),
             ),
-            // Settings is not a tab -- this is the way in.
-            PanelRow(
-              label: text.rowSettings,
-              value: text.open,
+            NebulaRow(
+              icon: Icons.tune,
+              title: text.rowSettings,
+              trailing: NebulaRowTrailing.chevron(context),
               onTap: () => context.push(RoutePaths.homeSettings),
             ),
           ],
         ),
         const SizedBox(height: 16),
-        PanelRowGroup(
-          rows: <PanelRow>[
-            PanelRow(
-              label: text.deleteAccountRow,
-              value: text.open,
+        NebulaRowGroup(
+          children: <Widget>[
+            NebulaRow(
+              icon: Icons.delete_outline,
+              title: text.deleteAccountRow,
+              tone: NebulaTone.danger,
+              trailing: NebulaRowTrailing.chevron(context),
               onTap: () => context.push(RoutePaths.homeDeleteAccount),
             ),
           ],
         ),
         if (expired) ...<Widget>[
           const SizedBox(height: 16),
-          Text(
-            text.accessExpired,
-            style: type.listMeta.copyWith(color: palette.amberDim),
+          NebulaNotice(
+            text: text.accessExpired,
+            kind: NebulaNoticeKind.warning,
           ),
         ],
         const SizedBox(height: 24),
+        const _SignOutButton(),
+        const SizedBox(height: 8),
       ],
     );
   }
@@ -274,6 +274,263 @@ class _Details extends ConsumerWidget {
   }
 }
 
+/// The avatar initial, the username, and the email under it (the email once,
+/// as the title, when there is no username). The design's avatar: 52 px,
+/// outlined on Minimal, filled with the accent elsewhere.
+class _Profile extends StatelessWidget {
+  const _Profile({required this.name, required this.email});
+
+  final String? name;
+  final String email;
+
+  @override
+  Widget build(BuildContext context) {
+    final NebulaPalette p = context.palette;
+    final bool minimal = p.look == NebulaLook.minimal;
+    final String title = name ?? email;
+    return Padding(
+      padding: EdgeInsets.only(
+        top: minimal ? 16 : 12,
+        left: minimal ? 0 : 4,
+        right: minimal ? 0 : 4,
+      ),
+      child: Row(
+        children: <Widget>[
+          ExcludeSemantics(
+            child: Container(
+              width: 52,
+              height: 52,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: minimal ? null : p.blue,
+                border: minimal ? Border.all(color: p.borderStrong) : null,
+                borderRadius: BorderRadius.circular(
+                  p.look == NebulaLook.expressive ? 18 : 26,
+                ),
+              ),
+              child: Text(
+                title.isEmpty ? '?' : title.characters.first.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: minimal ? p.textPrimary : p.onAccent,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 20,
+                    height: 26 / 20,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.3,
+                    color: p.textPrimary,
+                  ),
+                ),
+                if (name != null)
+                  Text(
+                    email,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 18 / 13,
+                      color: p.textMuted,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The design's plan block: the status, then Data and Devices side by side.
+/// Between two hairlines on Minimal, a tinted card on Expressive, a panel
+/// elsewhere.
+class _Plan extends StatelessWidget {
+  const _Plan({
+    required this.status,
+    required this.healthy,
+    required this.account,
+  });
+
+  final String status;
+  final bool healthy;
+  final AccountSummary account;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppText text = AppText.of(context);
+    final NebulaPalette p = context.palette;
+    final TextStyle label = TextStyle(
+      fontSize: 13,
+      height: 18 / 13,
+      color: p.textMuted,
+    );
+    final TextStyle big = TextStyle(
+      fontFamily: 'GeistMono',
+      fontSize: 24,
+      height: 30 / 24,
+      fontWeight: FontWeight.w500,
+      letterSpacing: -0.6,
+      color: p.textPrimary,
+    );
+    final bool metered = account.isMetered;
+    final String data = metered
+        ? formatBytes(account.remainingBytes ?? 0)
+        : formatBytes(account.lifetimeBytes);
+    // Amber once the allowance is gone: a state worth noticing, not an error.
+    final bool exhausted = metered && (account.remainingBytes ?? 0) == 0;
+    final String dataSub = !metered
+        ? text.usedNoLimit
+        : exhausted
+        ? text.quotaNothingLeft
+        : text.quotaLeft;
+    final Widget body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        // A sentence ("Active · no expiry"), capitalised as the design has
+        // it; Minimal's eyebrow is in capitals anyway.
+        NebulaEyebrow(
+          text: status.isEmpty
+              ? status
+              : upperCaseFor(context, status.characters.first) +
+                    status.characters.skip(1).string,
+          dot: healthy ? p.ok : p.amber,
+        ),
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(text.accountData, style: label),
+                  const SizedBox(height: 4),
+                  Text(
+                    data,
+                    // Drawn "KB 8.9" under Persian without this.
+                    textDirection: TextDirection.ltr,
+                    style: exhausted ? big.copyWith(color: p.amberText) : big,
+                  ),
+                  Text(
+                    dataSub,
+                    style: exhausted
+                        ? label.copyWith(color: p.amberText)
+                        : label,
+                  ),
+                  if (metered) ...<Widget>[
+                    const SizedBox(height: 8),
+                    NebulaUsageMeter(
+                      fraction: account.usedFraction ?? 0,
+                      color: exhausted ? p.amber : p.blue,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      text.quotaUsed(
+                        embedLeftToRight(
+                          context,
+                          formatBytePair(
+                            account.usedBytes,
+                            account.quotaBytes!,
+                          ),
+                        ),
+                      ),
+                      style: label,
+                    ),
+                    // Only when it says something the line above does not.
+                    if (account.lifetimeBytes > account.usedBytes)
+                      Text(
+                        text.usedInTotal(
+                          embedLeftToRight(
+                            context,
+                            formatBytes(account.lifetimeBytes),
+                          ),
+                        ),
+                        style: label,
+                      ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(text.tabDevices, style: label),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${account.devicesInUse} / ${account.deviceLimit}',
+                    textDirection: TextDirection.ltr,
+                    style: big,
+                  ),
+                  const SizedBox(height: 8),
+                  NebulaUsageMeter(
+                    fraction: account.deviceLimit <= 0
+                        ? 0
+                        : account.devicesInUse / account.deviceLimit,
+                    semanticLabel: text.devicesOfLimit(
+                      account.devicesInUse,
+                      account.deviceLimit,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+    switch (p.look) {
+      case NebulaLook.minimal:
+        return Container(
+          margin: const EdgeInsets.only(top: 24),
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(color: p.hairline),
+              bottom: BorderSide(color: p.hairline),
+            ),
+          ),
+          child: body,
+        );
+      case NebulaLook.expressive:
+        return Container(
+          margin: const EdgeInsets.only(top: 20),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: nebulaMix(p.blue, p.isDark ? 22 : 16, p.bg),
+            borderRadius: BorderRadius.circular(p.radiusLg),
+          ),
+          child: body,
+        );
+      case NebulaLook.glass:
+      case NebulaLook.soft:
+        return Padding(
+          padding: const EdgeInsets.only(top: 20),
+          child: NebulaPanel(
+            radius: p.radiusLg,
+            padding: const EdgeInsets.all(20),
+            child: body,
+          ),
+        );
+    }
+  }
+}
+
 class _SkeletonRow extends StatelessWidget {
   const _SkeletonRow();
 
@@ -295,107 +552,35 @@ class _SkeletonRow extends StatelessWidget {
   }
 }
 
-/// What this account has used, and what is left of its allowance.
-///
-/// Two shapes, because an unmetered account has no "left" to show. Rendering
-/// a bar for it -- full or empty -- would state something untrue about a limit
-/// that does not exist, so the metered case gets the figure and the bar and
-/// the unmetered case gets the total on its own.
-///
-/// The total is everything the account has ever used, on every device. The
-/// allowance figures are measured from where the allowance began, so a metered
-/// account whose total is more than that says so on a line of its own.
-class _UsageBlock extends StatelessWidget {
-  const _UsageBlock({required this.account});
-
-  final AccountSummary account;
+/// Sign out, in the page after Delete account as the design has it; also
+/// under a failed load, so signing out never depends on the server.
+class _SignOutButton extends ConsumerWidget {
+  const _SignOutButton();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final AppText text = AppText.of(context);
-    final NebulaPalette palette = context.palette;
-    final NebulaTypography type = context.type;
-
-    if (!account.isMetered) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            formatBytes(account.lifetimeBytes),
-            textDirection: TextDirection.ltr,
-            style: type.quotaFigure.copyWith(color: palette.textPrimary),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            text.usedNoLimit,
-            style: type.topBarMeta.copyWith(color: palette.textMuted),
-          ),
-        ],
-      );
-    }
-
-    final int remaining = account.remainingBytes ?? 0;
-    final double fraction = account.usedFraction ?? 0;
-    // Amber once the allowance is gone. Nothing else on this screen changes:
-    // running out of traffic is not an error, it is a state worth noticing.
-    final bool exhausted = remaining == 0;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          formatBytes(remaining),
-          // Drawn "KB 8.9" on the phone under Persian without this.
-          textDirection: TextDirection.ltr,
-          style: type.quotaFigure.copyWith(
-            color: exhausted ? palette.amberText : palette.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          exhausted ? text.quotaNothingLeft : text.quotaLeft,
-          style: type.topBarMeta.copyWith(
-            color: exhausted ? palette.amberDim : palette.textMuted,
-          ),
-        ),
-        const SizedBox(height: 18),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(2),
-          child: LinearProgressIndicator(
-            value: fraction,
-            minHeight: 4,
-            backgroundColor: palette.hairline,
-            valueColor: AlwaysStoppedAnimation<Color>(
-              exhausted ? palette.amber : palette.blue,
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: <Widget>[
-            Text(
-              text.quotaUsed(
-                embedLeftToRight(
-                  context,
-                  formatBytePair(account.usedBytes, account.quotaBytes!),
-                ),
-              ),
-              style: type.listMeta.copyWith(color: palette.textMuted),
-            ),
-          ],
-        ),
-        // Only when it says something the line above does not: until an
-        // allowance is granted on top of earlier use, the two are the same.
-        if (account.lifetimeBytes > account.usedBytes) ...<Widget>[
-          const SizedBox(height: 4),
-          Text(
-            text.usedInTotal(
-              embedLeftToRight(context, formatBytes(account.lifetimeBytes)),
-            ),
-            style: type.listMeta.copyWith(color: palette.textMuted),
-          ),
-        ],
-      ],
+    return NebulaButton.secondary(
+      label: text.signOut,
+      icon: Icons.logout,
+      onPressed: () async {
+        final bool ok = await showNebulaConfirm(
+          context,
+          title: text.signOutConfirmTitle,
+          body: text.signOutConfirmBody,
+          action: text.signOut,
+          cancel: text.cancel,
+          destructive: true,
+        );
+        if (!ok) {
+          return;
+        }
+        // Disconnect while the session can still tell the server.
+        await ref
+            .read(devicesControllerProvider.notifier)
+            .disconnectBeforeSignOut();
+        await ref.read(authNotifierProvider.notifier).logout();
+      },
     );
   }
 }

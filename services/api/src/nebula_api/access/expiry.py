@@ -62,7 +62,7 @@ async def enforce_access_expiry(
         # Value-restricted, as in revocation.py: the two credential tables
         # share no base that declares these columns.
         async def revoke_lapsed[Row: (WireGuardPeer, XrayClient)](model: type[Row]) -> None:
-            for row, user_id in (await session.execute(_lapsed(model, now))).tuples():
+            for row, user_id in (await session.execute(_lapsed(model, now))).all():
                 await revoke_credential_row(session, row, now)
                 revoked[user_id] = revoked.get(user_id, 0) + 1
 

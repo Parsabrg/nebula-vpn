@@ -67,6 +67,10 @@ class DeviceRevocationRefused(Exception):
         self.reason_code = reason_code
 
 
+class DeviceRenameRefused(Exception):
+    """No such active device on this account."""
+
+
 class AccountService:
     """Read the caller's own account, and revoke one of their devices."""
 
@@ -163,6 +167,49 @@ class AccountService:
             )
             for device in devices
         ]
+
+    async def rename_device(
+        self,
+        *,
+        user_id: UUID,
+        device_id: UUID,
+        name: str,
+        request_id: UUID,
+    ) -> None:
+        """Rename one of the caller's own active devices.
+
+        The app names a device at sign-in ("Xiaomi 2201117TG", a computer's
+        name); this lets a person tell two of the same apart, and lets an
+        app that signed in under the old "android device" put its real name
+        on itself.
+        """
+
+        now = datetime.now(UTC)
+        async with self._session_factory() as session:
+            device = await session.scalar(
+                select(Device)
+                .where(Device.id == device_id, Device.user_id == user_id)
+                .with_for_update()
+            )
+            # Same answer for "not yours", "gone" and "revoked", as for revoke.
+            if device is None or device.state != LifecycleState.ACTIVE:
+                raise DeviceRenameRefused
+            if device.name == name:
+                return
+            device.name = name
+            device.updated_at = now
+            add_audit_event(
+                session,
+                actor_kind="user",
+                actor_id=user_id,
+                target_kind="device",
+                target_id=device_id,
+                event_code="device_state_changed",
+                outcome="succeeded",
+                request_id=request_id,
+                reason_code="renamed",
+            )
+            await session.commit()
 
     async def revoke_device(
         self,

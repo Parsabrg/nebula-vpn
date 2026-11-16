@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/account/account_repository.dart';
+import '../../core/app_info.dart';
 import '../../core/network/error_copy.dart';
 import '../../core/settings/locale_controller.dart';
 
@@ -117,12 +120,54 @@ class AccountController extends Notifier<AccountState> {
         devices: devices,
         loadErrorMessage: () => null,
       );
+      unawaited(_nameThisDevice(devices));
     } catch (error) {
       state = state.copyWith(
         loadStatus: AccountLoadStatus.failed,
         loadErrorMessage: () =>
             userFacingErrorMessage(error, ref.read(appTextProvider)),
       );
+    }
+  }
+
+  /// Renames a device, then reloads; false if the server refused.
+  Future<bool> renameDevice(String deviceId, String name) async {
+    try {
+      await ref.read(accountRepositoryProvider).renameDevice(deviceId, name);
+      await load();
+      return true;
+    } catch (error) {
+      if (ref.mounted) {
+        state = state.copyWith(
+          actionErrorMessage: () =>
+              userFacingErrorMessage(error, ref.read(appTextProvider)),
+        );
+      }
+      return false;
+    }
+  }
+
+  /// This device, still under the old "android device" name, takes its real
+  /// one. Quietly: a server too old to rename answers 404, and nothing
+  /// changes.
+  Future<void> _nameThisDevice(List<AccountDevice> devices) async {
+    final AccountDevice? me = devices
+        .where((AccountDevice d) => d.isCurrent)
+        .firstOrNull;
+    if (me == null || !isPlaceholderDeviceName(me.name)) {
+      return;
+    }
+    final String name = await readDeviceName();
+    if (isPlaceholderDeviceName(name)) {
+      return;
+    }
+    try {
+      await ref.read(accountRepositoryProvider).renameDevice(me.id, name);
+      if (ref.mounted) {
+        await refresh();
+      }
+    } on Object {
+      // An older server; the name stays as it was.
     }
   }
 

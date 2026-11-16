@@ -66,88 +66,6 @@ function useServer(serverId: string) {
   };
 }
 
-/** "Healthy · 52 ms", or what is wrong; "Checking…" until the answer is in. */
-export function ServerVerdict({ serverId }: { serverId: string }) {
-  const { live, wireguard, xray } = useServer(serverId);
-  if (live.status === "checking") {
-    return <p className="server-card__verdict is-checking">Checking…</p>;
-  }
-  if (live.status === "failed") {
-    return (
-      <p className="server-card__verdict is-bad">Could not check right now</p>
-    );
-  }
-  const healthy =
-    wireguard?.state === "healthy" &&
-    (xray === undefined || xray.listenerUp === true);
-  const verdict =
-    wireguard === undefined
-      ? "Not checked yet"
-      : healthy
-        ? "Healthy"
-        : wireguard.state !== "healthy"
-          ? `Agent ${wireguard.state}`
-          : xray?.listenerUp === null
-            ? "Xray not checked"
-            : "Xray listener down";
-  return (
-    <p className={`server-card__verdict ${healthy ? "is-ok" : "is-bad"}`}>
-      {verdict}
-      {wireguard?.latencyMs != null ? ` · ${wireguard.latencyMs} ms` : ""}
-    </p>
-  );
-}
-
-/** Xray, WireGuard and agent version rows of a server card. */
-export function ServerLiveFacts({ serverId }: { serverId: string }) {
-  const { live, wireguard, xray } = useServer(serverId);
-  const pending = live.status !== "ready";
-  return (
-    <>
-      <dt>Xray</dt>
-      <dd>
-        {pending
-          ? "…"
-          : xray === undefined
-            ? "not enabled"
-            : xray.listenerUp === null
-              ? `unknown${xray.errorCode ? ` (${xray.errorCode})` : ""}`
-              : xray.listenerUp
-                ? "up"
-                : `down${xray.errorCode ? ` (${xray.errorCode})` : ""}`}
-      </dd>
-      <dt>WireGuard</dt>
-      <dd>
-        {pending
-          ? "…"
-          : wireguard?.interfaceUp == null
-            ? "unknown"
-            : wireguard.interfaceUp
-              ? `up · ${wireguard.peerCount ?? 0} peers`
-              : "down"}
-      </dd>
-      <dt>Agent</dt>
-      <dd>{pending ? "…" : (wireguard?.agentVersion ?? "unknown")}</dd>
-    </>
-  );
-}
-
-/** "Checked" row: when the server last answered, the exact time on hover. */
-export function ServerChecked({ serverId }: { serverId: string }) {
-  const { live, wireguard } = useServer(serverId);
-  if (live.status !== "ready") return <dd>…</dd>;
-  if (!wireguard) return <dd>never</dd>;
-  const at = wireguard.observedAt;
-  const seconds = Math.max(0, (live.at - new Date(at).getTime()) / 1000);
-  return (
-    <dd>
-      <time dateTime={at} title={new Date(at).toISOString()}>
-        {seconds < 90 ? "just now" : `${Math.round(seconds / 60)} min ago`}
-      </time>
-    </dd>
-  );
-}
-
 /** The reconciliation summary, which needs to know whether any agent is
  * unreachable before it can say "All in sync". */
 export function ReconciliationSummary({
@@ -178,5 +96,72 @@ export function ReconciliationSummary({
     </>
   ) : (
     <>All in sync: every credential is where it should be.</>
+  );
+}
+
+/** A table cell's badge for one of a server's live checks: OK, Down or
+ * Unknown, "…" until the answer is in. */
+export function ServerLiveBadge({
+  serverId,
+  check,
+}: {
+  serverId: string;
+  check: "agent" | "xray" | "wireguard";
+}) {
+  const { live, wireguard, xray } = useServer(serverId);
+  if (live.status === "checking") return <span className="muted">…</span>;
+  // Said plainly, not "Unknown": the check itself did not get through.
+  if (live.status === "failed") {
+    return <span className="muted">Could not check</span>;
+  }
+  const up: boolean | null | undefined =
+    check === "agent"
+      ? wireguard === undefined
+        ? null
+        : wireguard.state === "healthy"
+      : check === "xray"
+        ? xray === undefined
+          ? undefined
+          : xray.listenerUp
+        : (wireguard?.interfaceUp ?? null);
+  if (up === undefined) return <span className="muted">Not enabled</span>;
+  const [tone, word] =
+    up === null
+      ? ["unknown", "Unknown"]
+      : up
+        ? ["active", "OK"]
+        : ["failed", "Down"];
+  const detail =
+    check === "xray" && xray?.errorCode
+      ? xray.errorCode
+      : check === "agent"
+        ? (wireguard?.agentVersion ?? undefined)
+        : check === "wireguard" && wireguard?.peerCount != null
+          ? `${wireguard.peerCount} peers`
+          : undefined;
+  return (
+    <span className={`badge badge--${tone}`} title={detail}>
+      {word}
+    </span>
+  );
+}
+
+/** When the server last answered, for a table cell. */
+export function ServerCheckedText({ serverId }: { serverId: string }) {
+  const { live, wireguard } = useServer(serverId);
+  if (live.status !== "ready") return <span className="muted">…</span>;
+  if (!wireguard) return <span className="muted">never</span>;
+  const at = wireguard.observedAt;
+  const seconds = Math.max(0, (live.at - new Date(at).getTime()) / 1000);
+  return (
+    <time className="muted" dateTime={at} title={new Date(at).toISOString()}>
+      {seconds < 90
+        ? "just now"
+        : seconds < 5400
+          ? `${Math.round(seconds / 60)} min ago`
+          : seconds < 172800
+            ? `${Math.round(seconds / 3600)} h ago`
+            : `${Math.round(seconds / 86400)} days ago`}
+    </time>
   );
 }

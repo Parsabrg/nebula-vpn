@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nebula_mobile/core/free/free_mode.dart';
 import 'package:nebula_mobile/core/free/subscriptions.dart';
 import 'package:nebula_mobile/core/storage/storage_providers.dart';
+import 'package:nebula_mobile/core/widgets/nebula/nebula_surface.dart';
 import 'package:nebula_mobile/features/free/free_mode_screen.dart';
 import 'package:nebula_mobile/features/settings/bypass_domains_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -44,7 +45,7 @@ void main() {
     // Every field-and-Add row on the screen: free mode has two, one for a
     // link and one for a subscription.
     final Finder fields = find.byType(TextField);
-    final Finder buttons = find.widgetWithText(FilledButton, 'Add');
+    final Finder buttons = find.widgetWithText(NebulaPressable, 'Add');
     expect(fields, findsWidgets);
     expect(buttons.evaluate().length, fields.evaluate().length);
     for (int i = 0; i < fields.evaluate().length; i++) {

@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -5,7 +6,7 @@ import 'package:nebula_mobile/core/servers/server_latency.dart';
 import 'package:nebula_mobile/core/servers/server_repository.dart';
 import 'package:nebula_mobile/core/storage/selection_store.dart';
 import 'package:nebula_mobile/core/storage/storage_providers.dart';
-import 'package:nebula_mobile/core/widgets/panel/panel_atoms.dart';
+import 'package:nebula_mobile/core/widgets/nebula/nebula_rows.dart';
 import 'package:nebula_mobile/features/connect/servers_screen.dart';
 import 'package:nebula_mobile/features/devices/devices_controller.dart';
 import 'package:nebula_mobile/features/devices/devices_state.dart';
@@ -71,6 +72,10 @@ Future<void> _pump(
 }) async {
   final FakeServerRepository repository = FakeServerRepository()
     ..servers = servers;
+  // Tall enough for both lists and the footer button, as on a phone.
+  tester.view.physicalSize = const Size(800, 1400);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
   await tester.pumpWidget(
     ProviderScope(
       overrides: <Override>[
@@ -172,7 +177,7 @@ void main() {
 
     expect(find.text('PROTOCOL · FRANKFURT'), findsOneWidget);
     // Automatic first, then the server's three.
-    expect(find.byType(PanelChip), findsNWidgets(4));
+    expect(find.byType(Radio<String>), findsNWidgets(2 + 4));
     expect(find.text('Use Frankfurt'), findsOneWidget);
   });
 
@@ -186,20 +191,23 @@ void main() {
 
     await tester.tap(find.text('Frankfurt'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(PanelChip, 'vless-xhttp'));
+    await tester.tap(find.text('vless-xhttp'));
     await tester.pumpAndSettle();
 
-    PanelChip chipFor(String label) =>
-        tester.widget<PanelChip>(find.widgetWithText(PanelChip, label));
-    expect(chipFor('vless-xhttp').selected, isTrue);
+    bool chosen(String label) =>
+        tester
+            .widget<NebulaRow>(find.widgetWithText(NebulaRow, label))
+            .selected ??
+        false;
+    expect(chosen('vless-xhttp'), isTrue);
 
     await tester.tap(find.text('Helsinki'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(PanelChip), findsNWidgets(2));
-    expect(chipFor('wireguard').selected, isFalse);
+    expect(find.byType(Radio<String>), findsNWidgets(2 + 2));
+    expect(chosen('wireguard'), isFalse);
     // The app chooses until the person does.
-    expect(chipFor('Automatic').selected, isTrue);
+    expect(chosen('Automatic'), isTrue);
   });
 
   testWidgets('the action names the server it will use', (

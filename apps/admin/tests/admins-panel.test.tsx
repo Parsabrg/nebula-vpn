@@ -36,7 +36,7 @@ const ops: AdminItem = {
 };
 
 function row(email: string) {
-  return screen.getByText(email).closest("li") as HTMLElement;
+  return screen.getByText(email).closest("tr") as HTMLElement;
 }
 
 describe("AdminsPanel", () => {

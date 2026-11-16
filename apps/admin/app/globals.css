@@ -37,23 +37,6 @@
 }
 
 :root {
-  color-scheme: dark;
-  /* NebulaPalette.dark */
-  --background: #0b0b0f;
-  --surface: #14141a;
-  --surface-raised: #1b1b23;
-  --border: #26262f;
-  --border-strong: #3a3a46;
-  --text: #ededf2;
-  --muted: #8a8a96;
-  --accent: #6e8bff;
-  --accent-text: #8ca4ff;
-  --accent-ink: #0b0b0f;
-  --warning: #e8b24a;
-  --warning-text: #f2e3c6;
-  --danger: #ff6b6b;
-  --danger-text: #ff9494;
-  --ok: #4ade80;
   --mono:
     "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-family:
@@ -66,25 +49,346 @@
     sans-serif;
 }
 
-/* NebulaPalette.light, for a system set to light. */
+/* Generated from the design's admin palette (DESIGN_SPEC section 5): a look,
+   a mode and an accent, set on <html> by appearance.ts. */
+:root:not([data-look]),
+:root[data-look="minimal"][data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0b0b0f;
+  --background-image: none;
+  --side: #0e0e13;
+  --surface: #131318;
+  --surface-raised: #1b1b22;
+  --dialog: #16161c;
+  --border: #25252e;
+  --border-strong: #6a6a78;
+  --text: #ededf2;
+  --muted: #9a9aa6;
+  --hover: rgba(255, 255, 255, 0.03);
+  --warning: #e8b24a;
+  --warning-text: #e8b24a;
+  --danger: #ff8a80;
+  --danger-text: #ff8a80;
+  --on-danger: #1a0505;
+  --ok: #6fd3a0;
+  --card-border: 1px solid #25252e;
+  --card-shadow: none;
+  --card-blur: none;
+  --card-radius: 12px;
+  --button-radius: 8px;
+  --nav-radius: 8px;
+}
+
+:root[data-look="minimal"][data-theme="light"] {
+  color-scheme: light;
+  --background: #f5f5f8;
+  --background-image: none;
+  --side: #efeff3;
+  --surface: #ffffff;
+  --surface-raised: #f1f1f5;
+  --dialog: #ffffff;
+  --border: #e1e1e7;
+  --border-strong: #8a8a96;
+  --text: #101014;
+  --muted: #55555f;
+  --hover: rgba(16, 16, 20, 0.025);
+  --warning: #8a5a00;
+  --warning-text: #8a5a00;
+  --danger: #b42318;
+  --danger-text: #b42318;
+  --on-danger: #ffffff;
+  --ok: #12703f;
+  --card-border: 1px solid #e1e1e7;
+  --card-shadow: none;
+  --card-blur: none;
+  --card-radius: 12px;
+  --button-radius: 8px;
+  --nav-radius: 8px;
+}
+
+:root[data-look="glass"][data-theme="dark"] {
+  color-scheme: dark;
+  --background: #08080e;
+  --background-image:
+    radial-gradient(
+      90% 60% at 0% 0%,
+      rgba(110, 139, 255, 0.28),
+      transparent 60%
+    ),
+    radial-gradient(
+      70% 50% at 100% 100%,
+      rgba(176, 110, 255, 0.18),
+      transparent 60%
+    );
+  --side: rgba(255, 255, 255, 0.05);
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-raised: rgba(255, 255, 255, 0.08);
+  --dialog: #16161c;
+  --border: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.45);
+  --text: #ededf2;
+  --muted: rgba(255, 255, 255, 0.72);
+  --hover: rgba(255, 255, 255, 0.03);
+  --warning: #e8b24a;
+  --warning-text: #e8b24a;
+  --danger: #ff8a80;
+  --danger-text: #ff8a80;
+  --on-danger: #1a0505;
+  --ok: #6fd3a0;
+  --card-border: 1px solid rgba(255, 255, 255, 0.14);
+  --card-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  --card-blur: blur(18px) saturate(150%);
+  --card-radius: 18px;
+  --button-radius: 12px;
+  --nav-radius: 12px;
+}
+
+:root[data-look="glass"][data-theme="light"] {
+  color-scheme: light;
+  --background: #eef0f7;
+  --background-image:
+    radial-gradient(
+      90% 60% at 0% 0%,
+      rgba(140, 164, 255, 0.38),
+      transparent 60%
+    ),
+    radial-gradient(
+      70% 50% at 100% 100%,
+      rgba(210, 170, 255, 0.3),
+      transparent 60%
+    );
+  --side: rgba(255, 255, 255, 0.55);
+  --surface: rgba(255, 255, 255, 0.62);
+  --surface-raised: rgba(255, 255, 255, 0.7);
+  --dialog: #ffffff;
+  --border: rgba(16, 16, 20, 0.09);
+  --border-strong: rgba(16, 16, 20, 0.42);
+  --text: #101014;
+  --muted: rgba(16, 16, 20, 0.7);
+  --hover: rgba(16, 16, 20, 0.025);
+  --warning: #8a5a00;
+  --warning-text: #8a5a00;
+  --danger: #b42318;
+  --danger-text: #b42318;
+  --on-danger: #ffffff;
+  --ok: #12703f;
+  --card-border: 1px solid rgba(255, 255, 255, 0.9);
+  --card-shadow: 0 8px 24px rgba(40, 50, 110, 0.08);
+  --card-blur: blur(18px) saturate(150%);
+  --card-radius: 18px;
+  --button-radius: 12px;
+  --nav-radius: 12px;
+}
+
+:root[data-look="soft"][data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0e0f12;
+  --background-image: none;
+  --side: #0e0f12;
+  --surface: #1b1c21;
+  --surface-raised: #26272e;
+  --dialog: #16161c;
+  --border: #2a2b32;
+  --border-strong: #6a6a78;
+  --text: #ededf2;
+  --muted: #9a9aa6;
+  --hover: rgba(255, 255, 255, 0.03);
+  --warning: #e8b24a;
+  --warning-text: #e8b24a;
+  --danger: #ff8a80;
+  --danger-text: #ff8a80;
+  --on-danger: #1a0505;
+  --ok: #6fd3a0;
+  --card-border: 1px solid transparent;
+  --card-shadow: none;
+  --card-blur: none;
+  --card-radius: 18px;
+  --button-radius: 12px;
+  --nav-radius: 12px;
+}
+
+:root[data-look="soft"][data-theme="light"] {
+  color-scheme: light;
+  --background: #f1f2f6;
+  --background-image: none;
+  --side: #f1f2f6;
+  --surface: #ffffff;
+  --surface-raised: #f1f2f6;
+  --dialog: #ffffff;
+  --border: #e7e8ee;
+  --border-strong: #8a8a96;
+  --text: #101014;
+  --muted: #55555f;
+  --hover: rgba(16, 16, 20, 0.025);
+  --warning: #8a5a00;
+  --warning-text: #8a5a00;
+  --danger: #b42318;
+  --danger-text: #b42318;
+  --on-danger: #ffffff;
+  --ok: #12703f;
+  --card-border: 1px solid transparent;
+  --card-shadow: none;
+  --card-blur: none;
+  --card-radius: 18px;
+  --button-radius: 12px;
+  --nav-radius: 12px;
+}
+
+:root[data-look="expressive"][data-theme="dark"] {
+  color-scheme: dark;
+  --background: #111318;
+  --background-image: none;
+  --side: #1d2027;
+  --surface: #1d2027;
+  --surface-raised: #282b34;
+  --dialog: #262931;
+  --border: #30333c;
+  --border-strong: #8e909a;
+  --text: #e2e2e9;
+  --muted: #c4c6d0;
+  --hover: rgba(255, 255, 255, 0.03);
+  --warning: #e8b24a;
+  --warning-text: #e8b24a;
+  --danger: #ff8a80;
+  --danger-text: #ff8a80;
+  --on-danger: #1a0505;
+  --ok: #6fd3a0;
+  --card-border: 1px solid transparent;
+  --card-shadow: none;
+  --card-blur: none;
+  --card-radius: 24px;
+  --button-radius: 20px;
+  --nav-radius: 20px;
+}
+
+:root[data-look="expressive"][data-theme="light"] {
+  color-scheme: light;
+  --background: #f9f9ff;
+  --background-image: none;
+  --side: #ecedf6;
+  --surface: #ecedf6;
+  --surface-raised: #e1e2ec;
+  --dialog: #ffffff;
+  --border: #dadbe5;
+  --border-strong: #74777f;
+  --text: #1a1b21;
+  --muted: #45464f;
+  --hover: rgba(16, 16, 20, 0.025);
+  --warning: #8a5a00;
+  --warning-text: #8a5a00;
+  --danger: #b42318;
+  --danger-text: #b42318;
+  --on-danger: #ffffff;
+  --ok: #12703f;
+  --card-border: 1px solid transparent;
+  --card-shadow: none;
+  --card-blur: none;
+  --card-radius: 24px;
+  --button-radius: 20px;
+  --nav-radius: 20px;
+}
+
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-look]) {
     color-scheme: light;
-    --background: #f7f7f9;
+    --background: #f5f5f8;
+    --background-image: none;
+    --side: #efeff3;
     --surface: #ffffff;
-    --surface-raised: #f0f0f4;
-    --border: #e3e3e8;
-    --border-strong: #c9c9d2;
+    --surface-raised: #f1f1f5;
+    --dialog: #ffffff;
+    --border: #e1e1e7;
+    --border-strong: #8a8a96;
     --text: #101014;
-    --muted: #5c5c68;
-    --accent: #2a46be;
-    --accent-text: #2540a8;
-    --accent-ink: #ffffff;
-    --warning: #8a6a22;
-    --warning-text: #7a5a12;
-    --danger: #e5484d;
+    --muted: #55555f;
+    --hover: rgba(16, 16, 20, 0.025);
+    --warning: #8a5a00;
+    --warning-text: #8a5a00;
+    --danger: #b42318;
     --danger-text: #b42318;
-    --ok: #15803d;
+    --on-danger: #ffffff;
+    --ok: #12703f;
+    --card-border: 1px solid #e1e1e7;
+    --card-shadow: none;
+    --card-blur: none;
+    --card-radius: 12px;
+    --button-radius: 8px;
+    --nav-radius: 8px;
+  }
+}
+
+:root[data-theme="dark"]:not([data-accent]),
+:root[data-theme="dark"][data-accent="blue"] {
+  --accent: #8ca4ff;
+  --accent-text: #8ca4ff;
+  --accent-ink: #0b0b0f;
+}
+
+:root[data-theme="light"]:not([data-accent]),
+:root[data-theme="light"][data-accent="blue"] {
+  --accent: #2a46be;
+  --accent-text: #2a46be;
+  --accent-ink: #ffffff;
+}
+
+:root[data-theme="dark"][data-accent="violet"] {
+  --accent: #b79cff;
+  --accent-text: #b79cff;
+  --accent-ink: #0b0b0f;
+}
+
+:root[data-theme="light"][data-accent="violet"] {
+  --accent: #6d3fd1;
+  --accent-text: #6d3fd1;
+  --accent-ink: #ffffff;
+}
+
+:root[data-theme="dark"][data-accent="teal"] {
+  --accent: #4fd1c5;
+  --accent-text: #4fd1c5;
+  --accent-ink: #0b0b0f;
+}
+
+:root[data-theme="light"][data-accent="teal"] {
+  --accent: #0f6e66;
+  --accent-text: #0f6e66;
+  --accent-ink: #ffffff;
+}
+
+:root[data-theme="dark"][data-accent="amber"] {
+  --accent: #e8b24a;
+  --accent-text: #e8b24a;
+  --accent-ink: #0b0b0f;
+}
+
+:root[data-theme="light"][data-accent="amber"] {
+  --accent: #8a5a00;
+  --accent-text: #8a5a00;
+  --accent-ink: #ffffff;
+}
+
+:root[data-theme="dark"][data-accent="mono"] {
+  --accent: #ededf2;
+  --accent-text: #ededf2;
+  --accent-ink: #0b0b0f;
+}
+
+:root[data-theme="light"][data-accent="mono"] {
+  --accent: #101014;
+  --accent-text: #101014;
+  --accent-ink: #ffffff;
+}
+
+:root:not([data-theme]) {
+  --accent: #8ca4ff;
+  --accent-text: #8ca4ff;
+  --accent-ink: #0b0b0f;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --accent: #2a46be;
+    --accent-text: #2a46be;
+    --accent-ink: #ffffff;
   }
 }
 
@@ -94,14 +398,16 @@
 
 html {
   min-width: 320px;
-  background: var(--background);
+  background:
+    var(--background-image, none) fixed,
+    var(--background);
 }
 
 body {
   min-height: 100vh;
   margin: 0;
   color: var(--text);
-  background: var(--background);
+  background: transparent;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
@@ -718,39 +1024,6 @@ h2 {
   margin-left: 0.5rem;
 }
 
-.data-table--cards {
-  display: flex;
-  flex-direction: column;
-  margin-top: 1.5rem;
-  padding: 0;
-  list-style: none;
-  gap: 0.75rem;
-}
-
-.data-table__card {
-  display: flex;
-  flex-direction: column;
-  padding: 1rem;
-  border: 1px solid var(--border);
-  border-radius: 0.875rem;
-  background: var(--surface);
-  gap: 0.5rem;
-}
-
-.data-table__card-field {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.data-table__card-label {
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
 .filter-bar {
   display: flex;
   flex-wrap: wrap;
@@ -890,8 +1163,8 @@ h2 {
     flex-direction: column;
   }
 
-  /* Tables that are not DataTable (which turns into cards here) scroll
-     sideways inside their own box instead of widening the page. */
+  /* Every table scrolls sideways inside its own box on a narrow screen,
+     as the design keeps them, instead of widening the page. */
   table.data-table {
     display: block;
     max-width: 100%;
@@ -911,71 +1184,9 @@ h2 {
     flex-direction: column;
   }
 
-  .data-table__card-field {
-    flex-direction: column;
-    gap: 0.15rem;
-  }
-
   /* Hand-built tables on a phone: a card per row, each value under its
      column name (data-label). Scrolled sideways, Approve and Reject sat off
      the screen (2026-11-01 sweep). */
-  table.data-table--stack,
-  table.data-table--stack tbody,
-  table.data-table--stack tr,
-  table.data-table--stack td {
-    display: block;
-    overflow: visible;
-  }
-
-  table.data-table--stack thead {
-    display: none;
-  }
-
-  table.data-table--stack tr {
-    margin-bottom: 0.75rem;
-    padding: 0.85rem 1rem;
-    border: 1px solid var(--border);
-    border-radius: 0.875rem;
-    background: var(--surface);
-  }
-
-  table.data-table--stack td {
-    padding: 0.35rem 0;
-    border: 0;
-    overflow-wrap: anywhere;
-  }
-
-  table.data-table--stack td[data-label]::before {
-    content: attr(data-label);
-    display: block;
-    color: var(--muted);
-    font-family: var(--mono);
-    font-size: 0.68rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
-  table.data-table--stack td[data-label="Actions"]::before {
-    content: none;
-  }
-
-  table.data-table--stack .data-table__actions {
-    display: flex;
-    flex-wrap: wrap;
-    padding-top: 0.6rem;
-    white-space: normal;
-    gap: 0.5rem;
-  }
-
-  table.data-table--stack .data-table__actions > .button {
-    flex: 1 1 8rem;
-  }
-
-  table.data-table--stack .data-table__actions > .button + .button {
-    margin-left: 0;
-  }
-
-  /* The menu scrolls sideways; fade its edge so it is clear there is more. */
   .nav-list {
     mask-image: linear-gradient(to right, #000 85%, transparent);
   }
@@ -1298,4 +1509,1315 @@ h2 {
 
 .relay-port input {
   width: 7rem;
+}
+
+/* ------------------------------------------------------------------------
+   The redesign (DESIGN_SPEC section 5). One layer over the rules above:
+   the shell, then cards, buttons, fields, badges and tables by look. The
+   look's values are the tokens at the top of this file.
+   ------------------------------------------------------------------------ */
+
+/* Minimal draws its focus ring and current item in the accent; every look
+   keeps a visible 2 px ring. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.admin-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.admin-header {
+  position: sticky;
+  z-index: 10;
+  top: 0;
+  display: flex;
+  align-items: center;
+  height: 56px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--side);
+  backdrop-filter: var(--card-blur);
+  gap: 12px;
+}
+
+.admin-header .brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.admin-header .brand small {
+  display: inline;
+}
+
+.admin-header__account {
+  margin-left: auto;
+}
+
+.admin-header__menu {
+  display: none;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--button-radius);
+  color: var(--text);
+  background: transparent;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  gap: 8px;
+}
+
+.admin-header__menu:hover {
+  background: var(--hover);
+}
+
+/* Three bars, drawn rather than an icon font the CSP would refuse. */
+.admin-header__menu-icon,
+.admin-header__menu-icon::before,
+.admin-header__menu-icon::after {
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.admin-header__menu-icon {
+  position: relative;
+}
+
+.admin-header__menu-icon::before,
+.admin-header__menu-icon::after {
+  position: absolute;
+  content: "";
+}
+
+.admin-header__menu-icon::before {
+  top: -6px;
+}
+
+.admin-header__menu-icon::after {
+  top: 6px;
+}
+
+.admin-shell__body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-nav {
+  position: sticky;
+  top: 56px;
+  flex: none;
+  width: 232px;
+  height: calc(100vh - 56px);
+  padding: 16px 12px;
+  overflow: auto;
+  border-right: 1px solid var(--border);
+  background: var(--side);
+  backdrop-filter: var(--card-blur);
+}
+
+.admin-nav .nav-list {
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  gap: 2px;
+}
+
+.admin-nav .nav-list a {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-bottom: 0;
+  border-radius: var(--nav-radius);
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.admin-nav .nav-list a:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+
+.admin-nav .nav-list a[aria-current="page"] {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+/* Minimal: the tint plus a 2 px accent bar. */
+:root:not([data-look]) .admin-nav .nav-list a[aria-current="page"],
+:root[data-look="minimal"] .admin-nav .nav-list a[aria-current="page"] {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.page-shell {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  max-width: 1080px;
+  margin: 0;
+  padding: 28px 32px 48px;
+}
+
+.admin-shell__backdrop {
+  position: fixed;
+  z-index: 19;
+  inset: 0;
+  background: rgb(0 0 0 / 40%);
+}
+
+@media (max-width: 899px) {
+  .admin-header {
+    padding: 0 12px;
+  }
+
+  .admin-header__menu {
+    display: inline-flex;
+  }
+
+  .admin-nav {
+    position: fixed;
+    z-index: 20;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 260px;
+    height: auto;
+    visibility: hidden;
+    transform: translateX(-100%);
+    transition:
+      transform 0.2s ease,
+      visibility 0.2s;
+    box-shadow: 12px 0 40px rgb(0 0 0 / 30%);
+  }
+
+  /* Glass is see-through; a drawer over the page must not be. */
+  :root[data-look="glass"][data-theme="dark"] .admin-nav {
+    background: #101018;
+  }
+
+  :root[data-look="glass"][data-theme="light"] .admin-nav {
+    background: #f4f5fa;
+  }
+
+  .admin-shell[data-nav-open] .admin-nav {
+    visibility: visible;
+    transform: none;
+  }
+
+  .page-shell {
+    padding: 24px;
+  }
+}
+
+@media (max-width: 599px) {
+  .admin-header .badge--role {
+    display: none;
+  }
+
+  .page-shell {
+    padding: 20px 16px 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-nav {
+    transition: none;
+  }
+}
+
+/* Headings: a 26 px page title and 16 px card titles, not mono capitals. */
+.page-heading h1,
+h1 {
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 32px;
+  letter-spacing: -0.5px;
+}
+
+.page-heading > p:not(.eyebrow, .notice) {
+  max-width: 720px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 21px;
+}
+
+h2 {
+  color: var(--text);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Cards: Minimal a hairline at 12, Glass translucent with blur at 18, Soft
+   borderless at 18, Expressive tonal at 24; 20 px inside. */
+.status-card,
+.stat-tile,
+.empty-state,
+.next-step {
+  padding: 20px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: var(--card-blur);
+}
+
+.stat-tile {
+  color: var(--text);
+}
+
+.stat-tile:hover {
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+
+.stat-tile__value {
+  font-family: var(--mono);
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 38px;
+  letter-spacing: -1px;
+}
+
+/* Buttons: 38 px on a desktop, 44 px on a phone. */
+.button {
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: var(--button-radius);
+  font-size: 14px;
+}
+
+.button--danger {
+  border-color: color-mix(in srgb, var(--danger) 60%, var(--surface));
+}
+
+.data-table__actions .button,
+.button--small {
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 7px;
+  font-size: 13px;
+}
+
+@media (max-width: 599px) {
+  .button,
+  .data-table__actions .button,
+  .button--small {
+    min-height: 44px;
+  }
+}
+
+/* Fields: label above, help or error below, the box by look. */
+.field__label {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.field input,
+.field select,
+.field textarea {
+  min-height: 40px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--button-radius);
+  background: var(--surface-raised);
+}
+
+:root:not([data-look]) .field :is(input, select, textarea),
+:root[data-look="minimal"] .field :is(input, select, textarea) {
+  background: var(--surface);
+}
+
+.field [aria-invalid="true"] {
+  border-color: var(--danger);
+  box-shadow: inset 0 0 0 1px var(--danger);
+}
+
+@media (max-width: 599px) {
+  .field input,
+  .field select {
+    min-height: 44px;
+  }
+}
+
+/* State badges: a dot and a label, tinted by tone. */
+.badge {
+  --tone: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border: 0;
+  color: var(--text);
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 35%, transparent);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  letter-spacing: 0;
+  text-transform: none;
+  gap: 6px;
+}
+
+.badge::before {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tone);
+  content: "";
+}
+
+.badge--check-ok,
+.badge--approved,
+.badge--active,
+.badge--enabled,
+.badge--sent {
+  --tone: var(--ok);
+  border-color: transparent;
+}
+
+.badge--check-failing,
+.badge--rejected,
+.badge--failed,
+.badge--denied {
+  --tone: var(--danger);
+  color: var(--text);
+  border-color: transparent;
+}
+
+.badge--disabled,
+.badge--revoked {
+  --tone: var(--muted);
+  color: var(--muted);
+  border-color: transparent;
+}
+
+.badge--check-warning,
+.badge--pending_activation,
+.badge--maintenance,
+.badge--suspended,
+.badge--pending,
+.badge--sending {
+  --tone: var(--warning);
+  color: var(--text);
+  border-color: transparent;
+}
+
+/* The role in the header: a quiet mono pill, no dot. */
+.badge--role {
+  color: var(--muted);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border);
+  font-family: var(--mono);
+}
+
+.badge--role::before {
+  display: none;
+}
+
+/* Tables: a 12 px header row on the raised surface, 12 px cells. */
+.data-table th {
+  padding: 10px 12px;
+  background: var(--surface-raised);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.data-table td {
+  padding: 12px;
+}
+
+.data-table tbody tr:hover {
+  background: var(--hover);
+}
+
+.dialog {
+  border: 1px solid var(--border);
+  border-radius: calc(var(--card-radius) + 2px);
+  background: var(--dialog);
+  box-shadow: 0 30px 80px rgb(0 0 0 / 40%);
+}
+
+.notice {
+  border-radius: 10px;
+}
+
+/* The Appearance page's choices. */
+.appearance-choices {
+  display: grid;
+  margin: 0 0 20px;
+  padding: 0;
+  border: 0;
+  gap: 8px;
+}
+
+.appearance-choices legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.appearance-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.appearance-option {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--button-radius);
+  cursor: pointer;
+  gap: 8px;
+}
+
+.appearance-option:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.appearance-option:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.appearance-option input {
+  accent-color: var(--accent);
+}
+
+.appearance-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+/* Overview's "Needs attention". */
+.attention {
+  margin-top: 20px;
+}
+
+.attention ul {
+  display: grid;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  gap: 8px;
+}
+
+.attention li a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: var(--button-radius);
+  background: var(--hover);
+  text-decoration: none;
+  gap: 10px;
+}
+
+.admin-header__account > * {
+  white-space: nowrap;
+}
+
+/* ---- Design match (2026-11-15) ----------------------------------------
+   The icon font the design draws the sidebar with, served from here. */
+@font-face {
+  font-family: "Material Icons Outlined";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("/fonts/MaterialIconsOutlined.woff2") format("woff2");
+}
+
+/* Sidebar items: a 19 px icon, 10 apart, 38 high (44 on a phone), 14 px
+   medium; the current one in the text colour. */
+.admin-nav .nav-list a {
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 12px;
+  font-weight: 500;
+}
+
+.nav-icon {
+  flex: none;
+  font-family: "Material Icons Outlined";
+  font-size: 19px;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+}
+
+.nav-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.nav-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 24%, var(--side));
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+:root[data-theme="light"] .nav-count {
+  background: color-mix(in srgb, var(--accent) 14%, var(--side));
+}
+
+@media (max-width: 599px) {
+  .admin-nav .nav-list a {
+    min-height: 44px;
+  }
+}
+
+/* The header reads "NEBULA  Administration": the second word as plain
+   text, not small capitals. */
+.admin-header .brand small {
+  margin-left: 10px;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Overview tiles: the figure, a 14 px label, and an optional warning line. */
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 16px;
+}
+
+.stat-tile .stat-tile__label {
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.stat-tile__note {
+  color: var(--warning-text);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.status-card__desc {
+  margin: 6px 0 14px;
+  max-width: 760px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.attention .data-table td:last-child {
+  text-align: right;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* Tables sit in a rounded hairline frame, the header row on the raised
+   surface; an Actions column reads from the right. */
+.data-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--border);
+  border-radius: min(var(--card-radius), 14px);
+  overflow: hidden;
+}
+
+.data-table th {
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.data-table td {
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.data-table td.data-table__actions,
+.data-table:has(td.data-table__actions) th:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.status-card > .data-table,
+.status-card > table {
+  width: 100%;
+  margin-top: 14px;
+}
+
+/* A count beside a card's title ("Pending account requests  3"). */
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 20px;
+  height: 20px;
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 24%, var(--surface));
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.status-card h2 {
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
+/* A quiet destructive button: an outline, the danger colour in the text. */
+.button--danger-outline {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--danger-text);
+}
+
+/* A page title with its actions on the right ("Add server", "Relays"). */
+.page-heading--actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.page-heading--actions > div:first-child {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.page-heading__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+/* Material icon glyphs inside buttons. */
+.icon {
+  font-family: "Material Icons Outlined";
+  font-size: 18px;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  font-feature-settings: "liga";
+}
+
+.button .icon {
+  margin-right: 8px;
+}
+
+/* A card's title with a control at its right ("Check again"). */
+.status-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.status-card__head h2 {
+  flex: 1;
+  min-width: 160px;
+}
+
+/* Notices: a tinted box with a coloured border, by kind. */
+.notice {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--surface));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--text);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.notice--warning {
+  border-color: color-mix(in srgb, var(--warning-text) 35%, var(--surface));
+  background: color-mix(in srgb, var(--warning-text) 12%, var(--surface));
+}
+
+.notice--danger {
+  border-color: color-mix(in srgb, var(--danger-text) 35%, var(--surface));
+  background: color-mix(in srgb, var(--danger-text) 12%, var(--surface));
+}
+
+/* A table cell holding a name and the code under it. */
+.cell-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cell-stack .muted {
+  font-size: 13px;
+}
+
+.numeric {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Choices in a dialog: each a bordered box, the chosen one outlined in the
+   accent (the server's state in Manage). */
+.choice-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--button-radius);
+  cursor: pointer;
+}
+
+.choice.is-selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.choice input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+
+.choice span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.choice strong {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.server-manage .everyone__result,
+.server-manage > .button {
+  margin-top: 12px;
+}
+
+.field__help {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.page-heading.page-heading--actions {
+  max-width: none;
+}
+
+/* Filters sit in a card, as the design draws them. */
+.filter-bar {
+  padding: 20px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: var(--card-blur);
+}
+
+/* A list card's pager: inside the card, at its right. */
+.status-card .pagination {
+  margin-top: 14px;
+  padding: 0;
+  border: 0;
+  justify-content: flex-end;
+}
+
+/* Number columns read from the right. */
+.data-table th.num,
+.data-table td.num {
+  text-align: right;
+}
+
+/* A link in a table reads as the row's name, not as underlined text. */
+.data-table td a:not(.button) {
+  color: var(--text);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.data-table td a:not(.button):hover,
+.data-table td a:not(.button):focus-visible {
+  text-decoration: underline;
+}
+
+/* Cards on a page sit 20 apart. */
+.filter-bar + .status-card,
+.status-card + .status-card,
+.status-card + section,
+.status-grid + .status-card {
+  margin-top: 20px;
+}
+
+/* "← Users" above a detail page's title. */
+.crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.crumb .icon {
+  margin: 0;
+}
+
+.page-heading h1 .badge {
+  margin-left: 10px;
+  vertical-align: middle;
+}
+
+/* A detail page's tabs: underlined, the current one in the accent. */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 20px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+}
+
+.tabs a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.tabs a[aria-current="page"] {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+}
+
+.tabs + * {
+  margin-top: 20px;
+}
+
+.tabs .count-badge {
+  margin-left: 0;
+}
+
+/* Label over value, four to a row (a user's details). */
+.kv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
+  gap: 16px;
+  margin: 16px 0 0;
+}
+
+.kv-grid dt {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.kv-grid dd {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.notice--success {
+  border-color: color-mix(in srgb, var(--ok) 35%, var(--surface));
+  background: color-mix(in srgb, var(--ok) 12%, var(--surface));
+}
+
+/* Row actions: side by side, wrapping at the row's right. */
+.data-table__actions .user-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* Pair a device: the code with a white margin, the link beside it. */
+.pair-share {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+  margin-top: 14px;
+}
+
+.pair-share__qr {
+  flex: none;
+  padding: 10px;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.pair-share__link {
+  display: flex;
+  flex: 1 1 260px;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pair-share__copy {
+  margin-top: 14px;
+}
+
+.kv-label {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* Appearance: the looks as tiles with a miniature of each. */
+.look-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.look-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  cursor: pointer;
+}
+
+.look-tile.is-selected {
+  border: 2px solid var(--accent);
+  padding: 11px;
+}
+
+.look-tile:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.look-tile__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 76px;
+  padding: 10px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: var(--background);
+}
+
+.look-tile__bar {
+  width: 40%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--muted);
+}
+
+.look-tile__row {
+  height: 18px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+.look-tile__preview--glass {
+  background: color-mix(in srgb, var(--accent) 12%, var(--background));
+}
+
+.look-tile__preview--glass .look-tile__row {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  border-color: color-mix(in srgb, var(--text) 18%, transparent);
+}
+
+.look-tile__preview--soft .look-tile__row {
+  border: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text) 8%, var(--background));
+}
+
+.look-tile__preview--expressive .look-tile__row {
+  border: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 30%, var(--background));
+}
+
+.look-tile__name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.look-tile__check {
+  color: var(--accent);
+  font-size: 20px;
+}
+
+.look-tile__desc {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.mode-choices {
+  max-width: 420px;
+}
+
+/* Accent swatches: a dot inside a ring, the chosen one ringed. */
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 14px 0 0 -2px;
+}
+
+.swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: 2px solid transparent;
+  border-radius: 24px;
+  cursor: pointer;
+}
+
+.swatch.is-selected {
+  border-color: var(--accent);
+}
+
+.swatch:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.swatch__dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 17px;
+  color: #0b0b0f;
+}
+
+.swatch__dot .icon {
+  margin: 0;
+  font-size: 18px;
+}
+
+/* Sign in: a card centred in the window, 420 wide. */
+.login-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px 16px;
+  box-sizing: border-box;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  box-sizing: border-box;
+  padding: 32px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: var(--card-blur);
+}
+
+.login-card__brand {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 2px;
+}
+
+.login-card h1 {
+  margin: 10px 0 0;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 32px;
+  letter-spacing: -0.5px;
+}
+
+.login-card .auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.login-card .auth-form input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.login-card .auth-form > .button {
+  width: 100%;
+  margin-top: 4px;
+}
+
+@media (max-width: 599px) {
+  .login-card {
+    padding: 24px;
+  }
+}
+
+/* The brand as the design sets it: 13 px mono, 2 px apart. */
+.admin-header .brand__mark {
+  font-size: 13px;
+  letter-spacing: 2px;
+}
+
+.admin-header__menu {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+}
+
+.admin-header__menu .icon {
+  margin: 0;
+  font-size: 22px;
+}
+
+@media (max-width: 899px) {
+  .admin-header__menu {
+    display: inline-flex;
+  }
+}
+
+/* A phone: the design's 22 px title and 14 px text. */
+@media (max-width: 599px) {
+  .page-heading h1 {
+    font-size: 22px;
+    line-height: 28px;
+  }
+
+  .page-heading > p,
+  .page-heading > div > p {
+    font-size: 14px;
+    line-height: 21px;
+  }
+
+  .page-shell {
+    padding: 20px 16px 40px;
+  }
+
+  .status-card,
+  .filter-bar {
+    padding: 16px;
+  }
+
+  /* Cells keep to one line; the table scrolls instead. */
+  .data-table th,
+  .data-table td {
+    white-space: nowrap;
+  }
 }

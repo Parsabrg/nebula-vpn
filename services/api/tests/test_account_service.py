@@ -8,6 +8,7 @@ import pytest
 
 from nebula_api.account.service import (
     AccountService,
+    DeviceRenameRefused,
     DeviceRevocationRefused,
 )
 from nebula_api.db.engine import SessionFactory
@@ -201,6 +202,35 @@ class TestListDevices:
         entries = asyncio.run(service(ScriptedFactory(session)).list_devices(USER_ID, THIS_DEVICE))
 
         assert entries[0].server_codes == []
+
+
+class TestRenameDevice:
+    def _rename(self, session: ScriptedSession, name: str = "Xiaomi 2201117TG") -> None:
+        asyncio.run(
+            service(ScriptedFactory(session)).rename_device(
+                user_id=USER_ID, device_id=OTHER_DEVICE, name=name, request_id=uuid4()
+            )
+        )
+
+    def test_renames_an_active_device_and_audits_it(self) -> None:
+        row = device(name="android device")
+        session = ScriptedSession(scalar_values=[row])
+        self._rename(session)
+        assert row.name == "Xiaomi 2201117TG"
+        assert session.commits == 1
+        assert len(session.added) == 1
+
+    def test_the_same_name_changes_nothing(self) -> None:
+        session = ScriptedSession(scalar_values=[device(name="Xiaomi 2201117TG")])
+        self._rename(session)
+        assert session.commits == 0
+        assert session.added == []
+
+    @pytest.mark.parametrize("row", [None, "revoked"])
+    def test_a_missing_or_revoked_device_is_refused(self, row: object) -> None:
+        found = device(state=LifecycleState.REVOKED) if row == "revoked" else None
+        with pytest.raises(DeviceRenameRefused):
+            self._rename(ScriptedSession(scalar_values=[found]))
 
 
 class TestRevokeDevice:

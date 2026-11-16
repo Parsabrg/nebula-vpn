@@ -13,6 +13,10 @@ hysteria_hash='6493dfffd55b5883f64c76c63880ecc32988f0c568c9ca9014907877b4d55f94'
 # The DNS tunnel's engine (docs/runbooks/dns-tunnel.md): the same release Android ships.
 cotten_version='v2026.11.03.161534-be99443'
 cotten_hash='d40dbfb873236a772032dcaf52efde95839b38a9302e58085f7080fc760866a4'
+# Cloudflare WARP (patterniha/Aether, AGPL-3.0): the release Android ships,
+# its static (musl) build, which runs on any distribution's C library.
+aether_version='v2.4.0'
+aether_hash='35d56f3a30976da825c5fc0725eb76817e430182925b194284912bbbec98aa06'
 
 mkdir -p "$destination"
 temporary="$(mktemp -d)"
@@ -31,6 +35,8 @@ fetch() { # url, file, expected sha256
 fetch "https://github.com/XTLS/Xray-core/releases/download/$xray_version/Xray-linux-64.zip" \
   "$temporary/xray.zip" "$xray_hash"
 unzip -qo "$temporary/xray.zip" xray geoip.dat geosite.dat LICENSE -d "$destination"
+# Its routing data, cut to what the app names (26 MB of every country).
+python3 "$root/tool/trim_geodata.py" "$destination"
 
 fetch "https://github.com/HyNetworks/hysteria/releases/download/app/$hysteria_version/hysteria-linux-amd64" \
   "$destination/hysteria" "$hysteria_hash"
@@ -39,5 +45,12 @@ fetch "https://github.com/WhiteDNS/CottenDNS/releases/download/$cotten_version/C
 tar -xzf "$temporary/cottendns.tar.gz" -C "$temporary" "CottenDns_Client_Linux_AMD64_$cotten_version"
 mv "$temporary/CottenDns_Client_Linux_AMD64_$cotten_version" "$destination/cottendns_client"
 
-chmod 755 "$destination/xray" "$destination/hysteria" "$destination/cottendns_client"
+fetch "https://github.com/patterniha/Aether/releases/download/$aether_version/aether-linux-x86_64-musl.tar.gz"   "$temporary/aether.tar.gz" "$aether_hash"
+# With its Psiphon ("Leave outside Iran"), which Aether finds beside it.
+tar -xzf "$temporary/aether.tar.gz" -C "$temporary" aether pt/psiphon-tunnel-core
+mv "$temporary/aether" "$destination/aether"
+mv "$temporary/pt/psiphon-tunnel-core" "$destination/psiphon-tunnel-core"
+
+chmod 755 "$destination/xray" "$destination/hysteria" "$destination/cottendns_client" "$destination/aether" \
+  "$destination/psiphon-tunnel-core"
 echo "Linux runtime ready: $(ls "$destination" | tr '\n' ' ')"

@@ -23,6 +23,9 @@ aggregate and each keeps its own terms.
 | AndroidLibXrayLite (`libv2ray.aar`, `libgojni.so`) | Android | LGPL-3.0 | 2dust/AndroidLibXrayLite; Xray-core underneath. |
 | Hysteria | all (`hysteria`, `libhysteria.so`) | MIT | apernet/hysteria |
 | CottenDNS client (DNS tunnel, plan 10) | Android (`libcottendns_client.so`), with its Iran resolver list | MIT, bundling quic-go (MIT), QPACK (MIT) and SOAR (Apache-2.0); all four notices in `cottendns.txt` | WhiteDNS/CottenDNS |
+| Aether (Cloudflare WARP client) | Android (`libaether.so`), Windows (`aether.exe`), Linux (`aether`, the static musl build) | AGPL-3.0, its bundled crates' notices in `aether-third-party.txt` | patterniha/Aether v2.4.0, the release binary pinned by digest in `vendor_plugin.py` and the desktop vendor scripts; run as a separate program. AGPL-3.0 and GPL-3.0 may be combined (GPL-3.0 section 13); its source is the tagged release. |
+| Psiphon tunnel core ("Leave outside Iran") | Android (`libpsiphon.so`), Windows (`psiphon-tunnel-core.exe`), Linux (`psiphon-tunnel-core`) | GPL-3.0, its Go modules' notices in `psiphon-third-party.txt` | Psiphon-Labs/psiphon-tunnel-core, as built and shipped inside the Aether v2.4.0 release archives (same digests); started by Aether as a separate program |
+| TLS fingerprint presets (`warp_settings.dart`) | all | GPL-3.0 | Ported from patterniha/PattNG's `AetherFingerprint`. |
 | hev-socks5-tunnel (`libhev-socks5-tunnel.so`) | Android | MIT | heiher/hev-socks5-tunnel, built from source by `vendor_plugin.py` |
 | WireGuard for Android (`libwg-go.so`, `libwg.so`, `libwg-quick.so`) | Android | Apache-2.0 (tunnel library), MIT (wireguard-go) | WireGuard/wireguard-android |
 | Wintun (`wintun.dll`) | Windows | WireGuard LLC "Prebuilt Binaries License" | Redistributed unmodified, as that license allows; loaded by Xray, not linked into Nebula. Its terms ship beside it as `LICENSE-wintun.txt`. |
@@ -59,6 +62,7 @@ proprietary component.
 |---|---|---|
 | API, agent, worker (Python) | 81 | MIT, BSD, Apache-2.0, ISC, PSF and MPL-2.0; `psycopg` and `psycopg-binary` are LGPL-3.0-only |
 | Admin panel (npm, production) | 53 | MIT, Apache-2.0, ISC, BSD-3-Clause, 0BSD; `sharp`'s `libvips` binaries are LGPL-3.0-or-later; `caniuse-lite` data is CC-BY-4.0 |
+| Admin panel fonts (served from `apps/admin/public/fonts`) | Geist, Geist Mono, Material Icons Outlined | Geist: SIL OFL 1.1 (`OFL.txt` beside them); Material Icons: Apache-2.0 (Google) |
 | AdGuard Home (self-hosted resolver image) | 1 | GPL-3.0 |
 | CottenDNS server (DNS tunnel, plan 10; github.com/WhiteDNS/CottenDNS, released binary) | 1, bundling quic-go, QPACK and SOAR | CottenDNS: MIT (Amin Mahmoudi, NullRoute1970, tajirax; MasterDnsVPN -> StormDNS -> CottenDNS); quic-go: MIT; QPACK: MIT; SOAR: Apache-2.0. The licence files ship with the binary in `/usr/local/share/doc/nebula-cottendns/` |
 
