@@ -715,5 +715,13 @@
   "viaWarp": "through WARP",
   "@viaWarp": {"description": "After the protocol on Connect: this connection reaches the server through Cloudflare WARP."},
   "notViaWarp": "not through WARP",
-  "@notViaWarp": {"description": "After the protocol on Connect: Reach servers through WARP is on, but this protocol (Hysteria2, WireGuard) connects on its own."}
+  "@notViaWarp": {"description": "After the protocol on Connect: Reach servers through WARP is on, but this protocol (Hysteria2, WireGuard) connects on its own."},
+  "wordReconnecting": "Reconnecting",
+  "@wordReconnecting": {"description": "Connect's big word while a connected tunnel is not answering and a network is there; it is given a minute before it counts as dead."},
+  "statusRecovering": "Not answering · trying for up to a minute",
+  "@statusRecovering": {"description": "Under Reconnecting on Connect."},
+  "wordNoNetwork": "No network",
+  "@wordNoNetwork": {"description": "Connect's big word while connected but the phone has no Wi-Fi or mobile data at all."},
+  "statusWaitingForNetwork": "Waiting for Wi-Fi or mobile data · still connected",
+  "@statusWaitingForNetwork": {"description": "Under No network on Connect: the VPN stays on and carries on once a network is back."}
 }

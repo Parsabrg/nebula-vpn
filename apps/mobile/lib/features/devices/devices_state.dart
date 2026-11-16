@@ -46,6 +46,17 @@ class ProtocolDelay {
 /// hierarchy) because most fields are meaningful across every load status
 /// once a first load has completed -- e.g. an in-flight connect action's
 /// error should stay visible even if a background reload starts.
+/// Why a connected tunnel is not answering right now.
+enum TunnelStall {
+  /// A network is there and the tunnel is not answering through it: it
+  /// is given a minute (Xray redials on its own) before it counts as dead.
+  recovering,
+
+  /// No network at all -- Wi-Fi and mobile data both gone, or switching.
+  /// Not the protocol's fault, so nothing counts toward ending it.
+  noNetwork,
+}
+
 class DevicesState {
   const DevicesState({
     required this.loadStatus,
@@ -63,6 +74,7 @@ class DevicesState {
     this.trafficBaseline,
     this.sanctionsOnly = false,
     this.throughWarp,
+    this.stall,
     this.fromSavedCredential = false,
     this.protocolDelays = const <String, ProtocolDelay>{},
     this.protocolDelaysServer,
@@ -109,6 +121,11 @@ class DevicesState {
   /// this protocol connects on its own (Hysteria2, WireGuard), null when the
   /// setting was off. Recorded with the connection, like [sanctionsOnly].
   final bool? throughWarp;
+
+  /// Set while a connected tunnel is not answering: recovering (a network
+  /// is there, the minute before it counts as dead is running) or waiting
+  /// for a network to come back. Null while it answers.
+  final TunnelStall? stall;
 
   /// This connection was raised from a credential already on the phone,
   /// because the server could not be reached to issue a fresh one. Recorded
@@ -227,6 +244,7 @@ class DevicesState {
     TunnelTraffic? Function()? trafficBaseline,
     bool? sanctionsOnly,
     bool? Function()? throughWarp,
+    TunnelStall? Function()? stall,
     bool? fromSavedCredential,
     Map<String, ProtocolDelay>? protocolDelays,
     String? Function()? protocolDelaysServer,
@@ -271,6 +289,7 @@ class DevicesState {
           : this.trafficBaseline,
       sanctionsOnly: sanctionsOnly ?? this.sanctionsOnly,
       throughWarp: throughWarp != null ? throughWarp() : this.throughWarp,
+      stall: stall != null ? stall() : this.stall,
       fromSavedCredential: fromSavedCredential ?? this.fromSavedCredential,
       protocolDelays: protocolDelays ?? this.protocolDelays,
       protocolDelaysServer: protocolDelaysServer != null

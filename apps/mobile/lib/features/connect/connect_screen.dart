@@ -238,6 +238,16 @@ class ConnectStateBlock extends StatelessWidget {
       String title,
       Color? titleColor,
     ) = switch (view) {
+      // Connected but not answering: said in amber, not "Protected", for
+      // the minute it is given to recover (or while there is no network).
+      ConnectView.protected when state.stall != null => (
+        p.amber,
+        server ?? text.statusConnected,
+        state.stall == TunnelStall.noNetwork
+            ? text.wordNoNetwork
+            : text.wordReconnecting,
+        p.amberText,
+      ),
       ConnectView.protected => (
         p.ok,
         server ?? text.statusConnected,
@@ -287,6 +297,10 @@ class ConnectStateBlock extends StatelessWidget {
     final String subline =
         error ??
         switch (view) {
+          ConnectView.protected when state.stall == TunnelStall.noNetwork =>
+            text.statusWaitingForNetwork,
+          ConnectView.protected when state.stall != null =>
+            text.statusRecovering,
           ConnectView.protected when state.localProxy != null =>
             text.statusLocalProxy('127.0.0.1:${state.localProxy!.port}'),
           ConnectView.protected when state.sanctionsOnly =>

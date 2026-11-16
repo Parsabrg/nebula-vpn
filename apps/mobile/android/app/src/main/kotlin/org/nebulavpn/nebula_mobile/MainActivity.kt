@@ -81,6 +81,7 @@ class MainActivity : FlutterActivity() {
                     "requestPermission" -> requestPermission(result)
                     "hasPermission" -> result.success(VpnState.consentHeld(this))
                     "vpnOwner" -> result.success(VpnState.owner(this))
+                    "hasNetwork" -> result.success(VpnState.hasNetwork(this))
                     "takeDisconnectRequest" -> {
                         result.success(disconnectRequested)
                         disconnectRequested = false

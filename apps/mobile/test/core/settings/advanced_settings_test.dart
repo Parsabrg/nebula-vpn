@@ -520,10 +520,11 @@ void main() {
       expect(_list(config, 'outbounds'), hasLength(1));
       // streamSettings is always there -- it carries the transport and the
       // TLS name. What must be absent is the sockopt redirect into a
-      // fragmenting outbound that does not exist.
+      // fragmenting outbound that does not exist; sockopt itself carries
+      // only the dead-peer timeout.
       expect(
-        _section(_outbound(config), 'streamSettings'),
-        isNot(contains('sockopt')),
+        _section(_section(_outbound(config), 'streamSettings'), 'sockopt'),
+        <String, dynamic>{'tcpUserTimeout': deadPeerTimeoutMs},
       );
       expect(jsonEncode(config), isNot(contains('fragment')));
     });

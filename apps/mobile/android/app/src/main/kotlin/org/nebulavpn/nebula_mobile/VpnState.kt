@@ -73,4 +73,21 @@ object VpnState {
             else -> null
         }
     }
+
+    /**
+     * Whether there is a network to tunnel over at all: any network but a
+     * VPN that offers the internet. Not Android's "validated": that check
+     * reaches Google, which networks in Iran often block, and they carry
+     * tunnels all the same. Null where Android does not say.
+     */
+    @Suppress("DEPRECATION") // A one-off question, as in owner().
+    fun hasNetwork(context: Context): Boolean? {
+        val connectivity = context.getSystemService(ConnectivityManager::class.java) ?: return null
+        return connectivity.allNetworks.any { network ->
+            val capabilities = connectivity.getNetworkCapabilities(network)
+            capabilities != null &&
+                !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN) &&
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        }
+    }
 }

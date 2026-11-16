@@ -232,7 +232,7 @@ String renderXrayClientConfigJson(
             _withMux(
               result.transport == 'hysteria'
                   ? _hysteriaOutbound(result)
-                  : _vlessOutbound(result),
+                  : _withDeadPeerTimeout(_vlessOutbound(result)),
               settings,
             ),
             settings,
@@ -1151,6 +1151,26 @@ Map<String, dynamic> _withFragment(
 }
 
 const String _fragmentTag = 'fragment';
+
+/// How long data sent to the server may go unacknowledged before Xray drops
+/// the connection and dials a fresh one (TCP_USER_TIMEOUT; TCP only, so
+/// QUIC transports ignore it). After a Wi-Fi switch or a hand-over to mobile
+/// data, connections over the old network otherwise sat dead for minutes
+/// before the system gave up on them; with this the tunnel recovers by
+/// itself within half a minute, as PattNG does (2026-11-13). Go already
+/// sends keepalives every 15 s, so idle connections are covered too.
+const int deadPeerTimeoutMs = 30000;
+
+Map<String, dynamic> _withDeadPeerTimeout(Map<String, dynamic> outbound) {
+  final Map<String, dynamic> streamSettings = <String, dynamic>{
+    ...?(outbound['streamSettings'] as Map<String, dynamic>?),
+  };
+  streamSettings['sockopt'] = <String, dynamic>{
+    ...?(streamSettings['sockopt'] as Map<String, dynamic>?),
+    'tcpUserTimeout': deadPeerTimeoutMs,
+  };
+  return <String, dynamic>{...outbound, 'streamSettings': streamSettings};
+}
 
 /// The transport of WARP mode's profile: its traffic leaves through
 /// Cloudflare WARP (Aether), not a server of ours.
