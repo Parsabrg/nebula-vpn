@@ -8,18 +8,23 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// Release signing material, kept out of the repository: android/key.properties
-// and the keystore it points at are both gitignored, so a clone has neither.
+// Release signing material, kept outside every copy of the repository: the
+// release machine holds it in ~/.nebula-release (key.properties naming the
+// keystore by absolute path), or wherever NEBULA_KEY_PROPERTIES points. A
+// file inside the tree was one `git add -f` away from being published (review
+// S-09); android/key.properties is still read, last, for older setups.
 // Absent (CI, a fresh clone, any machine that is not the release machine) this
 // stays null and the release build below falls back to debug signing rather
 // than failing -- an unsigned-for-release build is still useful for checking
 // that the app compiles, and only the release machine can produce a
 // distributable one.
 val keystoreProperties = Properties().apply {
-    val file = rootProject.file("key.properties")
-    if (file.exists()) {
-        file.inputStream().use { load(it) }
-    }
+    val file = listOfNotNull(
+        System.getenv("NEBULA_KEY_PROPERTIES")?.let { File(it) },
+        File(System.getProperty("user.home"), ".nebula-release/key.properties"),
+        rootProject.file("key.properties"),
+    ).firstOrNull { it.isFile }
+    file?.inputStream()?.use { load(it) }
 }
 val hasReleaseSigning = keystoreProperties.getProperty("storeFile") != null
 
