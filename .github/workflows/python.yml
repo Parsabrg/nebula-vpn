@@ -188,15 +188,22 @@ jobs:
           sudo ip netns exec "$ns" ip address add 10.77.0.1/24 dev wg0
           sudo ip netns exec "$ns" ip link set wg0 up
 
-          key_dir=$(mktemp -d)
-          umask 077
-          wg genkey > "$key_dir/server_private_key"
-          sudo ip netns exec "$ns" wg set wg0 listen-port 51820 private-key "$key_dir/server_private_key"
-          sudo chmod 0644 "$key_dir/server_private_key"
+          # In /etc/wireguard: since 2026-11-16 the runner image confines wg
+          # with an AppArmor profile that refuses it files under /tmp
+          # (apparmor="DENIED" profile="wg" on the key in /tmp).
+          # A throwaway CI key, readable by the tests.
+          key_dir=/etc/wireguard
+          sudo install -d -m 0755 "$key_dir"
+          wg genkey | sudo tee "$key_dir/nebula-ci.key" >/dev/null
+          sudo chmod 0644 "$key_dir/nebula-ci.key"
+          if ! sudo ip netns exec "$ns" wg set wg0 listen-port 51820 private-key "$key_dir/nebula-ci.key"; then
+            sudo dmesg 2>/dev/null | grep -i apparmor | tail -3 || true
+            exit 1
+          fi
 
           echo "available=true" >> "$GITHUB_OUTPUT"
           echo "namespace=$ns" >> "$GITHUB_OUTPUT"
-          echo "key_file=$key_dir/server_private_key" >> "$GITHUB_OUTPUT"
+          echo "key_file=$key_dir/nebula-ci.key" >> "$GITHUB_OUTPUT"
       - name: Real WireGuard netns integration tests
         if: steps.netns.outputs.available == 'true'
         working-directory: services/vpn-agent
