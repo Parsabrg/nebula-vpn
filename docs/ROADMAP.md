@@ -44,7 +44,7 @@ Updated in the same pull request as the work (section 92).
 | Section | Item | State |
 | --- | --- | --- |
 | Planned: WARP proxy auth (review S-02) | On Android and desktop Aether's (and Psiphon's) loopback SOCKS5 takes no password, so any local app can use WARP through it or see it is there. Needs a patch to Aether (AGPL Rust: a username/password on `--bind`) and to Psiphon's listener, then `users` in `_aetherSocksOutbound` | Planned; low harm (free WARP, not our servers or credentials) |
-| Planned: smaller release APKs (review S-10) | `--split-debug-info` in release.yml: smaller APKs, symbols kept as a release artifact for crash triage; `--obfuscate` adds little for a GPL app | Planned |
+| Smaller release APKs (review S-10) | `--split-debug-info` in release.yml: the Dart symbols leave the APKs and are kept as the `android-symbols` workflow artifact for crash triage; `--obfuscate` not used (adds little for a GPL app) | Done 2026-11-16; checked by the release workflow on its PR |
 | Planned: glass look performance (review Q-02) | One `BackdropFilter` per panel (13 call sites), no `BackdropGroup` or `RepaintBoundary`: share one backdrop per screen, wrap the animated connect visuals; profile first with `flutter run --profile` on a mid-range phone | Planned; measure before changing |
 | Planned: connection state machine (review Q-03) | Connect, disconnect, adopt and restore are flags across ~3k lines of mixins: an explicit tunnel lifecycle with transition tests, so leaks like S-01/S-03 can be asserted | Planned; large |
 | Planned: native tests (review Q-07) | No tests for the Kotlin/Java layer: Robolectric tests for the disconnect token, installApk path checks, the saved-tunnel crypto, VPN setup (DNS fallback, establish order) | Planned |
