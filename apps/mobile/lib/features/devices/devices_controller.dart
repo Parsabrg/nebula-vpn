@@ -440,6 +440,7 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
         tunnelEstablishedAt: () => session.since,
         trafficBaseline: () => session.baseline,
         sanctionsOnly: record.sanctionsOnly,
+        throughWarp: () => record.throughWarp,
         localProxy: () => proxy,
         // The screen names the server from the selection, so it has to be
         // the one the tunnel runs through, not whatever was picked since.
@@ -517,6 +518,7 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
           profileCode: profileCode,
           protocolCode: protocolCode,
           sanctionsOnly: state.sanctionsOnly,
+          throughWarp: state.throughWarp,
           peer: state.peer,
           xrayClient: state.xrayClient,
           localProxyPort: state.localProxy?.port,
@@ -694,7 +696,7 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
   );
   bool _cancelled(int attempt);
   Future<void> _stopLeftoverTunnel();
-  Future<void> disconnect(String deviceId);
+  Future<void> disconnect(String deviceId, {bool keepConnecting = false});
   Future<bool> _serverChangedCredential({
     required String deviceId,
     required String serverCode,

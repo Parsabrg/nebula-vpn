@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID, uuid4
@@ -39,9 +40,15 @@ class FakeAuditLogService:
         self.received_filters = filters
         return self.page
 
-    async def export_events(self, *, until: datetime) -> list[AuditLogEntry]:
+    async def latest_checkpoint(self) -> None:
+        return None
+
+    async def export_events(
+        self, *, until: datetime, since: datetime | None = None
+    ) -> AsyncIterator[AuditLogEntry]:
         self.export_until = until
-        return list(self.page.items)
+        for item in self.page.items:
+            yield item
 
 
 def make_client(

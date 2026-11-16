@@ -265,6 +265,7 @@ mixin _Connecting on _DevicesCore {
       tunnelEstablished: false,
       tunnelEstablishedAt: () => null,
       sanctionsOnly: false,
+      throughWarp: () => null,
       localProxy: () => null,
       actionErrorMessage: () => null,
     );
@@ -522,6 +523,12 @@ mixin _Connecting on _DevicesCore {
         // session it did not start reports no elapsed time rather than a
         // wrong one.
         tunnelEstablishedAt: () => tunnelUp ? DateTime.now() : null,
+        // WireGuard never goes through WARP: said so when it was asked for.
+        throughWarp: () =>
+            tunnelUp &&
+                ref.read(advancedSettingsControllerProvider).warp.throughWarp
+            ? false
+            : null,
         actionErrorMessage: () => tunnelError,
       );
       if (tunnelUp) {
@@ -799,8 +806,12 @@ mixin _Connecting on _DevicesCore {
         if (!ref.mounted) {
           return;
         }
-        state = state.copyWith(isSubmitting: false, tunnelEstablished: true);
-        await disconnect(deviceId);
+        state = state.copyWith(tunnelEstablished: true);
+        // Still "Connecting" on screen: what follows is usually another try
+        // (the next dial, a credential the server changed, the next API
+        // route). Shown as Off in between, every first connect after a
+        // server change flashed Off for a second (recorded, 2026-11-14).
+        await disconnect(deviceId, keepConnecting: true);
         // The same credential through Cloudflare, dialled the next way: each
         // of Iran's firewalls lets a different shape through.
         if (dials.length > 1 && !_cancelled(attempt)) {
@@ -868,6 +879,7 @@ mixin _Connecting on _DevicesCore {
         if (ref.mounted) {
           final AppText text = ref.read(appTextProvider);
           state = state.copyWith(
+            isSubmitting: false,
             actionErrorMessage: () => !online
                 ? text.errorOffline
                 : switch (reach) {
@@ -909,6 +921,15 @@ mixin _Connecting on _DevicesCore {
         // wrong one.
         tunnelEstablishedAt: () => tunnelUp ? DateTime.now() : null,
         sanctionsOnly: tunnelUp && routesSanctionsOnly(result, settings),
+        // From the config this tunnel was built with: if WARP could not
+        // start, the connection fails rather than going around it.
+        // Nothing to say for WARP itself: that connection is WARP.
+        throughWarp: () =>
+            tunnelUp &&
+                settings.warp.throughWarp &&
+                result.transport != kWarpTransport
+            ? reachesServerThroughWarp(result, settings)
+            : null,
         localProxy: () => runningProxy,
         actionErrorMessage: () => tunnelError,
       );
@@ -1034,7 +1055,10 @@ mixin _Connecting on _DevicesCore {
   }
 
   @override
-  Future<void> disconnect(String deviceId) async {
+  Future<void> disconnect(
+    String deviceId, {
+    bool keepConnecting = false,
+  }) async {
     final String? serverCode = state.connectedServerCode;
     if (serverCode == null) {
       return;
@@ -1063,7 +1087,7 @@ mixin _Connecting on _DevicesCore {
     // made a disconnect take as long as the link to the control plane, which
     // on a slow day was seconds (2026-11-03): v2rayNG's is instant.
     state = state.copyWith(
-      isSubmitting: false,
+      isSubmitting: keepConnecting,
       peer: () => null,
       xrayClient: () => null,
       connectedServerCode: () => null,
@@ -1072,6 +1096,7 @@ mixin _Connecting on _DevicesCore {
       tunnelEstablished: false,
       tunnelEstablishedAt: () => null,
       sanctionsOnly: false,
+      throughWarp: () => null,
       localProxy: () => null,
     );
     _mark('disconnect: off');

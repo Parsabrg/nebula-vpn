@@ -92,3 +92,59 @@ def test_user_activation_omits_the_username_line_when_there_is_none() -> None:
 
     assert "Username:" not in rendered.body
     assert "user@example.com" in rendered.body
+
+
+@pytest.mark.parametrize(
+    ("code", "payload"),
+    [
+        ("account_request_review", {"account_request_id": "r"}),
+        ("user_activation", {"token": "t", "expires_at": "x", "email": "e@x"}),
+        ("password_reset", {"token": "t", "expires_at": "x"}),
+        ("request_rejected", {}),
+    ],
+)
+def test_every_email_has_an_html_part(code: str, payload: dict[str, str]) -> None:
+    rendered = render(code, payload)
+
+    assert rendered.html is not None
+    assert rendered.html.startswith("<!DOCTYPE html>")
+    assert "<h1" in rendered.html
+
+
+def test_html_carries_the_code_and_escapes_every_value() -> None:
+    rendered = render(
+        "user_activation",
+        {
+            "token": "K7QF-29XM",
+            "expires_at": "2026-11-17",
+            "email": "<script>@example.com",
+            "username": 'a"b',
+        },
+    )
+
+    assert rendered.html is not None
+    assert "K7QF-29XM" in rendered.html
+    assert "<script>" not in rendered.html
+    assert "&lt;script&gt;@example.com" in rendered.html
+    assert "a&quot;b" in rendered.html
+
+
+def test_review_button_only_with_a_review_url() -> None:
+    without = render("account_request_review", {"account_request_id": "r"})
+    with_url = render(
+        "account_request_review",
+        {"account_request_id": "r", "review_url": "https://panel.example.com/requests"},
+    )
+
+    assert without.html is not None and "<a " not in without.html
+    assert with_url.html is not None
+    assert 'href="https://panel.example.com/requests"' in with_url.html
+
+
+def test_reset_html_names_the_app_screen() -> None:
+    rendered = render("password_reset", {"token": "t", "expires_at": "x"})
+
+    assert rendered.html is not None
+    assert "Check your email" in rendered.html
+    # The plain text keeps its words.
+    assert "Check your email" not in rendered.body

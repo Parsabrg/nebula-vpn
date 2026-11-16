@@ -44,6 +44,15 @@ class ScriptedSession:
     async def scalars(self, _statement: object) -> ScalarRows:
         return ScalarRows(self.scalars_values.pop(0))
 
+    async def stream_scalars(self, _statement: object) -> Any:
+        values = self.scalars_values.pop(0)
+
+        async def rows() -> Any:
+            for value in values:
+                yield value
+
+        return rows()
+
     async def execute(self, _statement: object) -> ScalarRows:
         self.executed += 1
         return ScalarRows(self.execute_values.pop(0) if self.execute_values else [])
@@ -130,7 +139,10 @@ def test_export_events_returns_every_row_oldest_first() -> None:
     session = ScriptedSession(scalars_values=[rows])
     service = AuditLogService(cast(SessionFactory, ScriptedFactory(session)))
 
-    entries = asyncio.run(service.export_events(until=NOW))
+    async def collect() -> list[Any]:
+        return [entry async for entry in service.export_events(until=NOW)]
+
+    entries = asyncio.run(collect())
 
     assert [e.id for e in entries] == [r.id for r in rows]
 

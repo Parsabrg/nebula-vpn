@@ -62,3 +62,25 @@ def test_non_string_values_return_none() -> None:
 def test_redis_failure_is_not_a_missing_payload() -> None:
     with pytest.raises(OutboxUnavailable):
         asyncio.run(read_email_payload(FakeRedis(raises=True), uuid4()))
+
+
+def test_a_sent_payload_is_deleted() -> None:
+    from nebula_worker.outbox import forget_email_payload
+
+    class Deleting:
+        def __init__(self) -> None:
+            self.deleted: list[str] = []
+
+        async def get(self, _name: str) -> None:
+            return None
+
+        async def delete(self, *names: str) -> int:
+            self.deleted.extend(names)
+            return len(names)
+
+    client = Deleting()
+    delivery = uuid4()
+    asyncio.run(forget_email_payload(client, delivery))
+    assert client.deleted == [email_outbox_key(delivery)]
+    # A client without delete, or one that fails, is left alone.
+    asyncio.run(forget_email_payload(FakeRedis(None), delivery))

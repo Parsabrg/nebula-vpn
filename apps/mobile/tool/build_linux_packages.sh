@@ -19,7 +19,7 @@ version="$(sed -n 's/^version: \([0-9.]*\).*/\1/p' pubspec.yaml)"
 out="${OUTPUT_DIRECTORY:-$root/build/packages}"
 mkdir -p "$out"
 
-[ -x assets/linux_runtime/xray ] || tool/vendor_linux_runtime.sh
+[ -x assets/linux_runtime/xray ] && [ -x assets/linux_runtime/aether ] || tool/vendor_linux_runtime.sh
 flutter build linux --release "$@"
 bundle="$root/build/linux/x64/release/bundle"
 
@@ -30,8 +30,13 @@ mkdir -p "$pkg/DEBIAN" "$pkg/opt/nebula-vpn" "$pkg/usr/bin" \
   "$pkg/usr/lib/nebula-vpn" "$pkg/usr/share/applications" \
   "$pkg/usr/share/icons/hicolor/256x256/apps" "$pkg/usr/share/polkit-1/actions"
 cp -a "$bundle/." "$pkg/opt/nebula-vpn/"
+# Every engine: installed under /opt they are root's, and the app's own
+# chmod at run time cannot set the bit there.
 chmod 755 "$pkg/opt/nebula-vpn/data/flutter_assets/assets/linux_runtime/xray" \
-  "$pkg/opt/nebula-vpn/data/flutter_assets/assets/linux_runtime/hysteria"
+  "$pkg/opt/nebula-vpn/data/flutter_assets/assets/linux_runtime/hysteria" \
+  "$pkg/opt/nebula-vpn/data/flutter_assets/assets/linux_runtime/cottendns_client" \
+  "$pkg/opt/nebula-vpn/data/flutter_assets/assets/linux_runtime/aether" \
+  "$pkg/opt/nebula-vpn/data/flutter_assets/assets/linux_runtime/psiphon-tunnel-core"
 ln -s /opt/nebula-vpn/nebulavpn "$pkg/usr/bin/nebulavpn"
 
 # The helper is the very script the app carries, taken from its source --
@@ -129,7 +134,10 @@ appdir="$stage/Nebula_VPN.AppDir"
 mkdir -p "$appdir"
 cp -a "$bundle/." "$appdir/"
 chmod 755 "$appdir/data/flutter_assets/assets/linux_runtime/xray" \
-  "$appdir/data/flutter_assets/assets/linux_runtime/hysteria"
+  "$appdir/data/flutter_assets/assets/linux_runtime/hysteria" \
+  "$appdir/data/flutter_assets/assets/linux_runtime/cottendns_client" \
+  "$appdir/data/flutter_assets/assets/linux_runtime/aether" \
+  "$appdir/data/flutter_assets/assets/linux_runtime/psiphon-tunnel-core"
 cat > "$appdir/AppRun" <<'EOF'
 #!/bin/sh
 exec "$(dirname "$(readlink -f "$0")")/nebulavpn" "$@"

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import '../platform/owned_process.dart';
 import 'dns_tunnel_resolvers.dart';
 
 /// The DNS tunnel's resolver scan on Windows and Linux: the bundled engine
@@ -61,7 +62,7 @@ class DesktopDnsTunnelPlatform implements DnsTunnelPlatform {
     await configFile.writeAsString(config);
     await resolverFile.writeAsString(resolvers);
     // Detached: no console window on Windows; its output still comes here.
-    final Process process = await Process.start(
+    final (String command, List<String> arguments) = ownedCommand(
       engine,
       <String>[
         '-config',
@@ -70,6 +71,10 @@ class DesktopDnsTunnelPlatform implements DnsTunnelPlatform {
         resolverFile.path,
         '-scan-only',
       ],
+    );
+    final Process process = await Process.start(
+      command,
+      arguments,
       workingDirectory: _runtime,
       mode: ProcessStartMode.detachedWithStdio,
     );

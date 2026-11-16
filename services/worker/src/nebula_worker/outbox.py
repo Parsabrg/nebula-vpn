@@ -20,6 +20,20 @@ class OutboxUnavailable(RuntimeError):
     """Redis could not be asked; the payload may well be there."""
 
 
+async def forget_email_payload(client: OutboxRedisClient, delivery_id: UUID) -> None:
+    """Delete a sent email's one-time link from Redis (and so from its
+    append-only file) rather than leave it until it expires (AUD-022).
+    Best effort: it expires anyway."""
+
+    delete = getattr(client, "delete", None)
+    if delete is None:
+        return
+    try:
+        await delete(email_outbox_key(delivery_id))
+    except Exception:  # noqa: S110 - housekeeping only
+        pass
+
+
 def email_outbox_key(delivery_id: UUID) -> str:
     return f"{KEY_PREFIX}:{delivery_id}"
 

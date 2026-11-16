@@ -6,11 +6,17 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
-from nebula_api.account.schemas import AccountResponse, DeviceItem, DeviceListResponse
+from nebula_api.account.schemas import (
+    AccountResponse,
+    DeviceItem,
+    DeviceListResponse,
+    DeviceRenameRequest,
+)
 from nebula_api.account.service import (
     AccountEntry,
     AccountService,
     DeviceEntry,
+    DeviceRenameRefused,
     DeviceRevocationRefused,
 )
 from nebula_api.auth.http import apply_auth_response_headers
@@ -91,6 +97,29 @@ async def list_devices(
             for entry in entries
         ]
     )
+
+
+@router.post("/devices/{device_id}/name", status_code=status.HTTP_204_NO_CONTENT)
+async def rename_device(
+    device_id: UUID,
+    payload: DeviceRenameRequest,
+    request: Request,
+    response: Response,
+    principal: Annotated[AuthenticatedUser, Depends(require_user_session)],
+) -> Response:
+    try:
+        await _service(request).rename_device(
+            user_id=principal.user_id,
+            device_id=device_id,
+            name=payload.name,
+            request_id=uuid4(),
+        )
+    except DeviceRenameRefused as refusal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Device not found"
+        ) from refusal
+    apply_auth_response_headers(response)
+    return Response(status_code=status.HTTP_204_NO_CONTENT, headers=dict(response.headers))
 
 
 @router.post("/devices/{device_id}/revoke", status_code=status.HTTP_204_NO_CONTENT)

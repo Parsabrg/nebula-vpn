@@ -38,34 +38,45 @@ export default async function SecurityPage() {
           loaded. Anything it cannot observe says Unknown, never OK. CI scan
           results are on GitHub and are not repeated here.
         </p>
-        <p role="status">
-          {attention === 0
-            ? "Nothing needs attention."
-            : `${attention} ${attention === 1 ? "item needs" : "items need"} attention.`}
-        </p>
       </section>
 
-      <DataTable
-        caption="Security checks"
-        headers={["Check", "Status", "Detail", "Evidence (UTC)"]}
-        emptyMessage="No checks were returned."
-        rows={checks.map((check) => ({
-          key: check.key,
-          cells: [
-            check.label,
-            <span key="status" className={`badge badge--check-${check.status}`}>
-              {STATUS_LABEL[check.status]}
-            </span>,
-            check.detail,
-            check.observedAt
-              ? new Date(check.observedAt)
-                  .toISOString()
-                  .replace("T", " ")
-                  .slice(0, 19)
-              : "—",
-          ],
-        }))}
-      />
+      <section className="status-card" aria-labelledby="checks-title">
+        <h2 id="checks-title">Security checks</h2>
+        <p
+          role="status"
+          className={`notice ${attention === 0 ? "notice--success" : "notice--warning"}`}
+        >
+          {attention === 0
+            ? "Nothing needs attention."
+            : `${attention} ${attention === 1 ? "check needs" : "checks need"} attention.`}
+        </p>
+        <DataTable
+          caption="Security checks"
+          headers={["Check", "Status", "Detail", "Evidence (UTC)"]}
+          emptyMessage="No checks were returned."
+          rows={checks.map((check) => ({
+            key: check.key,
+            cells: [
+              <strong key="check">{check.label}</strong>,
+              <span
+                key="status"
+                className={`badge badge--check-${check.status}`}
+              >
+                {STATUS_LABEL[check.status]}
+              </span>,
+              <span key="detail" className="muted">
+                {check.detail}
+              </span>,
+              check.observedAt
+                ? new Date(check.observedAt)
+                    .toISOString()
+                    .replace("T", " ")
+                    .slice(0, 19)
+                : "—",
+            ],
+          }))}
+        />
+      </section>
 
       <section className="status-card" aria-labelledby="recovery-title">
         <h2 id="recovery-title">Your recovery codes</h2>

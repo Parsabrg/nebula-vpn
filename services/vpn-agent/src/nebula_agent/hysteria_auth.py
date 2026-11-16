@@ -66,7 +66,14 @@ class HysteriaAuthServer:
             status, payload = await asyncio.wait_for(
                 self._answer(reader), timeout=_READ_TIMEOUT_SECONDS
             )
-        except (TimeoutError, asyncio.IncompleteReadError, asyncio.LimitOverrunError, ValueError):
+        # RecursionError: deeply nested JSON (AUD-026).
+        except (
+            TimeoutError,
+            asyncio.IncompleteReadError,
+            asyncio.LimitOverrunError,
+            ValueError,
+            RecursionError,
+        ):
             status, payload = 400, _REFUSED
         body = json.dumps(payload).encode()
         head = (

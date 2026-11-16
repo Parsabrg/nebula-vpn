@@ -91,6 +91,25 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // plugins.
   ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
+  // Every engine the app starts (the DNS tunnel, proxy-mode Xray and
+  // Hysteria, Aether) is a process of its own. Stopping them is the app's
+  // job, which a crash, an End task or a power cut skips: a DNS tunnel
+  // engine was found still running three days on (owner, 2026-11-15). In a
+  // job that ends its processes when it closes, Windows stops them however
+  // the app ends. The handle is never closed by hand; the app's exit closes
+  // it. The elevated VPN helper is outside it by nature (Windows starts it)
+  // and watches the app itself.
+  if (HANDLE job = ::CreateJobObjectW(nullptr, nullptr)) {
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
+    limits.BasicLimitInformation.LimitFlags =
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    if (!::SetInformationJobObject(job, JobObjectExtendedLimitInformation,
+                                   &limits, sizeof(limits)) ||
+        !::AssignProcessToJobObject(job, ::GetCurrentProcess())) {
+      ::CloseHandle(job);
+    }
+  }
+
   flutter::DartProject project(L"data");
 
   std::vector<std::string> command_line_arguments =

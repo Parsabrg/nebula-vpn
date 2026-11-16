@@ -5,7 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 # Keep this synchronized with the sole Alembic head. A migration test enforces it.
-SCHEMA_HEAD = "20261113_0024"
+SCHEMA_HEAD = "20261113_0025"
 
 
 async def schema_is_current(engine: AsyncEngine, *, expected_head: str = SCHEMA_HEAD) -> bool:

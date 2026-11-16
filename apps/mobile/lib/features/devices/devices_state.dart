@@ -62,6 +62,7 @@ class DevicesState {
     this.tunnelEstablishedAt,
     this.trafficBaseline,
     this.sanctionsOnly = false,
+    this.throughWarp,
     this.fromSavedCredential = false,
     this.protocolDelays = const <String, ProtocolDelay>{},
     this.protocolDelaysServer,
@@ -102,6 +103,12 @@ class DevicesState {
   /// connected changes the next connection, not this one, and the Connect
   /// screen must describe the one that is running.
   final bool sanctionsOnly;
+
+  /// Whether this connection reaches its server through Cloudflare WARP:
+  /// true when it does, false when "Reach servers through WARP" was on but
+  /// this protocol connects on its own (Hysteria2, WireGuard), null when the
+  /// setting was off. Recorded with the connection, like [sanctionsOnly].
+  final bool? throughWarp;
 
   /// This connection was raised from a credential already on the phone,
   /// because the server could not be reached to issue a fresh one. Recorded
@@ -219,6 +226,7 @@ class DevicesState {
     DateTime? Function()? tunnelEstablishedAt,
     TunnelTraffic? Function()? trafficBaseline,
     bool? sanctionsOnly,
+    bool? Function()? throughWarp,
     bool? fromSavedCredential,
     Map<String, ProtocolDelay>? protocolDelays,
     String? Function()? protocolDelaysServer,
@@ -262,6 +270,7 @@ class DevicesState {
           ? null
           : this.trafficBaseline,
       sanctionsOnly: sanctionsOnly ?? this.sanctionsOnly,
+      throughWarp: throughWarp != null ? throughWarp() : this.throughWarp,
       fromSavedCredential: fromSavedCredential ?? this.fromSavedCredential,
       protocolDelays: protocolDelays ?? this.protocolDelays,
       protocolDelaysServer: protocolDelaysServer != null

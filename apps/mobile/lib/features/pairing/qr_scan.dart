@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zxing2/qrcode.dart';
 
-import '../../core/theme/type_scale.dart';
+import '../../core/theme/color_tokens.dart';
+import '../../core/theme/look.dart';
+import '../../core/widgets/nebula/nebula_page.dart';
 import '../../l10n/app_localizations.dart';
 
 /// Opens a camera scanner and completes with the first QR code's text, or
@@ -176,22 +178,50 @@ class _QrScanPageState extends State<_QrScanPage> {
   Widget build(BuildContext context) {
     final AppText text = AppText.of(context);
     final CameraController? controller = _controller;
-    return Scaffold(
-      appBar: AppBar(title: Text(text.pairScanTitle)),
-      body: _failed
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  text.pairScanNoCamera,
-                  textAlign: TextAlign.center,
-                  style: context.type.rowValue,
+    final NebulaPalette p = context.palette;
+    return NebulaPage(
+      title: text.pairScanTitle,
+      children: <Widget>[
+        // The design's camera box: 300 high, the look's large radius.
+        Container(
+          height: 300,
+          margin: const EdgeInsets.only(top: 16),
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: const Color(0xFF0A0A0D),
+            borderRadius: BorderRadius.circular(p.radiusLg),
+          ),
+          child: _failed
+              ? null
+              : controller == null
+              ? const Center(child: CircularProgressIndicator())
+              : FittedBox(
+                  fit: BoxFit.cover,
+                  clipBehavior: Clip.hardEdge,
+                  child: SizedBox(
+                    width: controller.value.previewSize?.height ?? 300,
+                    height: controller.value.previewSize?.width ?? 300,
+                    child: CameraPreview(controller),
+                  ),
                 ),
-              ),
-            )
-          : controller == null
-          ? const Center(child: CircularProgressIndicator())
-          : Center(child: CameraPreview(controller)),
+        ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            p.look == NebulaLook.minimal ? 0 : 8,
+            10,
+            0,
+            0,
+          ),
+          child: Text(
+            text.pairScanNoCamera,
+            style: TextStyle(
+              fontSize: 13,
+              height: 19 / 13,
+              color: _failed ? p.amberText : p.textMuted,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

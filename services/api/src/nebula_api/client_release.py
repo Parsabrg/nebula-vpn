@@ -1,9 +1,9 @@
 """The newest client release, for apps that cannot ask GitHub.
 
-The apps look for updates on the repository's GitHub releases, and while the
-repository is private GitHub answers "not found" -- so installs sat on old
-versions with nothing telling them otherwise (a Windows PC was on 0.1.20
-when 0.1.24 was current). This hands signed-in apps the version named in
+The apps look for updates on the repository's GitHub releases, which
+networks in Iran often cannot reach, and while the repository was private
+GitHub answered "not found" -- so installs sat on old versions with nothing
+telling them otherwise. This hands signed-in apps the version named in
 `NEBULA_CLIENT_LATEST_VERSION`, set when a release is published.
 
 Session-gated like /v1/routes: it costs nothing to keep it to accounts, and

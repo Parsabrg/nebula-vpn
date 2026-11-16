@@ -14,8 +14,10 @@ export default async function LoginPage({
   const expired = params.reason === "expired";
 
   return (
-    <main id="main-content" className="page-shell" tabIndex={-1}>
-      <section className="page-heading" aria-labelledby="login-title">
+    // The design's sign-in: one card in the middle of the window.
+    <main id="main-content" className="login-shell" tabIndex={-1}>
+      <section className="login-card" aria-labelledby="login-title">
+        <p className="login-card__brand">NEBULA</p>
         <h1 id="login-title">Administrator sign in</h1>
         {expired ? (
           <p role="status" className="notice notice--warning">

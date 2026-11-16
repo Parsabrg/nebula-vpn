@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/color_tokens.dart';
-import '../../theme/type_scale.dart';
+import '../../theme/look.dart';
+import '../nebula/nebula_controls.dart';
+import '../nebula/nebula_data.dart';
+import '../nebula/nebula_page.dart';
 
 /// The shape every auth screen shares.
 ///
@@ -26,7 +29,11 @@ class AuthScaffold extends StatelessWidget {
     this.footer,
     this.errorMessage,
     this.aboveAction,
+    this.notice,
   });
+
+  /// A notice above the title: why this screen is showing (the session ended).
+  final Widget? notice;
 
   /// Rendered as given, so a screen can break it across lines the way the
   /// design does ("Check\nyour email").
@@ -57,7 +64,10 @@ class AuthScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final NebulaPalette palette = context.palette;
-    final NebulaTypography type = context.type;
+    final EdgeInsets pad = nebulaPagePadding(context);
+    final bool compact = nebulaCompact(context);
+    final double inset = palette.look == NebulaLook.minimal ? 0 : 4;
+    final bool helpNote = aboveAction is PasswordRequirementNote;
 
     return Scaffold(
       backgroundColor: palette.bg,
@@ -65,65 +75,84 @@ class AuthScaffold extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            SizedBox(
-              height: 56,
-              child: showBack && Navigator.of(context).canPop()
-                  ? Align(
-                      alignment: Alignment.centerLeft,
-                      child: IconButton(
-                        icon: Icon(
-                          Icons.arrow_back,
-                          color: palette.textPrimary,
-                        ),
-                        onPressed: () => Navigator.of(context).maybePop(),
-                      ),
-                    )
-                  : null,
-            ),
+            // The design: 28 above a back button (16 on a compact phone),
+            // or a 64 gap (32) where there is nothing to go back to.
+            if (showBack && Navigator.of(context).canPop())
+              Padding(
+                padding: EdgeInsets.only(
+                  left: pad.left,
+                  top: nebulaCompact(context) ? 16 : 28,
+                  bottom: 4,
+                ),
+                child: const Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: NebulaBackButton(),
+                ),
+              )
+            else
+              SizedBox(height: nebulaCompact(context) ? 32 : 64),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: EdgeInsets.symmetric(horizontal: pad.left),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    const SizedBox(height: 8),
-                    Text(
-                      title,
-                      style: type.authTitle.copyWith(
-                        color: palette.textPrimary,
+                    if (notice != null) ...<Widget>[
+                      notice!,
+                      const SizedBox(height: 20),
+                    ],
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: inset),
+                      child: Semantics(
+                        header: true,
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: compact ? 34 : 40,
+                            height: compact ? 40 / 34 : 46 / 40,
+                            fontWeight:
+                                palette.look == NebulaLook.glass ||
+                                    palette.look == NebulaLook.soft
+                                ? FontWeight.w600
+                                : FontWeight.w500,
+                            letterSpacing: -1.4,
+                            color: palette.textPrimary,
+                          ),
+                        ),
                       ),
                     ),
                     if (subline != null) ...<Widget>[
-                      const SizedBox(height: 12),
-                      Text(
-                        subline!,
-                        style: type.topBarMeta.copyWith(
-                          color: palette.textMuted,
-                        ),
+                      const SizedBox(height: 10),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: inset),
+                        child: NebulaEyebrow(text: subline!),
                       ),
                     ],
-                    const SizedBox(height: 36),
-                    for (int i = 0; i < fields.length; i++) ...<Widget>[
-                      if (i > 0) const SizedBox(height: 14),
-                      fields[i],
+                    for (final Widget field in fields) ...<Widget>[
+                      const SizedBox(height: 16),
+                      field,
                     ],
+                    // A field's help note sits 6 under it, the button 24
+                    // below; a link ("Forgot password") 4 under, the button 8.
                     if (aboveAction != null) ...<Widget>[
-                      const SizedBox(height: 14),
-                      aboveAction!,
+                      SizedBox(height: helpNote ? 6 : 4),
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: helpNote ? inset : 0,
+                        ),
+                        child: aboveAction,
+                      ),
                     ],
                     if (errorMessage != null) ...<Widget>[
                       const SizedBox(height: 16),
-                      Text(
-                        errorMessage!,
-                        style: type.listMeta.copyWith(color: palette.redText),
+                      NebulaNotice(
+                        text: errorMessage!,
+                        kind: NebulaNoticeKind.error,
                       ),
                     ],
-                    const SizedBox(height: 28),
+                    SizedBox(height: aboveAction != null && !helpNote ? 8 : 24),
                     action,
-                    if (footer != null) ...<Widget>[
-                      const SizedBox(height: 12),
-                      footer!,
-                    ],
+                    ?footer,
                     const SizedBox(height: 24),
                   ],
                 ),
@@ -163,7 +192,10 @@ class PasswordRequirementNote extends StatelessWidget {
         Flexible(
           child: Text(
             text,
-            style: context.type.listMeta.copyWith(
+            // The design's field help: 13/18, not mono.
+            style: TextStyle(
+              fontSize: 13,
+              height: 18 / 13,
               color: satisfied ? palette.blueText : palette.textMuted,
             ),
           ),

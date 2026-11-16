@@ -81,6 +81,27 @@ void main() {
     expect(find.text('Settings'), findsOneWidget);
   });
 
+  testWidgets('sign out asks first, and Cancel keeps the account', (
+    WidgetTester tester,
+  ) async {
+    // Sign out sits in the page, after Delete account, as the design has
+    // it: a window tall enough to show it.
+    tester.view
+      ..devicePixelRatio = 1
+      ..physicalSize = const Size(800, 1400);
+    addTearDown(tester.view.reset);
+    await _pump(tester, _account(usedBytes: gib));
+
+    await tester.tap(find.text('Sign out'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sign out?'), findsOneWidget);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sign out?'), findsNothing);
+    expect(find.text('owner'), findsOneWidget);
+  });
+
   group('formatBytes', () {
     test('bytes below a kilobyte are exact', () {
       expect(formatBytes(0), '0 B');

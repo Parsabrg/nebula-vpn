@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'advanced_settings_store.dart';
+import 'appearance_store.dart';
 import 'connection_record_store.dart';
 import 'device_id_store.dart';
 import 'locale_store.dart';
@@ -54,6 +55,10 @@ final selectionStoreProvider = Provider<SelectionStore>((Ref ref) {
 
 final themePreferenceStoreProvider = Provider<ThemePreferenceStore>((Ref ref) {
   return SharedPreferencesThemeStore(ref.watch(sharedPreferencesProvider));
+});
+
+final appearanceStoreProvider = Provider<AppearanceStore>((Ref ref) {
+  return SharedPreferencesAppearanceStore(ref.watch(sharedPreferencesProvider));
 });
 
 final protectionPreferenceStoreProvider = Provider<ProtectionPreferenceStore>((

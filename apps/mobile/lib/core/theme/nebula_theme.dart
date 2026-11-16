@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'color_tokens.dart';
+import 'look.dart';
 import 'type_scale.dart';
 
 /// Theme builders for the Panel design language.
@@ -15,6 +16,18 @@ import 'type_scale.dart';
 /// on purple defaults.
 abstract final class NebulaTheme {
   static ThemeData light() => _themeFrom(NebulaPalette.light, Brightness.light);
+
+  /// The theme for a look, mode and accent chosen in Settings, Appearance.
+  static ThemeData resolve(Brightness brightness, AppearanceChoice choice) =>
+      _themeFrom(
+        NebulaPalette.resolve(
+          look: choice.look,
+          brightness: brightness,
+          accent: choice.accent,
+          reduceTransparency: choice.reduceTransparency,
+        ),
+        brightness,
+      );
 
   /// Dark is the primary theme.
   static ThemeData dark() => _themeFrom(NebulaPalette.dark, Brightness.dark);
@@ -45,7 +58,7 @@ abstract final class NebulaTheme {
       // Not scheme.surface via Material's own derivation: the design wants the
       // screen to be exactly `bg`, with no elevation tint anywhere.
       scaffoldBackgroundColor: palette.bg,
-      canvasColor: palette.bg,
+      canvasColor: palette.canvas,
       fontFamily: 'Geist',
       extensions: <ThemeExtension<dynamic>>[palette, type],
       textTheme: _textTheme(palette, type),
@@ -58,29 +71,29 @@ abstract final class NebulaTheme {
         centerTitle: false,
         titleTextStyle: type.navTitle.copyWith(color: palette.textPrimary),
       ),
-      // 60px tall, 14px radius, per the CTA spec. Screens still choose fill
-      // versus outline per state; this is the shared geometry.
+      // NebulaButton's geometry -- 52 px and the look's button radius -- so
+      // a Material button left on a screen matches the redesigned ones.
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(60),
+          minimumSize: const Size.fromHeight(52),
           backgroundColor: palette.blue,
           foregroundColor: palette.onAccent,
           disabledBackgroundColor: palette.surface,
           disabledForegroundColor: palette.textMuted,
           textStyle: type.ctaLabel,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(palette.radiusButton),
           ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size.fromHeight(60),
+          minimumSize: const Size.fromHeight(52),
           foregroundColor: palette.textPrimary,
           textStyle: type.ctaLabel,
           side: BorderSide(color: palette.borderStrong),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(palette.radiusButton),
           ),
         ),
       ),
@@ -91,20 +104,31 @@ abstract final class NebulaTheme {
         ),
       ),
       // 56px tall, 14px radius, `surface` fill, 1px `border`, 16px left pad.
+      // NebulaField's box per look, so a Material field matches it.
       inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: palette.surface,
-        constraints: const BoxConstraints(minHeight: 56),
+        filled: palette.look != NebulaLook.minimal,
+        fillColor: palette.look == NebulaLook.expressive
+            ? palette.subtle
+            : palette.surface,
+        constraints: const BoxConstraints(minHeight: 52),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 18,
+          horizontal: 14,
+          vertical: 16,
         ),
         hintStyle: type.inputText.copyWith(color: palette.textMuted),
-        border: _inputBorder(palette.border),
-        enabledBorder: _inputBorder(palette.border),
-        focusedBorder: _inputBorder(palette.blue),
-        errorBorder: _inputBorder(palette.red),
-        focusedErrorBorder: _inputBorder(palette.red),
+        border: _inputBorder(palette, palette.borderStrong),
+        enabledBorder: _inputBorder(
+          palette,
+          palette.look == NebulaLook.expressive
+              ? Colors.transparent
+              : (palette.look == NebulaLook.minimal
+                    ? palette.borderStrong
+                    : palette.hairline),
+        ),
+        focusedBorder: _inputBorder(palette, palette.blue, width: 2),
+        errorBorder: _inputBorder(palette, palette.redText, width: 2),
+        focusedErrorBorder: _inputBorder(palette, palette.redText, width: 2),
+        errorStyle: TextStyle(fontSize: 13, color: palette.redText),
       ),
       dividerTheme: DividerThemeData(
         color: palette.hairline,
@@ -112,9 +136,11 @@ abstract final class NebulaTheme {
         space: 1,
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: palette.surface,
+        backgroundColor: palette.dialog,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(palette.radiusLg),
+        ),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: palette.blue,
@@ -124,10 +150,19 @@ abstract final class NebulaTheme {
     );
   }
 
-  static OutlineInputBorder _inputBorder(Color color) {
+  static OutlineInputBorder _inputBorder(
+    NebulaPalette palette,
+    Color color, {
+    double width = 1,
+  }) {
     return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: BorderSide(color: color),
+      borderRadius: BorderRadius.circular(
+        palette.look == NebulaLook.glass ||
+                palette.look == NebulaLook.expressive
+            ? 16
+            : palette.radiusMd,
+      ),
+      borderSide: BorderSide(color: color, width: width),
     );
   }
 

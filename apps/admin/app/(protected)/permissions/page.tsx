@@ -61,7 +61,11 @@ export default async function PermissionsPage({
           </p>
         </EmptyState>
       ) : (
-        <>
+        <section className="status-card" aria-labelledby="grants-title">
+          <h2 id="grants-title">
+            Permission grants
+            <span className="count-badge">{page.total}</span>
+          </h2>
           <DataTable
             caption="Permissions"
             headers={["User", "Protocols", "Not in use"]}
@@ -96,7 +100,7 @@ export default async function PermissionsPage({
             basePath="/permissions"
             searchParams={{}}
           />
-        </>
+        </section>
       )}
     </>
   );

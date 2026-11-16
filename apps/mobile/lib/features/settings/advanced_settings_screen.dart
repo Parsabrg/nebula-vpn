@@ -4,8 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/settings/advanced_settings_controller.dart';
 import '../../core/storage/advanced_settings_store.dart';
 import '../../core/theme/color_tokens.dart';
-import '../../core/widgets/panel/panel_atoms.dart';
-import '../../core/widgets/panel/panel_controls.dart';
+import '../../core/widgets/nebula/nebula_controls.dart';
+import '../../core/widgets/nebula/nebula_data.dart';
+import '../../core/widgets/nebula/nebula_feedback.dart';
+import '../../core/widgets/nebula/nebula_page.dart';
+import '../../core/widgets/nebula/nebula_rows.dart';
 import '../../l10n/app_localizations.dart';
 
 /// The knobs that change what the tunnel core is told to do.
@@ -35,81 +38,75 @@ class AdvancedSettingsScreen extends ConsumerWidget {
 
     final AppText text = AppText.of(context);
 
-    return Scaffold(
-      backgroundColor: palette.bg,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).maybePop(),
+    Widget note(String line, {Color? color}) => Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+      child: Text(
+        line,
+        style: TextStyle(
+          color: color ?? palette.textMuted,
+          fontSize: 12,
+          height: 1.4,
         ),
-        title: Text(text.advancedTitle),
-        actions: <Widget>[
-          if (!settings.isDefault)
-            TextButton(
-              onPressed: controller.restoreDefaults,
-              child: Text(text.reset),
-            ),
-        ],
       ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          children: <Widget>[
-            const SizedBox(height: 12),
-            Text(
-              text.advancedIntro,
-              style: TextStyle(color: palette.textMuted, fontSize: 13),
+    );
+
+    return NebulaPage(
+      title: text.tunnelOptions,
+      trailing: settings.isDefault
+          ? null
+          : NebulaButton.text(
+              label: text.reset,
+              onPressed: controller.restoreDefaults,
             ),
-
-            const SizedBox(height: 24),
-            SectionHeader(text.sectionNameResolution),
-            const SizedBox(height: 4),
+      children: <Widget>[
+        const SizedBox(height: 8),
+        Text(
+          text.advancedIntro,
+          style: TextStyle(color: palette.textMuted, fontSize: 14, height: 1.4),
+        ),
+        NebulaSectionLabel(text.sectionNameResolution),
+        NebulaRowGroup(
+          children: <Widget>[
             _DnsRow(servers: settings.dnsServers, controller: controller),
-
-            const SizedBox(height: 28),
-            SectionHeader(text.sectionConnection),
-            const SizedBox(height: 4),
-            PanelToggleRow(
+          ],
+        ),
+        NebulaSectionLabel(text.sectionConnection),
+        NebulaRowGroup(
+          children: <Widget>[
+            NebulaSwitchRow(
               title: text.multiplexing,
-              meta: settings.muxEnabled
+              subtitle: settings.muxEnabled
                   ? text.muxStreams(settings.muxConcurrency)
                   : text.muxOff,
               value: settings.muxEnabled,
               onChanged: (bool enabled) =>
                   controller.setMuxEnabled(enabled: enabled),
-              isLast: !settings.muxEnabled,
             ),
             if (settings.muxEnabled)
               _ConcurrencyRow(
                 value: settings.muxConcurrency,
                 onChanged: controller.setMuxConcurrency,
               ),
-
-            const SizedBox(height: 28),
-            SectionHeader(text.sectionDomainMatching),
-            const SizedBox(height: 12),
-            PanelSegmented<SniffingMode>(
-              semanticsLabel: text.readHostnames,
-              segments: <(SniffingMode, String)>[
-                (SniffingMode.whenRoutingNeedsIt, text.sniffAuto),
-                (SniffingMode.always, text.sniffAlways),
-                (SniffingMode.never, text.sniffNever),
-              ],
-              selected: settings.sniffing,
-              onChanged: controller.setSniffing,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _sniffingExplanation(text, settings.sniffing),
-              style: TextStyle(color: palette.textMuted, fontSize: 12),
-            ),
-
-            const SizedBox(height: 28),
-            SectionHeader(text.sectionGettingThrough),
-            const SizedBox(height: 4),
-            PanelToggleRow(
+          ],
+        ),
+        NebulaSectionLabel(text.sectionDomainMatching),
+        NebulaSegmented<SniffingMode>(
+          semanticsLabel: text.readHostnames,
+          segments: <(SniffingMode, String, IconData?)>[
+            (SniffingMode.whenRoutingNeedsIt, text.sniffAuto, null),
+            (SniffingMode.always, text.sniffAlways, null),
+            (SniffingMode.never, text.sniffNever, null),
+          ],
+          selected: settings.sniffing,
+          onChanged: controller.setSniffing,
+        ),
+        note(_sniffingExplanation(text, settings.sniffing)),
+        NebulaSectionLabel(text.sectionGettingThrough),
+        NebulaRowGroup(
+          children: <Widget>[
+            NebulaSwitchRow(
               title: text.splitTlsHandshake,
-              meta: settings.fragment.enabled
+              subtitle: settings.fragment.enabled
                   ? text.fragmentMeta(
                       settings.fragment.packets,
                       settings.fragment.length,
@@ -118,69 +115,59 @@ class AdvancedSettingsScreen extends ConsumerWidget {
               value: settings.fragment.enabled,
               onChanged: (bool enabled) =>
                   controller.setFragmentEnabled(enabled: enabled),
-              isLast: !settings.fragment.enabled,
             ),
-            if (settings.fragment.enabled) ...<Widget>[
-              const SizedBox(height: 8),
-              PanelSegmented<String>(
-                semanticsLabel: text.whichPacketsToSplit,
-                segments: <(String, String)>[
-                  ('tlshello', text.fragmentHandshakeOnly),
-                  ('1-3', text.fragmentFirstPackets),
-                ],
-                selected: settings.fragment.packets,
-                onChanged: controller.setFragmentPackets,
-              ),
-              const SizedBox(height: 12),
-              _RangeField(
-                label: text.bytesPerPiece,
-                value: settings.fragment.length,
-                onSubmitted: controller.setFragmentLength,
-              ),
-              _RangeField(
-                label: text.gapMilliseconds,
-                value: settings.fragment.interval,
-                onSubmitted: controller.setFragmentInterval,
-              ),
-            ],
-            const SizedBox(height: 8),
-            Text(
-              settings.fragment.enabled
-                  ? text.fragmentOnExplain
-                  : text.fragmentOffExplain,
-              style: TextStyle(color: palette.textMuted, fontSize: 12),
-            ),
-
-            const SizedBox(height: 28),
-            SectionHeader(text.sectionLogging),
-            const SizedBox(height: 12),
-            PanelSegmented<XrayLogLevel>(
-              semanticsLabel: text.logLevel,
-              segments: <(XrayLogLevel, String)>[
-                (XrayLogLevel.none, text.logOff),
-                (XrayLogLevel.error, text.logErrors),
-                (XrayLogLevel.warning, text.logWarnings),
-                (XrayLogLevel.info, text.logEverything),
-              ],
-              selected: settings.logLevel,
-              onChanged: controller.setLogLevel,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              settings.logLevel.recordsDestinations
-                  ? text.logRecordsDestinations
-                  : text.logFaultsOnly,
-              style: TextStyle(
-                color: settings.logLevel.recordsDestinations
-                    ? palette.amberText
-                    : palette.textMuted,
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 24),
           ],
         ),
-      ),
+        if (settings.fragment.enabled) ...<Widget>[
+          const SizedBox(height: 12),
+          NebulaSegmented<String>(
+            semanticsLabel: text.whichPacketsToSplit,
+            segments: <(String, String, IconData?)>[
+              ('tlshello', text.fragmentHandshakeOnly, null),
+              ('1-3', text.fragmentFirstPackets, null),
+            ],
+            selected: settings.fragment.packets,
+            onChanged: controller.setFragmentPackets,
+          ),
+          const SizedBox(height: 12),
+          _RangeField(
+            label: text.bytesPerPiece,
+            value: settings.fragment.length,
+            onSubmitted: controller.setFragmentLength,
+          ),
+          _RangeField(
+            label: text.gapMilliseconds,
+            value: settings.fragment.interval,
+            onSubmitted: controller.setFragmentInterval,
+          ),
+        ],
+        note(
+          settings.fragment.enabled
+              ? text.fragmentOnExplain
+              : text.fragmentOffExplain,
+        ),
+        NebulaSectionLabel(text.sectionLogging),
+        NebulaSegmented<XrayLogLevel>(
+          semanticsLabel: text.logLevel,
+          segments: <(XrayLogLevel, String, IconData?)>[
+            (XrayLogLevel.none, text.logOff, null),
+            (XrayLogLevel.error, text.logErrors, null),
+            (XrayLogLevel.warning, text.logWarnings, null),
+            (XrayLogLevel.info, text.logEverything, null),
+          ],
+          selected: settings.logLevel,
+          onChanged: controller.setLogLevel,
+        ),
+        note(
+          settings.logLevel.recordsDestinations
+              ? text.logRecordsDestinations
+              : text.logFaultsOnly,
+          color: settings.logLevel.recordsDestinations
+              ? palette.amberText
+              : null,
+        ),
+        const SizedBox(height: 8),
+      ],
     );
   }
 
@@ -206,58 +193,45 @@ class _DnsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PanelExternalRow(
-      title: AppText.of(context).dnsServers,
-      meta: servers.isEmpty
-          ? AppText.of(context).dnsDefault
-          : servers.join(', '),
-      isLast: true,
+    final AppText text = AppText.of(context);
+    return NebulaRow(
+      title: text.dnsServers,
+      subtitle: servers.isEmpty ? text.dnsDefault : servers.join(', '),
+      trailing: NebulaRowTrailing.chevron(context),
       onTap: () => _edit(context),
     );
   }
 
   Future<void> _edit(BuildContext context) async {
+    final AppText text = AppText.of(context);
     final TextEditingController field = TextEditingController(
       text: servers.join(', '),
     );
     final String? entered = await showDialog<String>(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(AppText.of(context).dnsServers),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Text(
-                AppText.of(context).dnsEditHelp,
-                style: const TextStyle(fontSize: 13),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                // Not a credential: no password manager offering one here.
-                autofillHints: null,
-                controller: field,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  hintText: '1.1.1.1, 9.9.9.9',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
+      builder: (BuildContext context) => NebulaDialog(
+        title: text.dnsServers,
+        body: text.dnsEditHelp,
+        content: NebulaField(
+          label: text.dnsServers,
+          labelVisible: false,
+          controller: field,
+          autofocus: true,
+          mono: true,
+          autocorrect: false,
+          hint: '1.1.1.1, 9.9.9.9',
+        ),
+        actions: <Widget>[
+          NebulaButton.secondary(
+            label: text.cancel,
+            onPressed: () => Navigator.of(context).pop(),
           ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(AppText.of(context).cancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(field.text),
-              child: Text(AppText.of(context).save),
-            ),
-          ],
-        );
-      },
+          NebulaButton(
+            label: text.save,
+            onPressed: () => Navigator.of(context).pop(field.text),
+          ),
+        ],
+      ),
     );
     if (entered != null) {
       await controller.setDnsServers(entered.split(','));
@@ -275,18 +249,14 @@ class _ConcurrencyRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final NebulaPalette palette = context.palette;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
+    return NebulaRow(
+      title: AppText.of(context).streams,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Expanded(
-            child: Text(
-              AppText.of(context).streams,
-              style: TextStyle(color: palette.textPrimary),
-            ),
-          ),
           IconButton(
-            icon: const Icon(Icons.remove),
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+            icon: Icon(Icons.remove, color: palette.textMuted),
             onPressed: value > 1 ? () => onChanged(value - 1) : null,
           ),
           SizedBox(
@@ -301,7 +271,8 @@ class _ConcurrencyRow extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.add),
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+            icon: Icon(Icons.add, color: palette.textMuted),
             onPressed: value < 128 ? () => onChanged(value + 1) : null,
           ),
         ],
@@ -372,7 +343,6 @@ class _RangeFieldState extends State<_RangeField> {
           isDense: true,
           labelText: widget.label,
           errorText: _error,
-          border: const OutlineInputBorder(),
         ),
         onSubmitted: _submit,
         onTapOutside: (PointerDownEvent _) => _submit(_field.text),
