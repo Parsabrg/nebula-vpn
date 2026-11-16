@@ -218,6 +218,18 @@ void main() {
     });
   });
 
+  test('Aether is waited for as long as its scan mode may take', () {
+    // Thorough sweeps for up to 300 s: a flat 150 s never let it finish
+    // from scratch (phone, home line, 2026-11-16).
+    Duration within(WarpScan scan) => aetherReadyWithin(
+      aetherArguments(WarpSettings.defaults.copyWith(scan: scan), 20443),
+    );
+    expect(within(WarpScan.thorough), const Duration(seconds: 330));
+    expect(within(WarpScan.ironclad), const Duration(seconds: 210));
+    expect(within(WarpScan.balanced), const Duration(seconds: 150));
+    expect(within(WarpScan.turbo), const Duration(seconds: 150));
+  });
+
   test('WARP is listed first and needs no link', () async {
     final LocalServerRepository repository = LocalServerRepository(
       store: InMemoryFreeLinkStore(),

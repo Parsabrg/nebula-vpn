@@ -353,6 +353,10 @@ String renderXrayClientConfigJson(
       ),
       'port': warpPortFor(localProxy),
       'ready': aetherReadyLine(warpPortFor(localProxy), psiphon: psiphon),
+      // Seconds to wait for it to serve (Android reads this).
+      'readyWithin': aetherReadyWithin(
+        aetherArguments(settings.warp, warpPortFor(localProxy)),
+      ).inSeconds,
     };
   }
   // A clean Cloudflare address chosen for this very route: the tunnel dials
