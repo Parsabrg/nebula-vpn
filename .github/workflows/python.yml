@@ -191,11 +191,17 @@ jobs:
           key_dir=$(mktemp -d)
           umask 077
           wg genkey > "$key_dir/server_private_key"
-          # Read by this shell and handed over on stdin: since 2026-11-16 the
-          # runner refuses root inside the namespace opening the file itself
-          # ("fopen: Permission denied").
-          sudo ip netns exec "$ns" wg set wg0 listen-port 51820 private-key /dev/stdin < "$key_dir/server_private_key"
-          sudo chmod 0644 "$key_dir/server_private_key"
+          # Readable before wg reads it: since 2026-11-16 root inside the
+          # namespace may not open a file the runner user owns ("fopen:
+          # Permission denied", by path and by /dev/stdin alike). A throwaway
+          # CI key, made readable for the tests just after anyway.
+          chmod 0755 "$key_dir"
+          chmod 0644 "$key_dir/server_private_key"
+          if ! sudo ip netns exec "$ns" wg set wg0 listen-port 51820 private-key "$key_dir/server_private_key"; then
+            id; ls -ld "$key_dir" "$key_dir/server_private_key"
+            sudo dmesg 2>/dev/null | grep -i -E "apparmor|denied" | tail -5 || true
+            exit 1
+          fi
 
           echo "available=true" >> "$GITHUB_OUTPUT"
           echo "namespace=$ns" >> "$GITHUB_OUTPUT"
