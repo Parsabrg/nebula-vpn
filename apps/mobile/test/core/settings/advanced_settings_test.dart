@@ -160,7 +160,8 @@ void main() {
       expect(mux['enabled'], isTrue);
       expect(mux['concurrency'], -1);
       expect(mux['xudpConcurrency'], 16);
-      expect(mux['xudpProxyUDP443'], 'reject');
+      // QUIC carried, as v2rayNG does (owner, 2026-11-20).
+      expect(mux['xudpProxyUDP443'], 'allow');
     });
 
     test('the shipped resolvers still depend on the profile', () {

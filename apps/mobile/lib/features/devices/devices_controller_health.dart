@@ -554,11 +554,24 @@ mixin _HealthChecks on _DevicesCore {
         }
         // And real data: a route can answer two tiny requests and stall
         // anything bigger -- XHTTP through the CDN read "Protected" with
-        // 0 B downloaded (owner, 2026-11-10) until the watch gave up ~50 s
-        // later. Found here, the connect moves on to the next route instead.
-        final bool moves = await ref.read(tunnelMovesDataProvider)(
+        // 0 B downloaded (owner, 2026-11-10). Automatic waits for it, to
+        // move on to the next protocol instead. A protocol the person
+        // picked does not: it is up once two requests answered, as in
+        // v2rayNG -- the 128 KB took 7 s on a slow moment and every connect
+        // waited for it (owner, 2026-11-20).
+        final Future<bool> moving = ref.read(tunnelMovesDataProvider)(
           viaProxy ? _tunnelProxy : null,
         );
+        if (!_choosingAutomatically) {
+          unawaited(
+            moving.then(
+              (bool moves) =>
+                  _mark('traffic data: ${moves ? 'moved' : 'stalled'}'),
+            ),
+          );
+          return true;
+        }
+        final bool moves = await moving;
         _mark('traffic data: ${moves ? 'moved' : 'stalled'}');
         return moves;
       }

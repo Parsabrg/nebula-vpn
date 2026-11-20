@@ -201,6 +201,10 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
   /// _checkTraffic.
   DateTime? _failingSince;
 
+  /// While Automatic is choosing a protocol: only then does a connect wait
+  /// for real data to move before it counts (see _tunnelCarriesTraffic).
+  bool _choosingAutomatically = false;
+
   /// The local proxy of the tunnel this app last started, which the traffic
   /// check asks through. Null for one picked back up after a restart.
   LocalProxy? _tunnelProxy;
