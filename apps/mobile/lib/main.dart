@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io' show Platform;
+import 'dart:io' show Platform, SecurityContext;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
@@ -11,6 +11,7 @@ import 'package:window_manager/window_manager.dart';
 import 'core/auth/auth_notifier.dart';
 import 'core/free/free_mode.dart';
 import 'core/licenses/bundled_licenses.dart';
+import 'core/network/public_roots.dart';
 import 'core/pairing/pairing.dart';
 import 'core/pairing/pairing_providers.dart';
 import 'core/pairing/pairing_store.dart';
@@ -25,6 +26,7 @@ DesktopTrayManager? _trayManager;
 Future<void> main(List<String> arguments) async {
   WidgetsFlutterBinding.ensureInitialized();
   registerBundledLicenses();
+  addPublicRoots(SecurityContext.defaultContext);
 
   if (Platform.isWindows) {
     await windowManager.ensureInitialized();
