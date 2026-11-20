@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -115,7 +116,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       context,
       ref,
       location: roots[navigationShell.currentIndex],
-      withSettings: desktop,
+      // Settings is a tab wherever it would otherwise be hard to find: on a
+      // narrow desktop window (phone layout, no sidebar) and in free mode,
+      // where it sat at the bottom of the Free page, out of sight (owner,
+      // 2026-11-20).
+      withSettings: desktop || free || Platform.isWindows || Platform.isLinux,
       goBranch: goBranch,
     );
     if (desktop) {
