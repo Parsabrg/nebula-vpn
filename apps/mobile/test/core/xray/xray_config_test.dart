@@ -753,6 +753,7 @@ void main() {
         // much of Chrome's and YouTube's traffic -- never gives the ad-block
         // rule a hostname, and passes straight through it.
         expect(sniffing['destOverride'], <String>['http', 'tls', 'quic']);
+        expect(sniffing['routeOnly'], isTrue);
 
         // The real outbound must stay first: Xray treats outbounds[0] as the
         // default route, so a blackhole in that position would drop everything.

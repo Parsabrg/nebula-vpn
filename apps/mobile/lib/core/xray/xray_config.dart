@@ -213,6 +213,13 @@ String renderXrayClientConfigJson(
             // nothing and the request went straight through. The QUIC
             // sniffer is compiled into the core this app ships.
             'destOverride': <String>['http', 'tls', 'quic'],
+            // The name only picks the route; the connection keeps the
+            // address the app already resolved. Without it, the name went
+            // on to the server or Aether, which looked it up again through
+            // the tunnel: a round trip on every new connection, ~450 ms
+            // over WARP on MCI (TLS 780 ms against PattNG's 300 ms on the
+            // same endpoint, phone, 2026-11-21).
+            'routeOnly': true,
           },
       },
     ],
