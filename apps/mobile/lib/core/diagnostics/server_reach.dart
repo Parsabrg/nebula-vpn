@@ -37,9 +37,8 @@ Future<ServerReach> checkServerReach(XrayClientResult client) async {
   InternetAddress? address = InternetAddress.tryParse(host);
   if (address == null) {
     try {
-      final List<InternetAddress> found = await InternetAddress.lookup(
-        host,
-      ).timeout(const Duration(seconds: 5));
+      final List<InternetAddress> found = await InternetAddress.lookup(host)
+          .timeout(const Duration(seconds: 5));
       if (found.isEmpty) {
         return ServerReach.nameNotFound;
       }

@@ -39,13 +39,12 @@ Map<String, dynamic> _config(
   AdvancedSettings settings = AdvancedSettings.defaults,
 }) {
   return jsonDecode(
-        renderXrayClientConfigJson(
-          client,
-          settings: settings,
-          localProxy: _localProxy,
-        ),
-      )
-      as Map<String, dynamic>;
+    renderXrayClientConfigJson(
+      client,
+      settings: settings,
+      localProxy: _localProxy,
+    ),
+  ) as Map<String, dynamic>;
 }
 
 /// Typed accessors, so the assertions below read the config rather than
@@ -112,9 +111,9 @@ void main() {
           await SharedPreferences.getInstance();
 
       expect(
-        SharedPreferencesAdvancedSettingsStore(
-          preferences,
-        ).read().localProxyPort,
+        SharedPreferencesAdvancedSettingsStore(preferences)
+            .read()
+            .localProxyPort,
         AdvancedSettings.defaultLocalProxyPort,
       );
     });
@@ -780,9 +779,8 @@ void main() {
       final SharedPreferences preferences =
           await SharedPreferences.getInstance();
 
-      await SharedPreferencesAdvancedSettingsStore(
-        preferences,
-      ).write(sanctions);
+      await SharedPreferencesAdvancedSettingsStore(preferences)
+          .write(sanctions);
 
       expect(
         SharedPreferencesAdvancedSettingsStore(preferences).read().routingMode,

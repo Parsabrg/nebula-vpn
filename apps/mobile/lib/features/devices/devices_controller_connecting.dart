@@ -483,7 +483,7 @@ mixin _Connecting on _DevicesCore {
         if (saved != null && ref.mounted && !_cancelled(attempt)) {
           // The saved peer may be one the server has since removed: ask for
           // a fresh one, once, before saying the server does not answer.
-          return _connectWireGuard(
+          return await _connectWireGuard(
             attempt: attempt,
             deviceId: deviceId,
             serverCode: serverCode,

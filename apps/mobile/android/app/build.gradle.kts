@@ -64,6 +64,15 @@ if (releaseRequested) {
 
 android {
     namespace = "org.nebulavpn.nebula_mobile"
+
+    // Lint's release pass runs over every plugin's sources too, and under
+    // AGP 9.3.1 with Kotlin 2.4.20 its Java parser fails on
+    // camera_android_camerax with a NoSuchMethodError: a fault inside lint
+    // (it says so), not in the build. The app's own checks are the
+    // analyzer, the Dart tests and the JVM unit tests.
+    lint {
+        checkReleaseBuilds = false
+    }
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

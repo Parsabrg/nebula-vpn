@@ -197,12 +197,11 @@ class PairingException implements Exception {
 /// Fetches `/v1/pairing` from [origin]. [trustOnly] is a PEM CA: when given,
 /// the connection is verified against it and nothing else. [unverified] is
 /// for the one request that only fetches a CA to be checked against a pin.
-typedef PairingFetch =
-    Future<Map<String, Object?>> Function(
-      Uri origin, {
-      String? trustOnly,
-      bool unverified,
-    });
+typedef PairingFetch = Future<Map<String, Object?>> Function(
+  Uri origin, {
+  String? trustOnly,
+  bool unverified,
+});
 
 class PairingClient {
   PairingClient({PairingFetch? fetch}) : _fetch = fetch ?? fetchPairingRecord;

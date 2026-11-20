@@ -310,9 +310,9 @@ class LinuxXrayRuntime {
     final int? enginePid =
         _localXrayPid ??
         int.tryParse(
-          await File(
-            '${linuxSessionOutputs(state.path)}/xray.pid',
-          ).readAsString().catchError((Object _) => ''),
+          await File('${linuxSessionOutputs(state.path)}/xray.pid')
+              .readAsString()
+              .catchError((Object _) => ''),
         );
     final Process? aether = _aether;
     if (aether != null && !await Directory('/proc/${aether.pid}').exists()) {

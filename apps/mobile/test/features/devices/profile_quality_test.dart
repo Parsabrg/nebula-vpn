@@ -144,9 +144,8 @@ void main() {
   test('the store keeps outcomes across a restart', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final SharedPreferences preferences = await SharedPreferences.getInstance();
-    await SharedPreferencesProtocolHistoryStore(
-      preferences,
-    ).record('s', 'a', ProtocolOutcome.drop, at: now);
+    await SharedPreferencesProtocolHistoryStore(preferences)
+        .record('s', 'a', ProtocolOutcome.drop, at: now);
 
     final ProtocolHistory? kept = SharedPreferencesProtocolHistoryStore(
       preferences,

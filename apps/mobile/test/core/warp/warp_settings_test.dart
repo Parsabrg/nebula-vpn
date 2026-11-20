@@ -31,13 +31,12 @@ const XrayClientResult _reality = XrayClientResult(
 
 Map<String, dynamic> _render(XrayClientResult result, WarpSettings warp) =>
     jsonDecode(
-          renderXrayClientConfigJson(
-            result,
-            localProxy: _localProxy,
-            settings: AdvancedSettings.defaults.copyWith(warp: warp),
-          ),
-        )
-        as Map<String, dynamic>;
+      renderXrayClientConfigJson(
+        result,
+        localProxy: _localProxy,
+        settings: AdvancedSettings.defaults.copyWith(warp: warp),
+      ),
+    ) as Map<String, dynamic>;
 
 void main() {
   group('Aether arguments', () {

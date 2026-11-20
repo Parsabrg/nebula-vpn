@@ -56,18 +56,16 @@ void main() {
       'vless://$_id@188.114.97.6:8443?security=tls&type=ws'
       '&sni=app.example.workers.dev&path=%2Fws',
     )!;
-    final Map<String, dynamic> config =
-        jsonDecode(
-              renderXrayClientConfigJson(
-                profile.client,
-                localProxy: const LocalProxy(
-                  port: 20443,
-                  username: 'n0011223344556677',
-                  password: '00112233445566778899aabbccddeeff',
-                ),
-              ),
-            )
-            as Map<String, dynamic>;
+    final Map<String, dynamic> config = jsonDecode(
+      renderXrayClientConfigJson(
+        profile.client,
+        localProxy: const LocalProxy(
+          port: 20443,
+          username: 'n0011223344556677',
+          password: '00112233445566778899aabbccddeeff',
+        ),
+      ),
+    ) as Map<String, dynamic>;
     final Map<String, dynamic> outbound = (config['outbounds'] as List<dynamic>)
         .cast<Map<String, dynamic>>()
         .firstWhere((Map<String, dynamic> o) => o['tag'] == 'proxy');
@@ -118,9 +116,9 @@ void main() {
 
   group('other protocols', () {
     Map<String, dynamic> outbound(ImportedProfile profile) {
-      final Map<String, dynamic> config =
-          jsonDecode(renderXrayDelayProbeConfigJson(profile.client))
-              as Map<String, dynamic>;
+      final Map<String, dynamic> config = jsonDecode(
+        renderXrayDelayProbeConfigJson(profile.client),
+      ) as Map<String, dynamic>;
       return (config['outbounds'] as List<dynamic>).first
           as Map<String, dynamic>;
     }
@@ -156,16 +154,12 @@ void main() {
         'vless://$_id@example.com:443?security=tls&type=tcp'
         '&flow=xtls-rprx-vision&sni=example.com',
       )!;
-      final Map<String, dynamic> config =
-          jsonDecode(
-                renderXrayDelayProbeConfigJson(
-                  profile.client,
-                  settings: AdvancedSettings.defaults.copyWith(
-                    muxEnabled: true,
-                  ),
-                ),
-              )
-              as Map<String, dynamic>;
+      final Map<String, dynamic> config = jsonDecode(
+        renderXrayDelayProbeConfigJson(
+          profile.client,
+          settings: AdvancedSettings.defaults.copyWith(muxEnabled: true),
+        ),
+      ) as Map<String, dynamic>;
       final Map<String, dynamic> out =
           (config['outbounds'] as List<dynamic>).first as Map<String, dynamic>;
       expect(out.containsKey('mux'), isFalse);

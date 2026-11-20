@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nebula_mobile/core/theme/color_tokens.dart';
 import 'package:nebula_mobile/core/theme/nebula_theme.dart';
 import 'package:nebula_mobile/core/theme/type_scale.dart';

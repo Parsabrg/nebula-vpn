@@ -36,9 +36,8 @@ Future<String?> readHardwareId() async {
 
 Future<String?> _platformId() async {
   if (Platform.isAndroid) {
-    return const MethodChannel(
-      'org.nebulavpn/wireguard_tunnel',
-    ).invokeMethod<String>('hardwareId');
+    return const MethodChannel('org.nebulavpn/wireguard_tunnel')
+        .invokeMethod<String>('hardwareId');
   }
   if (Platform.isWindows) {
     final ProcessResult result = await Process.run('reg', <String>[
@@ -47,9 +46,8 @@ Future<String?> _platformId() async {
       '/v',
       'MachineGuid',
     ]);
-    final RegExpMatch? match = RegExp(
-      r'MachineGuid\s+REG_SZ\s+(\S+)',
-    ).firstMatch(result.stdout as String);
+    final RegExpMatch? match = RegExp(r'MachineGuid\s+REG_SZ\s+(\S+)')
+        .firstMatch(result.stdout as String);
     return match?.group(1);
   }
   if (Platform.isLinux) {

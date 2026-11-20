@@ -8,9 +8,9 @@ import 'package:nebula_mobile/core/updates/release_signature.dart';
 /// `ssh-keygen -Y sign` by the release script.
 List<int> _sums() =>
     File('test/core/updates/fixtures/SHA256SUMS-0.1.34.txt').readAsBytesSync();
-String _signature() => File(
-  'test/core/updates/fixtures/SHA256SUMS-0.1.34.txt.sig',
-).readAsStringSync();
+String _signature() =>
+    File('test/core/updates/fixtures/SHA256SUMS-0.1.34.txt.sig')
+        .readAsStringSync();
 
 void main() {
   test('a release signed with the pinned key checks', () async {
@@ -42,8 +42,7 @@ void main() {
       await verifySshSignature(
         message: _sums(),
         armored: _signature(),
-        publicKey:
-            'AAAAC3NzaC1lZDI1NTE5AAAAIBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB',
+        publicKey: 'AAAAC3NzaC1lZDI1NTE5AAAAIBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB',
       ),
       isFalse,
     );

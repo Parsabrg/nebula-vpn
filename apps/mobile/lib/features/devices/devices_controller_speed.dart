@@ -301,7 +301,7 @@ mixin _SpeedTests on _DevicesCore {
     AdvancedSettings settings,
   ) async {
     try {
-      return _measure(await _probeConfig(credential, settings));
+      return await _measure(await _probeConfig(credential, settings));
     } catch (_) {
       return const ProtocolDelay.failed();
     }

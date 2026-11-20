@@ -92,20 +92,16 @@ void main() {
       final _Fixed github = _Fixed(<String, dynamic>{'tag_name': 'v0.1.26'});
       final _Fixed api = _Fixed(<String, dynamic>{'tag_name': 'v0.1.25'});
       expect(
-        (await FirstReleaseSource(<ReleaseSource>[
-          github,
-          api,
-        ]).latest())!['tag_name'],
+        (await FirstReleaseSource(<ReleaseSource>[github, api])
+            .latest())!['tag_name'],
         'v0.1.26',
       );
       expect(api.asked, 0);
 
       final _Fixed privateRepo = _Fixed(null);
       expect(
-        (await FirstReleaseSource(<ReleaseSource>[
-          privateRepo,
-          api,
-        ]).latest())!['tag_name'],
+        (await FirstReleaseSource(<ReleaseSource>[privateRepo, api])
+            .latest())!['tag_name'],
         'v0.1.25',
       );
       expect(
