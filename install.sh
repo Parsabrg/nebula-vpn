@@ -44,17 +44,16 @@ WORK=$(mktemp -d /tmp/nebula-install.XXXXXX)
 STATE=$ETC/install.conf
 COMPOSE_FILE=$REPO/infrastructure/compose/production.yaml
 PROJECT=nebula-production
-XRAY_VERSION=26.10.21
-HYSTERIA_VERSION=2.9.2
-# From the publishers' own .dgst / hashes.txt; Xray checked 2026-10-31,
-# Hysteria2 2026-10-26.
+XRAY_VERSION=26.11.9
+HYSTERIA_VERSION=2.14.0
+# From the publishers' own .dgst / hashes.txt, checked 2026-11-21.
 declare -A XRAY_SHA=(
-  [amd64]=0eec3ed4163c273d8c8bf821f7d219e257921cf584aa3fb970715e458e631978
-  [arm64]=d1304946c486d98e6b886e9b931eaaaebb23835b30e217638037b7f2721d4e9c
+  [amd64]=b651f7e1d9966ee2c1b1ee1bf8b52c72771824d3065dce96bbc8bcc19ed95f82
+  [arm64]=64ed6858982a7f5eb85d88b811089063bd4f17561f4c8f44e0f1dc8e6f6430be
 )
 declare -A HYSTERIA_SHA=(
-  [amd64]=86fef8e2f1b2bf41318ac96724eee6c3b449e4e510022cc89658b63a6713922a
-  [arm64]=9ec8f49f4ea554b1cac04e6f3690cea76ff835082e943e54196d7f323fcfba71
+  [amd64]=fc25edff9948708cb00a4ff01f3bccde677660aca050133bb1ad46c6860362d2
+  [arm64]=e7c52241299fe85aba11e9d36e85d8d88ddbb5799ac0e33d272219d20e313bab
 )
 # A joined server's resolver for the tunnels (the control plane runs AdGuard
 # Home in its stack). Hashes of the release files, 2026-11-04.

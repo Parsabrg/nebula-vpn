@@ -35,7 +35,7 @@ from pathlib import Path
 
 PLUGIN = "flutter_v2ray_client"
 VERSION = "3.4.1"
-HYSTERIA_RELEASE = "app%2Fv2.12.2"
+HYSTERIA_RELEASE = "app%2Fv2.14.0"
 
 # sha256 of each official release asset, verified against what this app was
 # built and tested with. A mismatch means the artifact is not the one this
@@ -43,19 +43,19 @@ HYSTERIA_RELEASE = "app%2Fv2.12.2"
 BINARIES = {
     "arm64-v8a": (
         "hysteria-android-arm64",
-        "50a0e3301edd5ad63ec2c9915716b9b4ae93de369813f045e1e6ab8d85057319",
+        "7d3c67ed4e2e537d72006b06d17019db5ee0edbda566141b14cf575eeeecd9eb",
     ),
     "armeabi-v7a": (
         "hysteria-android-armv7",
-        "5c7c25746cfb765e49ad551e0555b3e804295081e4dd7e06255517d03dc4a2d1",
+        "610e9730285621837c3cbd3486f40cd51a3b53cd06c46ca948db8a5dfe4bdddf",
     ),
     "x86_64": (
         "hysteria-android-amd64",
-        "c56f78a73601f77a7f16550eaf25dc396c8e43f9cb8a6e7e6eb6a7a6aefdcab1",
+        "714497a2668b8552344de49ae489e345a82447b4708e7fde277c9fc0be33039c",
     ),
     "x86": (
         "hysteria-android-386",
-        "63dd3c8e4bd7e8cd542d17f20b7178240e956ace3d3839e4072dd03a34af6c47",
+        "4bcdd3199cb9f8e504f1b15cc0652d79b1d56130f496bf64aeec38df5a28c9d4",
     ),
 }
 
@@ -63,8 +63,8 @@ BINARIES = {
 # the release the desktop runtimes pin, for its newer TLS options (the fragment
 # lists, Encrypted Client Hello lookups), from 2dust's AndroidLibXrayLite.
 XRAY_AAR = (
-    "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.9.30/libv2ray.aar",
-    "cf71680b776b9ca583747ba652f816b047a655eab875d8951e6141636d88bbd6",
+    "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.11.9/libv2ray.aar",
+    "cdfef146218233a31a8b52c8b1016557730d3b63fc121d4c84cacea50e669155",
 )
 
 # hev-socks5-tunnel, the bridge from the VPN interface to the engine's local
@@ -74,8 +74,8 @@ XRAY_AAR = (
 # the JNI class name is compiled in, so it is built here from a pinned commit
 # (its submodules are pinned by that commit) with the Android NDK.
 HEV_REPO = "https://github.com/heiher/hev-socks5-tunnel"
-HEV_TAG = "2.18.0"
-HEV_COMMIT = "d9dca26c7ad0e494492244f0309e80ee583e739e"
+HEV_TAG = "2.20.0"
+HEV_COMMIT = "75dbc1e9ace6c70d3d1b94df7c283efe1de7effc"
 HEV_JNI_CLASS = ("dev/amirzr/flutter_v2ray_client/v2ray/services", "TProxyService")
 
 # CottenDNS, the DNS tunnel's client (plan 10): one release zip carries all
