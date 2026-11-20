@@ -1,15 +1,14 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' show SecurityContext, TlsException;
 
-/// Let's Encrypt's roots (ISRG Root X1 and X2), shipped with the app for
-/// Windows.
+/// Let's Encrypt's roots (ISRG Root X1 and X2), shipped with the app.
 ///
 /// Dart's TLS reads the roots already in the Windows store; it does not
 /// fetch a missing one the way Windows' own networking does. A fresh PC
 /// ships with a small store, so until something else had loaded ISRG Root X1
 /// the server's Let's Encrypt certificate did not verify and the app said
-/// "You're offline" (Windows Sandbox, 2026-11-21). Linux and Android carry
-/// these roots in their own bundles.
+/// "You're offline" (Windows Sandbox, 2026-11-21). Android 8+ and Linux
+/// distributions carry them; added there too, for a minimal or odd store.
 ///
 /// SHA-256: X1 96:BC:EC:06:...:08:C6, X2 69:72:9B:8E:...:14:70.
 const String _isrgRoots = '''
@@ -60,12 +59,9 @@ tL4ndQavEi51mI38AjEAi/V3bNTIZargCyzuFJ0nN6T5U6VR5CmD1/iQMVtCnwr1
 -----END CERTIFICATE-----
 ''';
 
-/// Adds the roots to [context] on Windows; elsewhere it does nothing. A root
-/// the store already has is not an error.
+/// Adds the roots to [context]. A root the store already has is not an
+/// error.
 void addPublicRoots(SecurityContext context) {
-  if (!Platform.isWindows) {
-    return;
-  }
   try {
     context.setTrustedCertificatesBytes(utf8.encode(_isrgRoots));
   } on TlsException {
