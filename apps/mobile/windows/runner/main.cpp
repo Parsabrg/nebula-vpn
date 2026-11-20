@@ -32,7 +32,16 @@ int RunElevatedStep(const wchar_t* powershell_arguments) {
   STARTUPINFOW startup{};
   startup.cb = sizeof(startup);
   PROCESS_INFORMATION process{};
+  // Out of the app's job (see wWinMain). Windows puts this elevated process
+  // in it, as the child of the app that asked for it, and closing the job
+  // ended the helper mid-session: its DNS rule and kill switch stayed, and
+  // the PC had no internet after Exit until a reset (owner, 2026-11-20).
+  // Outside, the helper sees the app gone and undoes them, as it was built
+  // to. Where breaking away is refused, it starts as before.
   if (!::CreateProcessW(powershell.c_str(), command.data(), nullptr, nullptr,
+                        FALSE, CREATE_NO_WINDOW | CREATE_BREAKAWAY_FROM_JOB,
+                        nullptr, nullptr, &startup, &process) &&
+      !::CreateProcessW(powershell.c_str(), command.data(), nullptr, nullptr,
                         FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &startup,
                         &process)) {
     return 1;
@@ -97,12 +106,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // engine was found still running three days on (owner, 2026-11-15). In a
   // job that ends its processes when it closes, Windows stops them however
   // the app ends. The handle is never closed by hand; the app's exit closes
-  // it. The elevated VPN helper is outside it by nature (Windows starts it)
-  // and watches the app itself.
+  // it. The elevated VPN helper lands in it too -- Windows starts it as this
+  // app's child -- so it is allowed to break away, and does (RunElevatedStep):
+  // it has a DNS rule and a kill switch to undo when the app is gone.
   if (HANDLE job = ::CreateJobObjectW(nullptr, nullptr)) {
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
     limits.BasicLimitInformation.LimitFlags =
-        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_BREAKAWAY_OK;
     if (!::SetInformationJobObject(job, JobObjectExtendedLimitInformation,
                                    &limits, sizeof(limits)) ||
         !::AssignProcessToJobObject(job, ::GetCurrentProcess())) {
