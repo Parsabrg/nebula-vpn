@@ -53,6 +53,22 @@ const List<String> kAllIPv4 = <String>['0.0.0.0/0'];
 /// Xray's own TUN carries IPv6 out through the server (local_proxy.dart).
 const String kIPv6Everything = '::/0';
 
+/// The private networks "Allow local network" keeps off the tunnel on
+/// Windows and Linux, where routes are added around the tunnel rather than
+/// listed: a work network over 192.168.150.x behind the office router,
+/// not only the subnet the machine sits on (which its own route already
+/// covers). Seen on a Windows desktop, 2026-11-20: Hysteria2 took them all.
+const List<String> kPrivateRanges = <String>[
+  '10.0.0.0/8',
+  '172.16.0.0/12',
+  '192.168.0.0/16',
+  '169.254.0.0/16',
+];
+
+/// Whether [routes] (from [tunnelRoutes]) leave the local network out.
+bool routesSkipLocalNetwork(List<String>? routes) =>
+    routes != null && !routes.contains(kAllIPv4.single);
+
 class _Span {
   const _Span(this.start, this.end);
 

@@ -196,6 +196,9 @@ class WindowsXrayRuntime {
             windowsHysteriaFullTunnelConfig(
               source['nebulaHysteriaConfig'] as String,
               upstreamIp,
+              // "Allow local network": its own routes skip them, as Xray's
+              // direct rule does on the other protocols.
+              exclude: localNetworkDirect ? kPrivateRanges : const <String>[],
             ),
           );
           _xraySupervisorPid = await _startElevatedSupervisor(
