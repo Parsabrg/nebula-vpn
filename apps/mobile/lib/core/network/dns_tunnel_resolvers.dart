@@ -168,9 +168,9 @@ class DnsTunnelResolvers extends ChangeNotifier {
 
   Map<String, String> get _sets {
     try {
-      return (jsonDecode(_preferences.getString(setsKey) ?? '{}')
-              as Map<String, dynamic>)
-          .cast<String, String>();
+      return (jsonDecode(
+        _preferences.getString(setsKey) ?? '{}',
+      ) as Map<String, dynamic>).cast<String, String>();
     } on FormatException {
       return <String, String>{};
     }

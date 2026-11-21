@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The four looks of the redesign (nebula-redesign/DESIGN_SPEC.md §1): one
 /// app, one set of widgets, four sets of token values. A look changes

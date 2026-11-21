@@ -310,7 +310,7 @@ class DioServerRepository implements ServerRepository {
       } catch (_) {
         // A copy that could not be kept only matters on a later failure.
       }
-      return _withDnsTunnel(servers);
+      return await _withDnsTunnel(servers);
     } on DioException catch (error) {
       final Object translated = translateDioException(error);
       if (translated is NebulaConnectivityException) {

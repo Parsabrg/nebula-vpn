@@ -213,6 +213,13 @@ String renderXrayClientConfigJson(
             // nothing and the request went straight through. The QUIC
             // sniffer is compiled into the core this app ships.
             'destOverride': <String>['http', 'tls', 'quic'],
+            // The name only picks the route; the connection keeps the
+            // address the app already resolved. Without it, the name went
+            // on to the server or Aether, which looked it up again through
+            // the tunnel: a round trip on every new connection, ~450 ms
+            // over WARP on MCI (TLS 780 ms against PattNG's 300 ms on the
+            // same endpoint, phone, 2026-11-21).
+            'routeOnly': true,
           },
       },
     ],
@@ -1156,9 +1163,10 @@ Map<String, dynamic> _withMux(
       // to 0.15 s and a fresh HTTPS connection from 1.26 s to 0.50 s
       // (measured from Iran, 2026-10-14).
       'xudpConcurrency': 16,
-      // QUIC refused, so apps fall straight back to TCP, which a tunnel over
-      // TCP carries far better than QUIC inside it.
-      'xudpProxyUDP443': 'reject',
+      // QUIC carried, as v2rayNG does: refused, YouTube had to fall back
+      // to TCP and played noticeably worse than in v2rayNG on the same
+      // server (owner, 2026-11-20).
+      'xudpProxyUDP443': 'allow',
     },
   };
 }

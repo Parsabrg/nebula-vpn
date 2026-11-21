@@ -77,9 +77,10 @@
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="vpn"/>
-            <intent-filter>
-                <action android:name="android.net.VpnService"/>
-            </intent-filter>
+            <!-- No android.net.VpnService intent-filter: GoBackend starts this
+                 service by name, and with the filter Android's always-on VPN
+                 had two of this app's services to choose from, and only the
+                 Xray one restores a saved tunnel (review S-04). -->
         </service>
         <!-- Not exported: both are system broadcasts, which reach it anyway. -->
         <receiver

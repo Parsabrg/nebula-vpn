@@ -23,15 +23,13 @@ XrayClientResult _client({String transport = 'xhttp'}) => XrayClientResult(
 Map<String, dynamic> _render(
   AdvancedSettings settings, {
   String transport = 'xhttp',
-}) =>
-    jsonDecode(
-          renderXrayClientConfigJson(
-            _client(transport: transport),
-            localProxy: _proxy,
-            settings: settings,
-          ),
-        )
-        as Map<String, dynamic>;
+}) => jsonDecode(
+  renderXrayClientConfigJson(
+    _client(transport: transport),
+    localProxy: _proxy,
+    settings: settings,
+  ),
+) as Map<String, dynamic>;
 
 List<Map<String, dynamic>> _rules(Map<String, dynamic> config) =>
     ((config['routing'] as Map<String, dynamic>)['rules'] as List<dynamic>)
@@ -184,19 +182,14 @@ void main() {
   });
 
   group("the app's own API goes through the server", () {
-    Map<String, dynamic> render(AdvancedSettings settings) =>
-        jsonDecode(
-              renderXrayClientConfigJson(
-                _client(),
-                localProxy: _proxy,
-                settings: settings,
-                apiHosts: const <String>[
-                  'cdn.example.org',
-                  'front.example.app',
-                ],
-              ),
-            )
-            as Map<String, dynamic>;
+    Map<String, dynamic> render(AdvancedSettings settings) => jsonDecode(
+      renderXrayClientConfigJson(
+        _client(),
+        localProxy: _proxy,
+        settings: settings,
+        apiHosts: const <String>['cdn.example.org', 'front.example.app'],
+      ),
+    ) as Map<String, dynamic>;
 
     test('ahead of every direct rule, in sanctions-only mode', () {
       final List<Map<String, dynamic>> rules = _rules(

@@ -199,35 +199,40 @@ mixin _Connecting on _DevicesCore {
             .toList();
 
     final AppText text = ref.read(appTextProvider);
-    for (final AvailableProfile profile in order) {
-      if (!ref.mounted || _cancelled(attempt)) {
-        return;
+    _choosingAutomatically = true;
+    try {
+      for (final AvailableProfile profile in order) {
+        if (!ref.mounted || _cancelled(attempt)) {
+          return;
+        }
+        state = state.copyWith(actionErrorMessage: () => null);
+        await _connectProfile(
+          attempt: attempt,
+          deviceId: deviceId,
+          serverCode: serverCode,
+          profileCode: profile.code,
+        );
+        if (!ref.mounted || _cancelled(attempt) || state.tunnelEstablished) {
+          return;
+        }
+        final String? error = state.actionErrorMessage;
+        // A refused VPN permission is the person's answer, not the network's:
+        // the next protocol would ask again, and the closing "none of the
+        // protocols got through" would hide why (found on a first install,
+        // 2026-10-17).
+        if (error == text.errorQuotaExhausted ||
+            error == text.errorRateLimited ||
+            error == text.errorOffline ||
+            error == text.vpnPermissionNotGranted ||
+            error ==
+                text.errorProxyPortInUse(
+                  '${ref.read(advancedSettingsControllerProvider).localProxyPort}',
+                )) {
+          return;
+        }
       }
-      state = state.copyWith(actionErrorMessage: () => null);
-      await _connectProfile(
-        attempt: attempt,
-        deviceId: deviceId,
-        serverCode: serverCode,
-        profileCode: profile.code,
-      );
-      if (!ref.mounted || _cancelled(attempt) || state.tunnelEstablished) {
-        return;
-      }
-      final String? error = state.actionErrorMessage;
-      // A refused VPN permission is the person's answer, not the network's:
-      // the next protocol would ask again, and the closing "none of the
-      // protocols got through" would hide why (found on a first install,
-      // 2026-10-17).
-      if (error == text.errorQuotaExhausted ||
-          error == text.errorRateLimited ||
-          error == text.errorOffline ||
-          error == text.vpnPermissionNotGranted ||
-          error ==
-              text.errorProxyPortInUse(
-                '${ref.read(advancedSettingsControllerProvider).localProxyPort}',
-              )) {
-        return;
-      }
+    } finally {
+      _choosingAutomatically = false;
     }
     if (ref.mounted && !_cancelled(attempt)) {
       state = state.copyWith(
@@ -478,7 +483,7 @@ mixin _Connecting on _DevicesCore {
         if (saved != null && ref.mounted && !_cancelled(attempt)) {
           // The saved peer may be one the server has since removed: ask for
           // a fresh one, once, before saying the server does not answer.
-          return _connectWireGuard(
+          return await _connectWireGuard(
             attempt: attempt,
             deviceId: deviceId,
             serverCode: serverCode,

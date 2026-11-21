@@ -43,9 +43,8 @@ const Map<String, String> _ssMethods = <String, String>{
 ImportedProfile? parseLink(String text) {
   // Control characters, literal or percent-encoded, have no place in a
   // share link and were a way into the configs built from it (AUD-015).
-  if (RegExp(
-    r'[\x00-\x1f\x7f]|%(0[0-9a-fA-F]|1[0-9a-fA-F]|7[fF])',
-  ).hasMatch(text.trim())) {
+  if (RegExp(r'[\x00-\x1f\x7f]|%(0[0-9a-fA-F]|1[0-9a-fA-F]|7[fF])')
+      .hasMatch(text.trim())) {
     return null;
   }
   final String trimmed = text.trim();

@@ -1,8 +1,8 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/app_info.dart';
 import '../../core/diagnostics/diagnostics_report.dart';
@@ -171,9 +171,8 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
       ),
     );
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(text.diagnosticsReportCopied)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(text.diagnosticsReportCopied)));
     }
   }
 

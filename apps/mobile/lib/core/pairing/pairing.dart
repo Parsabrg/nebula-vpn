@@ -4,6 +4,8 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 
+import '../network/public_roots.dart';
+
 /// Pairing: how one generic build of the app learns which deployment it
 /// belongs to, instead of having an address compiled into it.
 ///
@@ -195,12 +197,11 @@ class PairingException implements Exception {
 /// Fetches `/v1/pairing` from [origin]. [trustOnly] is a PEM CA: when given,
 /// the connection is verified against it and nothing else. [unverified] is
 /// for the one request that only fetches a CA to be checked against a pin.
-typedef PairingFetch =
-    Future<Map<String, Object?>> Function(
-      Uri origin, {
-      String? trustOnly,
-      bool unverified,
-    });
+typedef PairingFetch = Future<Map<String, Object?>> Function(
+  Uri origin, {
+  String? trustOnly,
+  bool unverified,
+});
 
 class PairingClient {
   PairingClient({PairingFetch? fetch}) : _fetch = fetch ?? fetchPairingRecord;
@@ -284,6 +285,9 @@ Future<String> caFingerprint(String pem) async {
 /// the platform's roots.
 SecurityContext pinnedContext(String caPem, {required bool alsoSystem}) {
   final SecurityContext context = SecurityContext(withTrustedRoots: alsoSystem);
+  if (alsoSystem) {
+    addPublicRoots(context);
+  }
   context.setTrustedCertificatesBytes(utf8.encode(caPem));
   return context;
 }

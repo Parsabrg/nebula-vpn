@@ -124,9 +124,8 @@ void main() {
       final ProviderContainer first = await withStore(store, free: true);
       addTearDown(first.dispose);
       expect(
-        (await first.read(
-          subscriptionsProvider.future,
-        )).map((Subscription s) => s.url),
+        (await first.read(subscriptionsProvider.future))
+            .map((Subscription s) => s.url),
         <String>[defaultSubscriptionUrl],
       );
 

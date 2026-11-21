@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nebula_mobile/core/routing/tunnel_routes.dart';
 import 'package:nebula_mobile/core/xray/windows_tunnel_config.dart';
 
 void main() {
@@ -51,6 +52,32 @@ tls:
       ),
       throwsStateError,
     );
+  });
+
+  test('"Allow local network" keeps private networks off the TUN', () {
+    // A work network behind the office router (192.168.150.x) went into
+    // the tunnel with Hysteria2 on a Windows desktop (owner, 2026-11-20).
+    final String config = windowsHysteriaFullTunnelConfig(
+      profile,
+      '203.0.113.4',
+      exclude: kPrivateRanges,
+    );
+    expect(
+      config,
+      contains(
+        'ipv4Exclude: [203.0.113.4/32, 10.0.0.0/8, 172.16.0.0/12, '
+        '192.168.0.0/16, 169.254.0.0/16]',
+      ),
+    );
+    expect(
+      routesSkipLocalNetwork(tunnelRoutes(bypassLocalNetwork: true)),
+      isTrue,
+    );
+    expect(
+      routesSkipLocalNetwork(tunnelRoutes(bypassLocalNetwork: false)),
+      isFalse,
+    );
+    expect(routesSkipLocalNetwork(null), isFalse);
   });
 
   test('missing numeric upstream fails instead of allowing a route loop', () {

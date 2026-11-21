@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../theme/color_tokens.dart';
 import '../../theme/look.dart';
@@ -312,7 +312,7 @@ class NebulaSideNav extends StatelessWidget {
           child: column,
         ),
         NebulaLook.glass => Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 0, 12),
+          padding: const EdgeInsetsDirectional.fromSTEB(12, 12, 0, 12),
           child: NebulaPanel(child: column),
         ),
         NebulaLook.expressive => ColoredBox(color: p.surface, child: column),

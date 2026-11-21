@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/theme/color_tokens.dart';
 import '../../core/widgets/nebula/nebula_controls.dart';
@@ -162,9 +162,8 @@ class _ConnectionLogScreenState extends ConsumerState<ConnectionLogScreen> {
   Future<void> _copy(List<String> lines) async {
     await Clipboard.setData(ClipboardData(text: lines.join('\n')));
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(AppText.of(context).logCopied)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(AppText.of(context).logCopied)));
     }
   }
 }

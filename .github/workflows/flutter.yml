@@ -41,15 +41,19 @@ jobs:
           echo "flutter_v2ray_client resolves to the patched copy"
 
   checks:
-    # Deliberately not the self-hosted runner. The container below
-    # carries the Android SDK and a JDK and unpacks to more than the
-    # VPS has free, and a full disk on that host is a production
+    # Deliberately not the self-hosted runner. The Android SDK, a JDK
+    # and Flutter unpack to more than the VPS has free, and a full disk on that host is a production
     # outage rather than a failed build.
     runs-on: ubuntu-latest
-    container: ghcr.io/cirruslabs/flutter:3.44.0@sha256:46691e311715845de03a3ba4753a475476936805b29431b1f00f1816981033f8
     steps:
       # actions/checkout v7.0.0
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      # subosito/flutter-action v2.21.0. Flutter 3.50 has no cirruslabs image
+      # (its tags stop at 3.44.0); the runner carries the Android SDK and JDK.
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: "3.50.1"
+          channel: stable
       # `third_party/` is generated and gitignored, and pubspec_overrides.yaml
       # points at it, so `flutter pub get` cannot resolve until it exists --
       # which is why every run of this workflow failed at the first step and
@@ -60,10 +64,14 @@ jobs:
       # a copy of the plugin taken from the pub cache, and the cache is empty
       # until something puts it there. `pub get` cannot, because of the
       # override, so `pub cache add` does it directly.
-      # hev-socks5-tunnel is built for Android with ndk-build; the image has
-      # the SDK but no NDK. The release builds' NDK (Flutter's default).
+      # hev-socks5-tunnel is built for Android with ndk-build; the runner has
+      # the SDK but not this NDK. The release builds' NDK (Flutter's default).
+      # window_manager and tray_manager build their native core (cnativeapi)
+      # as a native asset, even for `flutter test` on Linux.
+      - name: GTK 3, X11 and Xi headers
+        run: sudo apt-get update -q && sudo apt-get install -y -q clang cmake ninja-build pkg-config libgtk-3-dev libx11-dev libxi-dev
       - name: Install the Android NDK
-        run: yes | sdkmanager --install "ndk;28.2.13676358" > /dev/null
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;28.2.13676358" > /dev/null
       - name: Vendor the patched flutter_v2ray_client
         working-directory: apps/mobile
         run: |
@@ -101,3 +109,9 @@ jobs:
       - name: Build APK
         working-directory: apps/mobile
         run: flutter build apk --debug --target-platform android-arm64
+      # The native checks on what reaches the app from outside it -- the
+      # notification's Disconnect token, the update installer's path -- on a
+      # plain JVM (GuardedInputsTest; review Q-07).
+      - name: Android unit tests
+        working-directory: apps/mobile/android
+        run: ./gradlew :app:testDebugUnitTest -Ptarget-platform=android-arm64 --console=plain

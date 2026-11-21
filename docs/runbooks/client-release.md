@@ -38,7 +38,7 @@ checks pass.
 Tag the merged release commit and push the tag:
 
 ```sh
-git -c gpg.format=ssh -c user.signingkey=apps/mobile/android/app/nebula-release-sign   tag -s vX -m vX <merge commit> && git push origin vX
+git -c gpg.format=ssh -c user.signingkey=$HOME/.nebula-release/nebula-release-sign   tag -s vX -m vX <merge commit> && git push origin vX
 ```
 
 The tag is signed with the release key: `install.sh --update` refuses a tag
@@ -91,7 +91,7 @@ for f in nebula-vpn-vX-*; do gh attestation verify "$f" -R Parsabrg/nebula-vpn |
 debug signature; the files are already aligned:
 
 ```sh
-KS=../../android/app/nebula-release.jks
+KS=~/.nebula-release/nebula-release.jks
 for abi in arm64 arm x64 universal; do
   apksigner sign --ks "$KS" --ks-key-alias nebula \
     --out nebula-vpn-vX-android-$abi.apk nebula-vpn-vX-android-$abi-tosign.apk
@@ -107,7 +107,7 @@ Every SHA-256 printed must be the one in release-signing-key.md.
 ```sh
 sha256sum nebula-vpn-vX-* > SHA256SUMS.txt
 sha256sum -c SHA256SUMS.txt
-ssh-keygen -Y sign -f ../../android/app/nebula-release-sign -n nebula-release SHA256SUMS.txt
+ssh-keygen -Y sign -f ~/.nebula-release/nebula-release-sign -n nebula-release SHA256SUMS.txt
 ssh-keygen -Y verify -f ../../../../docs/release-signers -I releases@nebula-vpn \
   -n nebula-release -s SHA256SUMS.txt.sig < SHA256SUMS.txt
 ```

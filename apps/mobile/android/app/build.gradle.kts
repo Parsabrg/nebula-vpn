@@ -1,3 +1,4 @@
+import java.security.MessageDigest
 import java.util.Base64
 import java.util.Properties
 
@@ -7,18 +8,23 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// Release signing material, kept out of the repository: android/key.properties
-// and the keystore it points at are both gitignored, so a clone has neither.
+// Release signing material, kept outside every copy of the repository: the
+// release machine holds it in ~/.nebula-release (key.properties naming the
+// keystore by absolute path), or wherever NEBULA_KEY_PROPERTIES points. A
+// file inside the tree was one `git add -f` away from being published (review
+// S-09); android/key.properties is still read, last, for older setups.
 // Absent (CI, a fresh clone, any machine that is not the release machine) this
 // stays null and the release build below falls back to debug signing rather
 // than failing -- an unsigned-for-release build is still useful for checking
 // that the app compiles, and only the release machine can produce a
 // distributable one.
 val keystoreProperties = Properties().apply {
-    val file = rootProject.file("key.properties")
-    if (file.exists()) {
-        file.inputStream().use { load(it) }
-    }
+    val file = listOfNotNull(
+        System.getenv("NEBULA_KEY_PROPERTIES")?.let { File(it) },
+        File(System.getProperty("user.home"), ".nebula-release/key.properties"),
+        rootProject.file("key.properties"),
+    ).firstOrNull { it.isFile }
+    file?.inputStream()?.use { load(it) }
 }
 val hasReleaseSigning = keystoreProperties.getProperty("storeFile") != null
 
@@ -58,6 +64,15 @@ if (releaseRequested) {
 
 android {
     namespace = "org.nebulavpn.nebula_mobile"
+
+    // Lint's release pass runs over every plugin's sources too, and under
+    // AGP 9.3.1 with Kotlin 2.4.20 its Java parser fails on
+    // camera_android_camerax with a NoSuchMethodError: a fault inside lint
+    // (it says so), not in the build. The app's own checks are the
+    // analyzer, the Dart tests and the JVM unit tests.
+    lint {
+        checkReleaseBuilds = false
+    }
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -168,11 +183,34 @@ dependencies {
     // protocol, matching how the Windows client shells out to the official
     // wireguard.exe rather than reimplementing it there either.
     implementation("com.wireguard.android:tunnel:1.0.20260102")
+
+    // Plain JVM tests of the native checks (GuardedInputsTest; review Q-07).
+    testImplementation("junit:junit:4.13.2")
 }
 
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+// The patched plugin is generated (third_party_src/vendor_plugin.py) and
+// gitignored. A copy made from an older patch built fine and lacked whole
+// features (review Q-06), so the build compares its stamp with the patch.
+val pluginPatch = file("../../third_party_src/flutter_v2ray_client-3.4.1.patch")
+val pluginStamp = file("../../third_party/flutter_v2ray_client/.patch-sha256")
+tasks.named("preBuild") {
+    doFirst {
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(String(pluginPatch.readBytes(), Charsets.UTF_8).replace("\r\n", "\n").toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+        val stamped = if (pluginStamp.isFile) pluginStamp.readText().trim() else ""
+        if (stamped != digest) {
+            throw GradleException(
+                "third_party/flutter_v2ray_client is not from the current patch: " +
+                    "run `python third_party_src/vendor_plugin.py` in apps/mobile.",
+            )
+        }
     }
 }
 

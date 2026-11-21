@@ -26,7 +26,7 @@ jobs:
       # subosito/flutter-action v2.21.0
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         with:
-          flutter-version: "3.44.0"
+          flutter-version: "3.50.1"
           channel: stable
       - name: Vendor the pinned Android tunnel dependency
         working-directory: apps/mobile

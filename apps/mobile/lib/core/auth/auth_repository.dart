@@ -61,16 +61,18 @@ class DioAuthRepository implements AuthRepository {
     required String clientVersion,
     String? hardwareId,
   }) async {
-    final Response<dynamic> response =
-        await _post('/v1/auth/login', <String, dynamic>{
-          'identifier': identifier,
-          'password': password,
-          'device_id': deviceId,
-          'device_name': deviceName,
-          'platform': platform.wireValue,
-          'client_version': clientVersion,
-          'hardware_id': ?hardwareId,
-        });
+    final Response<dynamic> response = await _post(
+      '/v1/auth/login',
+      <String, dynamic>{
+        'identifier': identifier,
+        'password': password,
+        'device_id': deviceId,
+        'device_name': deviceName,
+        'platform': platform.wireValue,
+        'client_version': clientVersion,
+        'hardware_id': ?hardwareId,
+      },
+    );
     return _tokenPairFrom(response.data as Map<String, dynamic>);
   }
 

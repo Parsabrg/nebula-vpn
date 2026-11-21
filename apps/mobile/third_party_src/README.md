@@ -19,7 +19,7 @@ carries nothing, which is exactly what shipped before this patch existed.
 ## The Xray engine
 
 The plugin ships Xray 26.6.1 in `android/libs/libv2ray.aar`. The script
-replaces it with 2dust's AndroidLibXrayLite v26.9.30, pinned by digest -- the
+replaces it with 2dust's AndroidLibXrayLite v26.11.9, pinned by digest -- the
 release the desktop runtimes use. Its Java interface changed: no socket
 protector (none is needed, the app is outside its own VPN), and one call for
 every outbound's counters (`queryAllOutboundTrafficStats`) instead of one per

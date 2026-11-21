@@ -706,9 +706,9 @@ void main() {
       await notifier.pingProtocols(_deviceId);
 
       expect(harness.repository.revokeXrayClientCalls, 0);
-      final InMemoryXrayCredentialStore saved =
-          harness.container.read(xrayCredentialStoreProvider)
-              as InMemoryXrayCredentialStore;
+      final InMemoryXrayCredentialStore saved = harness.container.read(
+        xrayCredentialStoreProvider,
+      ) as InMemoryXrayCredentialStore;
       expect(saved.entries, hasLength(3));
     });
 
@@ -1038,29 +1038,32 @@ void main() {
       expect(state.actionErrorMessage, contains('blocking'));
     });
 
-    test('a tunnel that answers but moves no data is undone', () async {
-      // XHTTP through the CDN: two tiny requests answered, 0 B downloaded,
-      // and "Protected" on the screen (owner, 2026-11-10).
-      final harness = _harness(tunnelMovesData: (_) async => false);
-      addTearDown(harness.container.dispose);
-      harness.repository.servers = <AvailableServer>[_wireGuardOnlyServer];
-      await harness.container.read(devicesControllerProvider.notifier).load();
-      final DevicesController notifier = harness.container.read(
-        devicesControllerProvider.notifier,
-      );
-      notifier.selectServer('ams-1');
-      notifier.selectProfile('wg-default');
-      harness.repository.requestPeerResult = _peerResult();
-      harness.tunnel.handshake = true;
+    test(
+      'a picked protocol is up once it answers, before data moves',
+      () async {
+        // As in v2rayNG: the 128 KB check runs in the background for a protocol
+        // the person picked (owner, 2026-11-20); only Automatic waits for it.
+        final harness = _harness(tunnelMovesData: (_) async => false);
+        addTearDown(harness.container.dispose);
+        harness.repository.servers = <AvailableServer>[_wireGuardOnlyServer];
+        await harness.container.read(devicesControllerProvider.notifier).load();
+        final DevicesController notifier = harness.container.read(
+          devicesControllerProvider.notifier,
+        );
+        notifier.selectServer('ams-1');
+        notifier.selectProfile('wg-default');
+        harness.repository.requestPeerResult = _peerResult();
+        harness.tunnel.handshake = true;
 
-      await notifier.connect(_deviceId);
+        await notifier.connect(_deviceId);
 
-      final DevicesState state = harness.container.read(
-        devicesControllerProvider,
-      );
-      expect(state.tunnelEstablished, isFalse);
-      expect(harness.tunnel.disconnectCalls, 1);
-    });
+        final DevicesState state = harness.container.read(
+          devicesControllerProvider,
+        );
+        expect(state.tunnelEstablished, isTrue);
+        expect(harness.tunnel.disconnectCalls, 0);
+      },
+    );
 
     test(
       'a server under maintenance is not connected to, and says why',
@@ -1176,31 +1179,28 @@ void main() {
       },
     );
 
-    test(
-      'records the peer but not a tunnel when the platform tunnel fails to start',
-      () async {
-        final harness = _harness();
-        addTearDown(harness.container.dispose);
-        harness.repository.servers = <AvailableServer>[_wireGuardOnlyServer];
-        await harness.container.read(devicesControllerProvider.notifier).load();
-        final DevicesController notifier = harness.container.read(
-          devicesControllerProvider.notifier,
-        );
-        notifier.selectServer('ams-1');
-        notifier.selectProfile('wg-default');
-        harness.repository.requestPeerResult = _peerResult();
-        harness.tunnel.connectError = StateError('wireguard.exe failed');
+    test('records the peer but not a tunnel when the platform tunnel fails to start', () async {
+      final harness = _harness();
+      addTearDown(harness.container.dispose);
+      harness.repository.servers = <AvailableServer>[_wireGuardOnlyServer];
+      await harness.container.read(devicesControllerProvider.notifier).load();
+      final DevicesController notifier = harness.container.read(
+        devicesControllerProvider.notifier,
+      );
+      notifier.selectServer('ams-1');
+      notifier.selectProfile('wg-default');
+      harness.repository.requestPeerResult = _peerResult();
+      harness.tunnel.connectError = StateError('wireguard.exe failed');
 
-        await notifier.connect(_deviceId);
+      await notifier.connect(_deviceId);
 
-        final DevicesState state = harness.container.read(
-          devicesControllerProvider,
-        );
-        expect(state.isConnected, isTrue);
-        expect(state.tunnelEstablished, isFalse);
-        expect(state.actionErrorMessage, isNotNull);
-      },
-    );
+      final DevicesState state = harness.container.read(
+        devicesControllerProvider,
+      );
+      expect(state.isConnected, isTrue);
+      expect(state.tunnelEstablished, isFalse);
+      expect(state.actionErrorMessage, isNotNull);
+    });
 
     test(
       'reuses an existing stored key instead of generating a new one',
@@ -1622,46 +1622,43 @@ void main() {
       });
     });
 
-    test(
-      'once the server answers again, a saved-credential connection is replaced',
-      () async {
-        // A tunnel raised with the phone offline did not recover when the
-        // network came back (measured on a phone); one raised online did. So
-        // the moment the server can be reached, the saved-credential connection
-        // is swapped for one the server has just issued.
-        final harness = _harness();
-        addTearDown(harness.container.dispose);
-        final DevicesController notifier = await setUpXraySelection(harness);
-        // Saved by an earlier run whose tunnel ended without Disconnect -- a
-        // drop, a reboot. Disconnect revokes, and so forgets it too.
-        await harness.container
-            .read(xrayCredentialStoreProvider)
-            .write(
-              serverCode: 'ams-2',
-              profileCode: 'vless-xhttp-tls',
-              credential: _xrayClientResult(),
-            );
-        harness.repository.requestXrayClientResult = _xrayClientResult();
-        harness.repository.requestXrayClientError =
-            const NebulaConnectivityException('connection refused');
-        await notifier.connect(_deviceId);
-        expect(
-          harness.container.read(devicesControllerProvider).fromSavedCredential,
-          isTrue,
-        );
-        final int callsBefore = harness.repository.requestXrayClientCalls;
+    test('once the server answers again, a saved-credential connection is replaced', () async {
+      // A tunnel raised with the phone offline did not recover when the
+      // network came back (measured on a phone); one raised online did. So
+      // the moment the server can be reached, the saved-credential connection
+      // is swapped for one the server has just issued.
+      final harness = _harness();
+      addTearDown(harness.container.dispose);
+      final DevicesController notifier = await setUpXraySelection(harness);
+      // Saved by an earlier run whose tunnel ended without Disconnect -- a
+      // drop, a reboot. Disconnect revokes, and so forgets it too.
+      await harness.container
+          .read(xrayCredentialStoreProvider)
+          .write(
+            serverCode: 'ams-2',
+            profileCode: 'vless-xhttp-tls',
+            credential: _xrayClientResult(),
+          );
+      harness.repository.requestXrayClientResult = _xrayClientResult();
+      harness.repository.requestXrayClientError =
+          const NebulaConnectivityException('connection refused');
+      await notifier.connect(_deviceId);
+      expect(
+        harness.container.read(devicesControllerProvider).fromSavedCredential,
+        isTrue,
+      );
+      final int callsBefore = harness.repository.requestXrayClientCalls;
 
-        harness.repository.requestXrayClientError = null;
-        await notifier.refreshAfterOffline(_deviceId);
+      harness.repository.requestXrayClientError = null;
+      await notifier.refreshAfterOffline(_deviceId);
 
-        final DevicesState state = harness.container.read(
-          devicesControllerProvider,
-        );
-        expect(harness.repository.requestXrayClientCalls, callsBefore + 1);
-        expect(state.tunnelEstablished, isTrue);
-        expect(state.fromSavedCredential, isFalse);
-      },
-    );
+      final DevicesState state = harness.container.read(
+        devicesControllerProvider,
+      );
+      expect(harness.repository.requestXrayClientCalls, callsBefore + 1);
+      expect(state.tunnelEstablished, isTrue);
+      expect(state.fromSavedCredential, isFalse);
+    });
 
     test('a connection the server issued is left alone', () async {
       final harness = _harness();
@@ -2265,33 +2262,30 @@ void main() {
       );
     });
 
-    test(
-      'routes a non-vless, non-wireguard protocol (Hysteria2) through the Xray path too',
-      () async {
-        final harness = _harness();
-        addTearDown(harness.container.dispose);
-        harness.repository.servers = <AvailableServer>[_hysteriaOnlyServer];
-        await harness.container.read(devicesControllerProvider.notifier).load();
-        final DevicesController notifier = harness.container.read(
-          devicesControllerProvider.notifier,
-        );
-        notifier.selectServer('ams-3');
-        notifier.selectProfile('hysteria2');
-        harness.repository.requestXrayClientResult = _hysteriaClientResult();
+    test('routes a non-vless, non-wireguard protocol (Hysteria2) through the Xray path too', () async {
+      final harness = _harness();
+      addTearDown(harness.container.dispose);
+      harness.repository.servers = <AvailableServer>[_hysteriaOnlyServer];
+      await harness.container.read(devicesControllerProvider.notifier).load();
+      final DevicesController notifier = harness.container.read(
+        devicesControllerProvider.notifier,
+      );
+      notifier.selectServer('ams-3');
+      notifier.selectProfile('hysteria2');
+      harness.repository.requestXrayClientResult = _hysteriaClientResult();
 
-        await notifier.connect(_deviceId);
+      await notifier.connect(_deviceId);
 
-        final DevicesState state = harness.container.read(
-          devicesControllerProvider,
-        );
-        expect(harness.repository.requestXrayClientCalls, 1);
-        expect(harness.repository.lastXrayRequestedProfileCode, 'hysteria2');
-        expect(state.activeProtocolCode, 'hysteria2');
-        expect(state.activeProfileCode, 'hysteria2');
-        expect(state.tunnelEstablished, isTrue);
-        expect(harness.tunnel.connectCalls, 0);
-      },
-    );
+      final DevicesState state = harness.container.read(
+        devicesControllerProvider,
+      );
+      expect(harness.repository.requestXrayClientCalls, 1);
+      expect(harness.repository.lastXrayRequestedProfileCode, 'hysteria2');
+      expect(state.activeProtocolCode, 'hysteria2');
+      expect(state.activeProfileCode, 'hysteria2');
+      expect(state.tunnelEstablished, isTrue);
+      expect(harness.tunnel.connectCalls, 0);
+    });
 
     test(
       'records the client but not a tunnel when VPN permission is denied',
@@ -2314,25 +2308,22 @@ void main() {
       },
     );
 
-    test(
-      'records the client but not a tunnel when the platform tunnel fails to start',
-      () async {
-        final harness = _harness();
-        addTearDown(harness.container.dispose);
-        final DevicesController notifier = await setUpXraySelection(harness);
-        harness.repository.requestXrayClientResult = _xrayClientResult();
-        harness.xrayTunnel.connectError = StateError('v2ray start failed');
+    test('records the client but not a tunnel when the platform tunnel fails to start', () async {
+      final harness = _harness();
+      addTearDown(harness.container.dispose);
+      final DevicesController notifier = await setUpXraySelection(harness);
+      harness.repository.requestXrayClientResult = _xrayClientResult();
+      harness.xrayTunnel.connectError = StateError('v2ray start failed');
 
-        await notifier.connect(_deviceId);
+      await notifier.connect(_deviceId);
 
-        final DevicesState state = harness.container.read(
-          devicesControllerProvider,
-        );
-        expect(state.isConnected, isTrue);
-        expect(state.tunnelEstablished, isFalse);
-        expect(state.actionErrorMessage, isNotNull);
-      },
-    );
+      final DevicesState state = harness.container.read(
+        devicesControllerProvider,
+      );
+      expect(state.isConnected, isTrue);
+      expect(state.tunnelEstablished, isFalse);
+      expect(state.actionErrorMessage, isNotNull);
+    });
 
     test(
       'a failed request surfaces an error and leaves the client unset',
@@ -5070,9 +5061,8 @@ void _hostileNetworkTests() {
       final setup = await setUp(network: _HostileNetwork()..udpBlocked = true);
 
       await setup.notifier.pingProtocols(_deviceId);
-      final Map<String, ProtocolDelay> delays = stateOf(
-        setup.container,
-      ).protocolDelays;
+      final Map<String, ProtocolDelay> delays = stateOf(setup.container)
+          .protocolDelays;
       expect(delays['hysteria2']?.outcome, DelayOutcome.failed);
       expect(delays['vless-tcp-tls']?.outcome, DelayOutcome.measured);
       expect(delays['vless-ws-tls']?.outcome, DelayOutcome.measured);
@@ -5162,9 +5152,8 @@ void _hostileNetworkTests() {
 
       await setup.notifier.pingProtocols(_deviceId);
 
-      final Map<String, ProtocolDelay> delays = stateOf(
-        setup.container,
-      ).protocolDelays;
+      final Map<String, ProtocolDelay> delays = stateOf(setup.container)
+          .protocolDelays;
       for (final String code in <String>[
         'hysteria2',
         'vless-tcp-tls',

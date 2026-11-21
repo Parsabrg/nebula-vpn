@@ -101,7 +101,7 @@ for d in ${DNS//,/ }; do
 done
 bypass_count=0
 for b in ${BYPASS//,/ }; do
-  [[ "$b" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || fail "Linux refused a resolver that is not an address."
+  [[ "$b" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}(/[0-9]{1,2})?$ ]] || fail "Linux refused a resolver that is not an address."
   bypass_count=$((bypass_count + 1))
 done
 [ "$bypass_count" -le 64 ] || fail "Linux refused too many resolvers."

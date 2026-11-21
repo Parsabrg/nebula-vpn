@@ -1,16 +1,17 @@
 import 'dart:async';
-import 'dart:io' show Platform;
+import 'dart:io' show Platform, SecurityContext;
 
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
+import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'core/auth/auth_notifier.dart';
 import 'core/free/free_mode.dart';
 import 'core/licenses/bundled_licenses.dart';
+import 'core/network/public_roots.dart';
 import 'core/pairing/pairing.dart';
 import 'core/pairing/pairing_providers.dart';
 import 'core/pairing/pairing_store.dart';
@@ -22,49 +23,51 @@ import 'src/nebula_app.dart';
 
 DesktopTrayManager? _trayManager;
 
+/// Set by Exit, so the close it asks for is not turned into a hide.
+bool _exiting = false;
+
 Future<void> main(List<String> arguments) async {
   WidgetsFlutterBinding.ensureInitialized();
   registerBundledLicenses();
+  addPublicRoots(SecurityContext.defaultContext);
 
   if (Platform.isWindows) {
-    await windowManager.ensureInitialized();
-
-    const WindowOptions windowOptions = WindowOptions(
+    final Window? window = WindowManager.instance.getCurrent();
+    if (window != null) {
       // The redesign's desktop window: wide enough for the sidebar layout
-      // (900 px and up). Narrower than that it shows the phone layout.
-      size: Size(1040, 700),
-      minimumSize: Size(380, 640),
-      center: true,
-      title: 'Nebula VPN',
-      // Keeps the standard title bar with minimize/maximize/close buttons,
-      // which is what Windows users expect from a utility app.
-    );
-
-    await windowManager.waitUntilReadyToShow(windowOptions, () async {
+      // (900 px and up). Narrower than that it shows the phone layout. The
+      // standard title bar stays: what Windows users expect of a utility.
+      window.title = 'Nebula VPN';
+      window.minimumSize = const Size(380, 640).toNative();
+      window.setSize(const Size(1040, 700).toNative(), false);
+      window.center();
       // Started at sign-in: stay in the tray until opened from there.
-      if (arguments.contains(startHiddenArgument)) {
-        return;
+      if (!arguments.contains(startHiddenArgument)) {
+        window.show();
+        window.focus();
       }
-      await windowManager.show();
-      await windowManager.focus();
-    });
 
-    // Close button hides to tray instead of killing the app, so the VPN
-    // connection stays up when the user dismisses the window.
-    await windowManager.setPreventClose(true);
+      // Close button hides to tray instead of killing the app, so the VPN
+      // connection stays up when the user dismisses the window. Exit from
+      // the tray lets the close through.
+      window.addListener((WindowEvent event) {
+        if (event is WindowCloseRequestedEvent && !_exiting) {
+          event.request.cancel();
+          window.hide();
+        }
+      });
 
-    _trayManager = DesktopTrayManager(
-      onShowWindow: _showWindow,
-      onExit: () async {
-        await stopStaleProbes();
-        await _trayManager?.dispose();
-        await windowManager.setPreventClose(false);
-        await windowManager.close();
-      },
-    );
-    await _trayManager!.init();
-
-    windowManager.addListener(_NebulaWindowListener());
+      _trayManager = DesktopTrayManager(
+        onShowWindow: _showWindow,
+        onExit: () async {
+          await stopStaleProbes();
+          await _trayManager?.dispose();
+          _exiting = true;
+          window.close();
+        },
+      );
+      await _trayManager!.init();
+    }
   }
   if (Platform.isWindows || Platform.isLinux) {
     // Not awaited: nothing on screen waits for it.
@@ -121,22 +124,14 @@ Future<void> main(List<String> arguments) async {
 /// into it while it was hidden (owner, Windows, 2026-11-10). A forced frame
 /// and a one-pixel size nudge make it draw.
 Future<void> _showWindow() async {
-  await windowManager.show();
-  await windowManager.focus();
+  final Window? window = WindowManager.instance.getCurrent();
+  if (window == null) return;
+  window.show();
+  window.focus();
   WidgetsBinding.instance.scheduleForcedFrame();
-  final Size size = await windowManager.getSize();
-  await windowManager.setSize(Size(size.width + 1, size.height));
-  await windowManager.setSize(size);
-}
-
-/// Intercepts the native close button so the window hides to the system tray
-/// instead of terminating the process. The VPN tunnel survives.
-class _NebulaWindowListener extends WindowListener {
-  @override
-  void onWindowClose() async {
-    // Hide rather than close so the tunnel keeps running.
-    await windowManager.hide();
-  }
+  final Size size = window.size.toSize();
+  window.setSize(Size(size.width + 1, size.height).toNative(), false);
+  window.setSize(size.toNative(), false);
 }
 
 /// Shown instead of the app when Linux has nowhere safe to keep the pairing.

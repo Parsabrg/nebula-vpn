@@ -15,6 +15,7 @@ String windowsHysteriaFullTunnelConfig(
   String interfaceName = 'Nebula',
   String platform = 'Windows',
   bool route = true,
+  List<String> exclude = const <String>[],
 }) {
   final InternetAddress? address = InternetAddress.tryParse(upstreamIpv4);
   if (address == null || address.type != InternetAddressType.IPv4) {
@@ -61,7 +62,7 @@ tun:
 ${route ? '''  route:
     ipv4: [0.0.0.0/0]
     ipv6: ["::/0"]
-    ipv4Exclude: [$upstreamIpv4/32]
+    ipv4Exclude: [${<String>['$upstreamIpv4/32', ...exclude].join(', ')}]
 ''' : ''}''';
 }
 

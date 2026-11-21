@@ -23,13 +23,12 @@ XrayClientResult _client(String transport) => XrayClientResult(
 
 Map<String, dynamic> _render(String transport, AdvancedSettings settings) =>
     jsonDecode(
-          renderXrayClientConfigJson(
-            _client(transport),
-            localProxy: const LocalProxy(port: 1, username: 'u', password: 'p'),
-            settings: settings,
-          ),
-        )
-        as Map<String, dynamic>;
+      renderXrayClientConfigJson(
+        _client(transport),
+        localProxy: const LocalProxy(port: 1, username: 'u', password: 'p'),
+        settings: settings,
+      ),
+    ) as Map<String, dynamic>;
 
 void main() {
   test('Cloudflare addresses are recognised; others are not', () {

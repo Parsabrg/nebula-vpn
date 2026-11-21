@@ -47,9 +47,9 @@ void main() {
       r'exit $code',
       executable: r'C:\Program Files\Nebula VPN\NebulaVPN.exe',
     );
-    final String encoded = RegExp(
-      r"-EncodedCommand ([A-Za-z0-9+/=]+)",
-    ).firstMatch(script)!.group(1)!;
+    final String encoded = RegExp(r"-EncodedCommand ([A-Za-z0-9+/=]+)")
+        .firstMatch(script)!
+        .group(1)!;
     final List<int> bytes = base64Decode(encoded);
 
     expect(RegExp('-Verb RunAs').allMatches(script), hasLength(1));

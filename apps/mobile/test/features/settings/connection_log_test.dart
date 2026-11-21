@@ -6,10 +6,10 @@
 /// read the log at all. "Nothing here" for all three is the failure.
 library;
 
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nebula_mobile/core/xray/xray_tunnel_controller.dart';
 import 'package:nebula_mobile/features/settings/connection_log_screen.dart';
 

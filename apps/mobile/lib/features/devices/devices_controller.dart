@@ -201,6 +201,10 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
   /// _checkTraffic.
   DateTime? _failingSince;
 
+  /// While Automatic is choosing a protocol: only then does a connect wait
+  /// for real data to move before it counts (see _tunnelCarriesTraffic).
+  bool _choosingAutomatically = false;
+
   /// The local proxy of the tunnel this app last started, which the traffic
   /// check asks through. Null for one picked back up after a restart.
   LocalProxy? _tunnelProxy;
@@ -534,13 +538,19 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
       );
       _recordWriting = writing;
       await writing;
-    } catch (_) {}
+    } catch (error) {
+      // Not fatal, but a stale record is what a later launch adopts
+      // (review Q-04): said in the log, by type only.
+      _mark('connection record not saved: ${error.runtimeType}');
+    }
   }
 
   Future<void> _forgetConnection() async {
     try {
       await _records.clear();
-    } catch (_) {}
+    } catch (error) {
+      _mark('connection record not cleared: ${error.runtimeType}');
+    }
   }
 
   /// The DNS tunnel's details, then (Android, weekly, on Wi-Fi) its
@@ -560,7 +570,9 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
       if (details != null && ref.mounted) {
         await ref.read(dnsTunnelResolversProvider).refreshIfDue(details);
       }
-    } catch (_) {}
+    } catch (error) {
+      _mark('DNS tunnel refresh failed: ${error.runtimeType}');
+    }
   }
 
   Future<void> load() async {
