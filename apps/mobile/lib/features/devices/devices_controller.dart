@@ -1004,6 +1004,10 @@ final deviceOnlineProvider = Provider<Future<bool> Function()>(
         // network worked, and the app told a connected phone it was offline
         // (2026-10-18).
         'https://checkip.amazonaws.com/',
+        // Neither answered from a home line in Iran on 2026-11-21 (both
+        // left hanging), and a Windows connect that failed for another
+        // reason was told "You're offline". Cloudflare answers there.
+        'https://www.cloudflare.com/cdn-cgi/trace',
       ]),
 );
 
