@@ -556,12 +556,13 @@ class WindowsXrayRuntime {
       final Map<String, dynamic> settings =
           (outbounds.first as Map<String, dynamic>)['settings']
               as Map<String, dynamic>;
-      if (isHysteria) {
-        final List<dynamic> servers = settings['servers'] as List<dynamic>;
-        return (servers.first as Map<String, dynamic>)['address'] as String?;
-      }
-      final List<dynamic> vnext = settings['vnext'] as List<dynamic>;
-      return (vnext.first as Map<String, dynamic>)['address'] as String?;
+      // VLESS and VMess name their server under vnext; Hysteria2 and
+      // Shadowsocks under servers. Reading only vnext, every Shadowsocks-2022
+      // connect on Windows ended in "could not resolve the VPN server
+      // address" before it dialled anything (owner, 2026-11-21).
+      final List<dynamic> servers =
+          (settings['vnext'] ?? settings['servers']) as List<dynamic>;
+      return (servers.first as Map<String, dynamic>)['address'] as String?;
     } on Object {
       return null;
     }
