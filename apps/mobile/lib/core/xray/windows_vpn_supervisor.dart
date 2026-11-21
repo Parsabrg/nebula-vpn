@@ -17,7 +17,8 @@ param(
   [string]$IsXray,
   [string]$KillSwitch = 'false',
   [string]$BlockedJson = '[]',
-  [string]$BypassJson = '[]'
+  [string]$BypassJson = '[]',
+  [string]$BlockedDnsJson = '[]'
 )
 $ErrorActionPreference = 'Stop'
 $stage = 'validating the VPN configuration'
@@ -37,6 +38,17 @@ $killSwitchFlag = ($KillSwitch -eq 'true')
 $fwGroup = 'Nebula VPN kill switch'
 $blocking = $false
 $Out = $null
+# A crash, a blue screen or a power cut ends a session without the cleanup
+# below, and the DNS rule and the kill switch are kept across a restart: the
+# PC came back with no internet until the app connected again. While a
+# session is up, a one-time task runs this at the next start, as SYSTEM; a
+# session that ends normally removes the task.
+$bootTask = 'Nebula VPN cleanup'
+$bootCleanup = "Get-DnsClientNrptRule | Where-Object { `$_.Comment -like 'Nebula VPN session *' } | " +
+  "ForEach-Object { Remove-DnsClientNrptRule -Name `$_.Name -Force }; " +
+  "Get-NetFirewallRule -Group '$fwGroup' -ErrorAction SilentlyContinue | Remove-NetFirewallRule; " +
+  "Unregister-ScheduledTask -TaskName '$bootTask' -Confirm:`$false"
+$bootTaskSet = $false
 
 function Get-SelectedRoute([string]$Address) {
   return Find-NetRoute -RemoteIPAddress $Address -ErrorAction SilentlyContinue |
@@ -218,10 +230,13 @@ try {
   # One session runs at a time, so a rule of ours still here is a session
   # that ended without its cleanup (a crash, a power cut). Left, it kept
   # sending every lookup to the tunnel's resolver with the VPN off, and the
-  # check below then added no rule of this session's own (seen 2026-10-17).
+  # check below then added no rule of this session's own.
   Get-DnsClientNrptRule -ErrorAction SilentlyContinue |
     Where-Object { $_.Comment -like 'Nebula VPN session *' } |
     ForEach-Object { Remove-DnsClientNrptRule -Name $_.Name -Force -ErrorAction SilentlyContinue }
+  # The same for a kill switch left by such a session: removed only when the
+  # kill switch was on again, so with it off now every address stayed blocked.
+  Get-NetFirewallRule -Group $fwGroup -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction SilentlyContinue
   if (-not (Get-DnsClientNrptRule -ErrorAction SilentlyContinue | Where-Object { @($_.Namespace) -contains '.' })) {
     $rule = Add-DnsClientNrptRule -Namespace '.' -NameServers $resolvers `
       -Comment ('Nebula VPN session ' + [IO.Path]::GetFileName($State)) -PassThru -ErrorAction SilentlyContinue
@@ -265,15 +280,36 @@ try {
     $blocking = $true
     New-NetFirewallRule -DisplayName $fwGroup -Group $fwGroup -Direction Outbound -Action Block `
       -InterfaceAlias $physical -RemoteAddress $blocked -Profile Any | Out-Null
+    # Over the DNS tunnel its resolvers answer on port 53: DNS is blocked to
+    # every other address instead of to all of them.
+    $parsedDnsBlocked = ConvertFrom-Json -InputObject $BlockedDnsJson
+    $dnsBlocked = @($parsedDnsBlocked)
+    foreach ($range in $dnsBlocked) {
+      if ($range -isnot [string] -or $range -notmatch '^[0-9a-fA-F:.]+-[0-9a-fA-F:.]+$') { throw 'invalid ranges' }
+    }
     foreach ($protocol in @('UDP', 'TCP')) {
-      New-NetFirewallRule -DisplayName "$fwGroup (DNS)" -Group $fwGroup -Direction Outbound -Action Block `
-        -InterfaceAlias $physical -Protocol $protocol -RemotePort 53 -Profile Any | Out-Null
+      if ($dnsBlocked.Count -gt 0) {
+        New-NetFirewallRule -DisplayName "$fwGroup (DNS)" -Group $fwGroup -Direction Outbound -Action Block `
+          -InterfaceAlias $physical -Protocol $protocol -RemotePort 53 -RemoteAddress $dnsBlocked -Profile Any | Out-Null
+      } else {
+        New-NetFirewallRule -DisplayName "$fwGroup (DNS)" -Group $fwGroup -Direction Outbound -Action Block `
+          -InterfaceAlias $physical -Protocol $protocol -RemotePort 53 -Profile Any | Out-Null
+      }
     }
   }
 
   New-Item -ItemType File -Path (Join-Path $Out 'routes-ready') -Force | Out-Null
   $ready = $true
   $exitCode = 0
+  # After routes-ready, so the app is not kept waiting on it.
+  try {
+    $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($bootCleanup))
+    $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
+      -Argument "-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand $encoded"
+    Register-ScheduledTask -TaskName $bootTask -Action $action -Trigger (New-ScheduledTaskTrigger -AtStartup) `
+      -Principal (New-ScheduledTaskPrincipal -UserId 'SYSTEM' -RunLevel Highest) -Force | Out-Null
+    $bootTaskSet = $true
+  } catch {}
   while (Test-SessionAlive) { Start-Sleep -Milliseconds 250 }
   $child.Refresh()
   if ($child.HasExited -and -not (Test-Path -LiteralPath (Join-Path $State 'stop')) -and (Test-OwnerAlive)) {
@@ -332,6 +368,10 @@ try {
     try { $route | Remove-NetRoute -Confirm:$false -ErrorAction SilentlyContinue } catch { $cleanupFailed = $true }
   }
   try { Clear-DnsClientCache } catch { $cleanupFailed = $true }
+  # Kept when cleanup failed, so the next start finishes it.
+  if ($bootTaskSet -and -not $cleanupFailed) {
+    try { Unregister-ScheduledTask -TaskName $bootTask -Confirm:$false } catch {}
+  }
   if ($cleanupFailed -and $null -ne $Out) {
     Set-Content -LiteralPath (Join-Path $Out 'cleanup.error') `
       -Value 'Windows could not fully restore the VPN network settings.' -NoNewline -ErrorAction SilentlyContinue

@@ -10,7 +10,7 @@ ADR 0004, "2026-11-05 revision"; this page is the server half. The app half
 
 ```
 phone -> ISP resolver -> ... -> NS for nt.<domain> = this server, port 53
-      -> CottenRouter (the owner's, owns port 53; one rule per name)
+      -> CottenRouter (owns port 53; one rule per name)
       -> CottenDNS for Nebula on 127.0.0.1:5310 (nebula-cottendns.service)
       -> 127.0.0.1:8453, this server's VLESS Encryption inbound, only
 ```
@@ -35,7 +35,7 @@ phone -> ISP resolver -> ... -> NS for nt.<domain> = this server, port 53
 The names are settings, never built into the app: the API lists them and the
 app tries each in turn, so a name can be added or moved without an app update.
 For now (2026-11-05) the one name is `nt.my-study-lab.org`; a backup on a
-free EU.org domain is to be added once it is approved. The owner's WhiteDNS
+free EU.org domain is to be added once it is approved. The WhiteDNS
 tunnels (`ct.`, `st.`) share the domain and are left alone.
 
 1. **DNS records** for `my-study-lab.org` in Cloudflare, both *DNS only* (the

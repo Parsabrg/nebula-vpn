@@ -5,9 +5,9 @@ $ErrorActionPreference = 'Stop'
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $destination = Join-Path $root 'assets\windows_runtime'
-$xrayVersion = 'v26.9.30'
-$xrayHash = 'B17A619343C11B89D8FAF36278298856749B15C52277D875D32051B33DCDA617'
-$hysteriaHash = '807AE5332A8FEFEEFF804923E057B6942ACCEAA11706AC7FA3DB42F192C2FDE1'
+$xrayVersion = 'v26.11.9'
+$xrayHash = '1262522266337B824F07BEB8E1375786B437683B3890105469088F8E17E0A69D'
+$hysteriaHash = '6EE18E99F826670A249AD20400C536900CB6FB5369237E30768DF9032AC92D80'
 # The DNS tunnel's engine (docs/runbooks/dns-tunnel.md): the same release Android ships.
 $cottenVersion = 'v2026.11.03.161534-be99443'
 $cottenHash = 'B62C43CA8E75890598F4FAEB4EBCFD3BB0D0709A98B25CD1F3E3A8440B342B43'
@@ -39,7 +39,7 @@ try {
     # Its routing data, cut to what the app names (26 MB of every country).
     python (Join-Path $root 'tool\trim_geodata.py') $destination
     if ($LASTEXITCODE -ne 0) { throw 'Trimming the Xray routing data failed.' }
-    Get-VerifiedAsset 'https://github.com/HyNetworks/hysteria/releases/download/app/v2.12.2/hysteria-windows-amd64.exe' (Join-Path $destination 'hysteria.exe') $hysteriaHash
+    Get-VerifiedAsset 'https://github.com/HyNetworks/hysteria/releases/download/app/v2.14.0/hysteria-windows-amd64.exe' (Join-Path $destination 'hysteria.exe') $hysteriaHash
     Get-VerifiedAsset "https://github.com/WhiteDNS/CottenDNS/releases/download/$cottenVersion/CottenDns_Client_Windows_AMD64.zip" $cottenZip $cottenHash
     $cottenFolder = Join-Path $env:TEMP 'nebula-cottendns-windows'
     Expand-Archive -LiteralPath $cottenZip -DestinationPath $cottenFolder -Force

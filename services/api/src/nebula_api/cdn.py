@@ -8,16 +8,16 @@ through whichever one the client arrived by. `NEBULA_FRONT_HOSTS` does the
 same for a web host such as Vercel or Netlify, which carries XHTTP only.
 
 When a web host is configured, XHTTP goes through it on every route, and
-only WebSocket and gRPC through Cloudflare. Measured from Iran on
-2026-10-21 (home line): `cloudflare-ech.com`, the outer name every
+only WebSocket and gRPC through Cloudflare. Since October 2026 Iran gives
+`cloudflare-ech.com`, the outer name every
 Cloudflare ECH hello carries, got no answer at all, so the Cloudflare route
 carried nothing with ECH, without it, or with the hello split; XHTTP through
 the Vercel front carried 6 of 6 fresh connections, 28.8 Mbit/s down and 23.4
 up. WebSocket and gRPC stay on Cloudflare for networks where ECH still works,
 and the app tries each protocol in turn.
 
-A tunnel through Cloudflare is handed `NEBULA_CDN_ECH` too: measured from
-Iran on 2026-10-07 (home line and Hamrah-e-Avval), WebSocket, XHTTP and gRPC
+A tunnel through Cloudflare is handed `NEBULA_CDN_ECH` too: from Iran, on
+home lines and Hamrah-e-Avval mobile data, WebSocket, XHTTP and gRPC
 through Cloudflare carried nothing over HTTPS without Encrypted Client Hello
 and everything with it. The value is Xray's `echConfigList`, a setting rather
 than code so the resolver it is fetched through can change without a release. Arriving that way is
@@ -106,7 +106,7 @@ def cdn_route_for(request: Request) -> CdnRoute | None:
     # address carried the API's small requests while every tunnel through it
     # stalled after its first exchange: Xray logged `api...:8448` for a
     # phone showing "Protected" over nothing, where the same credential
-    # through Cloudflare loaded every page (2026-10-14). So with a CDN
+    # through Cloudflare loaded every page. So with a CDN
     # configured, every tunnel that can cross it does.
     if cdns:
         return CdnRoute(min(cdns), CDN_TRANSPORTS, ech, front)

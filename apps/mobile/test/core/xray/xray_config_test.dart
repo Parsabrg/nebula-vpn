@@ -28,9 +28,9 @@ void main() {
     test('is exactly the outbound a connection dials, and nothing else', () {
       // No routing: an ad-block or sanctions-only rule would send the test
       // request somewhere other than the server and report the wrong path.
-      final Map<String, dynamic> config =
-          jsonDecode(renderXrayDelayProbeConfigJson(ws))
-              as Map<String, dynamic>;
+      final Map<String, dynamic> config = jsonDecode(
+        renderXrayDelayProbeConfigJson(ws),
+      ) as Map<String, dynamic>;
 
       expect(config.containsKey('routing'), isFalse);
       expect(config.containsKey('inbounds'), isFalse);
@@ -122,9 +122,9 @@ void main() {
     });
 
     test('the inbound listens on the port it was given', () {
-      final Map<String, dynamic> config =
-          jsonDecode(renderXrayClientConfigJson(vless, localProxy: _localProxy))
-              as Map<String, dynamic>;
+      final Map<String, dynamic> config = jsonDecode(
+        renderXrayClientConfigJson(vless, localProxy: _localProxy),
+      ) as Map<String, dynamic>;
       final Map<String, dynamic> inbound =
           (config['inbounds'] as List<dynamic>).single as Map<String, dynamic>;
 
@@ -165,11 +165,9 @@ void main() {
           serviceName: transport == 'grpc' ? 'grpc' : null,
         );
 
-        final Map<String, dynamic> config =
-            jsonDecode(
-                  renderXrayClientConfigJson(result, localProxy: _localProxy),
-                )
-                as Map<String, dynamic>;
+        final Map<String, dynamic> config = jsonDecode(
+          renderXrayClientConfigJson(result, localProxy: _localProxy),
+        ) as Map<String, dynamic>;
 
         final Map<String, dynamic>? log =
             config['log'] as Map<String, dynamic>?;
@@ -198,11 +196,9 @@ void main() {
           serviceName: transport == 'grpc' ? 'grpc' : null,
         );
 
-        final Map<String, dynamic> config =
-            jsonDecode(
-                  renderXrayClientConfigJson(result, localProxy: _localProxy),
-                )
-                as Map<String, dynamic>;
+        final Map<String, dynamic> config = jsonDecode(
+          renderXrayClientConfigJson(result, localProxy: _localProxy),
+        ) as Map<String, dynamic>;
 
         // 1. The core records nothing at all without this.
         expect(config['stats'], isNotNull, reason: 'no stats for $transport');
@@ -238,11 +234,9 @@ void main() {
         transportSecurity: 'tls',
       );
 
-      final Map<String, dynamic> config =
-          jsonDecode(
-                renderXrayClientConfigJson(result, localProxy: _localProxy),
-              )
-              as Map<String, dynamic>;
+      final Map<String, dynamic> config = jsonDecode(
+        renderXrayClientConfigJson(result, localProxy: _localProxy),
+      ) as Map<String, dynamic>;
 
       final List<dynamic> outbounds = config['outbounds'] as List<dynamic>;
       final Set<Object?> tags = outbounds
@@ -268,11 +262,9 @@ void main() {
         path: '/xhttp-path',
       );
 
-      final Map<String, dynamic> config =
-          jsonDecode(
-                renderXrayClientConfigJson(result, localProxy: _localProxy),
-              )
-              as Map<String, dynamic>;
+      final Map<String, dynamic> config = jsonDecode(
+        renderXrayClientConfigJson(result, localProxy: _localProxy),
+      ) as Map<String, dynamic>;
 
       final List<dynamic> outbounds = config['outbounds'] as List<dynamic>;
       final Map<String, dynamic> outbound =
@@ -326,11 +318,9 @@ void main() {
         path: '/xhttp-path',
       );
 
-      final Map<String, dynamic> config =
-          jsonDecode(
-                renderXrayClientConfigJson(result, localProxy: _localProxy),
-              )
-              as Map<String, dynamic>;
+      final Map<String, dynamic> config = jsonDecode(
+        renderXrayClientConfigJson(result, localProxy: _localProxy),
+      ) as Map<String, dynamic>;
       final List<dynamic> outbounds = config['outbounds'] as List<dynamic>;
       final Map<String, dynamic> outbound =
           outbounds.single as Map<String, dynamic>;
@@ -354,11 +344,9 @@ void main() {
         path: '/xhttp-path',
         caCertificate: caCertificate,
       );
-      final Map<String, dynamic> config =
-          jsonDecode(
-                renderXrayClientConfigJson(result, localProxy: _localProxy),
-              )
-              as Map<String, dynamic>;
+      final Map<String, dynamic> config = jsonDecode(
+        renderXrayClientConfigJson(result, localProxy: _localProxy),
+      ) as Map<String, dynamic>;
       final Map<String, dynamic> outbound =
           (config['outbounds'] as List<dynamic>).first as Map<String, dynamic>;
       return (outbound['streamSettings'] as Map<String, dynamic>)['tlsSettings']
@@ -425,11 +413,9 @@ void main() {
         serviceName: 'grpc',
       );
 
-      final Map<String, dynamic> config =
-          jsonDecode(
-                renderXrayClientConfigJson(result, localProxy: _localProxy),
-              )
-              as Map<String, dynamic>;
+      final Map<String, dynamic> config = jsonDecode(
+        renderXrayClientConfigJson(result, localProxy: _localProxy),
+      ) as Map<String, dynamic>;
       final Map<String, dynamic> outbound =
           (config['outbounds'] as List<dynamic>).single as Map<String, dynamic>;
       final Map<String, dynamic> streamSettings =
@@ -455,11 +441,9 @@ void main() {
         path: '/ws',
       );
 
-      final Map<String, dynamic> config =
-          jsonDecode(
-                renderXrayClientConfigJson(result, localProxy: _localProxy),
-              )
-              as Map<String, dynamic>;
+      final Map<String, dynamic> config = jsonDecode(
+        renderXrayClientConfigJson(result, localProxy: _localProxy),
+      ) as Map<String, dynamic>;
       final Map<String, dynamic> outbound =
           (config['outbounds'] as List<dynamic>).single as Map<String, dynamic>;
       final Map<String, dynamic> streamSettings =
@@ -484,11 +468,9 @@ void main() {
         transportSecurity: 'tls',
       );
 
-      final Map<String, dynamic> config =
-          jsonDecode(
-                renderXrayClientConfigJson(result, localProxy: _localProxy),
-              )
-              as Map<String, dynamic>;
+      final Map<String, dynamic> config = jsonDecode(
+        renderXrayClientConfigJson(result, localProxy: _localProxy),
+      ) as Map<String, dynamic>;
       final Map<String, dynamic> outbound =
           (config['outbounds'] as List<dynamic>).single as Map<String, dynamic>;
       final Map<String, dynamic> streamSettings =
@@ -518,11 +500,9 @@ void main() {
         obfsPassword: 's3cret-salamander',
       );
 
-      final Map<String, dynamic> config =
-          jsonDecode(
-                renderXrayClientConfigJson(result, localProxy: _localProxy),
-              )
-              as Map<String, dynamic>;
+      final Map<String, dynamic> config = jsonDecode(
+        renderXrayClientConfigJson(result, localProxy: _localProxy),
+      ) as Map<String, dynamic>;
       final String yaml = config['nebulaHysteriaConfig'] as String;
 
       expect(yaml, contains('server: "203.0.113.10:8450"'));
@@ -576,9 +556,8 @@ void main() {
       );
       final String yaml =
           (jsonDecode(
-                    renderXrayClientConfigJson(result, localProxy: _localProxy),
-                  )
-                  as Map<String, dynamic>)['nebulaHysteriaConfig']
+                renderXrayClientConfigJson(result, localProxy: _localProxy),
+              ) as Map<String, dynamic>)['nebulaHysteriaConfig']
               as String;
       expect(yaml, contains('server: "203.0.113.10:8450,20000-50000"'));
       expect(yaml, contains('hopInterval: 30s'));
@@ -599,11 +578,9 @@ void main() {
         transportSecurity: 'tls',
       );
 
-      final Map<String, dynamic> config =
-          jsonDecode(
-                renderXrayClientConfigJson(result, localProxy: _localProxy),
-              )
-              as Map<String, dynamic>;
+      final Map<String, dynamic> config = jsonDecode(
+        renderXrayClientConfigJson(result, localProxy: _localProxy),
+      ) as Map<String, dynamic>;
       final Map<String, dynamic> inbound =
           (config['inbounds'] as List<dynamic>).single as Map<String, dynamic>;
       final int socksPort = inbound['port'] as int;
@@ -630,11 +607,9 @@ void main() {
         transportSecurity: 'tls',
       );
 
-      final Map<String, dynamic> config =
-          jsonDecode(
-                renderXrayClientConfigJson(result, localProxy: _localProxy),
-              )
-              as Map<String, dynamic>;
+      final Map<String, dynamic> config = jsonDecode(
+        renderXrayClientConfigJson(result, localProxy: _localProxy),
+      ) as Map<String, dynamic>;
       expect(config['dns'], isNotNull);
       final List<dynamic> servers =
           (config['dns'] as Map<String, dynamic>)['servers'] as List<dynamic>;
@@ -654,11 +629,9 @@ void main() {
         path: '/xhttp-path',
       );
 
-      final Map<String, dynamic> config =
-          jsonDecode(
-                renderXrayClientConfigJson(result, localProxy: _localProxy),
-              )
-              as Map<String, dynamic>;
+      final Map<String, dynamic> config = jsonDecode(
+        renderXrayClientConfigJson(result, localProxy: _localProxy),
+      ) as Map<String, dynamic>;
 
       final Map<String, dynamic> dns = config['dns'] as Map<String, dynamic>;
       expect(dns['servers'], <String>['94.140.14.14']);
@@ -677,11 +650,9 @@ void main() {
         path: '/xhttp-path',
       );
 
-      final Map<String, dynamic> config =
-          jsonDecode(
-                renderXrayClientConfigJson(result, localProxy: _localProxy),
-              )
-              as Map<String, dynamic>;
+      final Map<String, dynamic> config = jsonDecode(
+        renderXrayClientConfigJson(result, localProxy: _localProxy),
+      ) as Map<String, dynamic>;
 
       // Leaving this unset does not mean "no DNS" -- the plugin then adds no
       // DNS server to the tunnel and Android falls back to the underlying
@@ -706,11 +677,9 @@ void main() {
         clientDns: <String>['9.9.9.9', '2620:fe::fe', '1.1.1.1'],
       );
 
-      final Map<String, dynamic> config =
-          jsonDecode(
-                renderXrayClientConfigJson(result, localProxy: _localProxy),
-              )
-              as Map<String, dynamic>;
+      final Map<String, dynamic> config = jsonDecode(
+        renderXrayClientConfigJson(result, localProxy: _localProxy),
+      ) as Map<String, dynamic>;
 
       // IPv6 dropped for the reason the built-in fallback is IPv4 only.
       expect((config['dns'] as Map<String, dynamic>)['servers'], <String>[
@@ -734,11 +703,9 @@ void main() {
           path: '/xhttp-path',
         );
 
-        final Map<String, dynamic> config =
-            jsonDecode(
-                  renderXrayClientConfigJson(result, localProxy: _localProxy),
-                )
-                as Map<String, dynamic>;
+        final Map<String, dynamic> config = jsonDecode(
+          renderXrayClientConfigJson(result, localProxy: _localProxy),
+        ) as Map<String, dynamic>;
 
         // Sniffing is what gives the routing rules a hostname to match --
         // tun2socks hands Xray packets addressed by IP, so without it the
@@ -753,6 +720,7 @@ void main() {
         // much of Chrome's and YouTube's traffic -- never gives the ad-block
         // rule a hostname, and passes straight through it.
         expect(sniffing['destOverride'], <String>['http', 'tls', 'quic']);
+        expect(sniffing['routeOnly'], isTrue);
 
         // The real outbound must stay first: Xray treats outbounds[0] as the
         // default route, so a blackhole in that position would drop everything.
@@ -785,11 +753,9 @@ void main() {
         path: '/xhttp-path',
       );
 
-      final Map<String, dynamic> config =
-          jsonDecode(
-                renderXrayClientConfigJson(result, localProxy: _localProxy),
-              )
-              as Map<String, dynamic>;
+      final Map<String, dynamic> config = jsonDecode(
+        renderXrayClientConfigJson(result, localProxy: _localProxy),
+      ) as Map<String, dynamic>;
 
       expect(config.containsKey('routing'), isFalse);
       expect((config['outbounds'] as List<dynamic>).length, 1);

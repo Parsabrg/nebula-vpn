@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/settings/advanced_settings_controller.dart';
 import '../../core/theme/color_tokens.dart';
@@ -12,8 +12,8 @@ import '../../core/widgets/nebula/nebula_rows.dart';
 import '../../l10n/app_localizations.dart';
 
 /// Everything Cloudflare WARP (Aether) can be told, in the words of what it
-/// changes. The defaults are what worked on the owner's line: MASQUE over
-/// HTTP/2 with Chrome's handshake.
+/// changes. The defaults are what gets through most often in Iran: MASQUE
+/// over HTTP/2 with Chrome's handshake.
 class WarpSettingsScreen extends ConsumerWidget {
   const WarpSettingsScreen({super.key});
 

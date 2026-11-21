@@ -76,7 +76,7 @@ mixin _Credentials on _DevicesCore {
       // not be renewed (401), a busy server (429, 5xx) or a conflict says
       // nothing about this connection: treated as a refusal, a token refresh
       // failing on a flaky network dropped the phone's tunnel over and over
-      // (2026-10-19).
+      //.
       final bool refused =
           error.isQuotaExhausted ||
           error.isServerMaintenance ||
@@ -215,7 +215,7 @@ mixin _Credentials on _DevicesCore {
         // A 401 ends the tunnel only once the sign-in has really expired: a
         // refresh refused for a reason that is not the session (a 429 or a
         // 503) used to arrive here as the 401 it followed, and took a
-        // connected tunnel down with the user still signed in (2026-10-30).
+        // connected tunnel down with the user still signed in.
         if ((error.statusCode == 401 && !ref.read(stillSignedInProvider)()) ||
             error.statusCode == 403) {
           // The session is over, not merely unreachable: the device was
@@ -255,7 +255,7 @@ mixin _Credentials on _DevicesCore {
   /// The server no longer lists this device's credential, but still offers
   /// the server: the credential was revoked, not the access. A saved copy
   /// the server had pruned raised a working tunnel, and "Your access to this
-  /// server has ended" followed seconds later (phone, 2026-10-30). Forgets
+  /// server has ended" followed seconds later. Forgets
   /// it and connects afresh, once in ten minutes; access that has really
   /// ended is refused by that connect, or ends at the next check.
   Future<bool> _retryRevokedCredential() async {
@@ -275,7 +275,7 @@ mixin _Credentials on _DevicesCore {
     // Every saved credential for the server, not only the one in use: the
     // others came from the same place, and Automatic picked the next stale
     // one -- saved while the server ran as its own installation -- and
-    // ended the same way a minute later (2026-10-30).
+    // ended the same way a minute later.
     final XrayCredentialStore store = ref.read(xrayCredentialStoreProvider);
     final AvailableServer? listed = state.servers
         .where((AvailableServer s) => s.code == server)

@@ -169,7 +169,7 @@ class DevicesState {
   /// What to call [profileCode] on screen: the name the server gives it
   /// ("VLESS (WebSocket+TLS)"), or for a link of the device's own the name
   /// its link gives it. Codes such as `vless-xhttp-tls-adblock` were shown
-  /// before, which mean nothing to most people (2026-10-29). The code is the
+  /// before, which mean nothing to most people. The code is the
   /// fallback for a profile no listed server describes.
   String profileLabel(String profileCode) {
     for (final AvailableServer server in servers) {

@@ -9,7 +9,7 @@ import { StepUpModal } from "./step-up-modal";
 /**
  * Says when a user cannot connect yet, and fixes it in one click. Approving
  * a request grants nothing, and a new user saw an empty app with no hint
- * on either side of what was missing (2026-10-29).
+ * on either side of what was missing.
  */
 export function AccessReadiness({
   userId,

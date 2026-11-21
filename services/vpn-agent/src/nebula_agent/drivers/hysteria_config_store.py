@@ -237,7 +237,7 @@ def _after_auth(
         "",
         # The server's own resolver when it has one (the Xray DNS redirect's
         # target): plain DNS to 8.8.8.8 from a server in Iran is forged, and
-        # Hysteria2 connected its users to the filter's address (2026-11-04).
+        # Hysteria2 connected its users to the filter's address.
         "resolver:",
         "  type: udp",
         "  udp:",

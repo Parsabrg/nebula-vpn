@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nebula_mobile/core/theme/motion_tokens.dart';
 import 'package:nebula_mobile/core/theme/reduced_motion.dart';
 

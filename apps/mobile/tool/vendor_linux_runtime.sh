@@ -6,10 +6,10 @@ set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 destination="$root/assets/linux_runtime"
-xray_version='v26.9.30'
-xray_hash='f851110beaff16e78d643f0ccfd9524b4a44dfd59bae3e34bb52bba378f7690e'
-hysteria_version='v2.12.2'
-hysteria_hash='6493dfffd55b5883f64c76c63880ecc32988f0c568c9ca9014907877b4d55f94'
+xray_version='v26.11.9'
+xray_hash='b651f7e1d9966ee2c1b1ee1bf8b52c72771824d3065dce96bbc8bcc19ed95f82'
+hysteria_version='v2.14.0'
+hysteria_hash='fc25edff9948708cb00a4ff01f3bccde677660aca050133bb1ad46c6860362d2'
 # The DNS tunnel's engine (docs/runbooks/dns-tunnel.md): the same release Android ships.
 cotten_version='v2026.11.03.161534-be99443'
 cotten_hash='d40dbfb873236a772032dcaf52efde95839b38a9302e58085f7080fc760866a4'

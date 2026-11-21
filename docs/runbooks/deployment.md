@@ -621,7 +621,7 @@ in the `usage` container's log). Move the install onto the node CA once:
    `0 unreachable`. (The running poller logs only failures and changes.)
 
 Users' tunnels keep running throughout; only the control plane's calls to
-its agents pause for the seconds between steps 3 and 4. Done on the owner's
+its agents pause for the seconds between steps 3 and 4. Done on the operator's
 deployment 2026-10-29, with Tehran joined: `Polled 2 server(s), 0 unreachable`.
 
 ### Certificate usage: one end of the agent link each

@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../format/case.dart';
 import '../../theme/color_tokens.dart';
@@ -197,7 +197,7 @@ class NebulaStatsGrid extends StatelessWidget {
     required bool first,
   }) => Padding(
     padding: minimal
-        ? EdgeInsets.fromLTRB(first ? 0 : 16, 16, 0, 16)
+        ? EdgeInsetsDirectional.fromSTEB(first ? 0 : 16, 16, 0, 16)
         : const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -492,7 +492,7 @@ class _NebulaFieldState extends State<NebulaField> {
           ],
           Container(
             constraints: const BoxConstraints(minHeight: 52),
-            padding: const EdgeInsets.only(left: 14, right: 6),
+            padding: const EdgeInsetsDirectional.only(start: 14, end: 6),
             decoration: box,
             child: Row(
               children: <Widget>[

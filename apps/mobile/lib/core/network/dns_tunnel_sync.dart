@@ -128,8 +128,7 @@ class DnsTunnelSync {
   final DnsTunnelStore _store;
 
   /// Whether the details changed: the server list is built from them, so
-  /// a first sign-in listed no DNS tunnel until the next load (Linux,
-  /// 2026-11-13).
+  /// without this a first sign-in listed no DNS tunnel until the next load.
   Future<bool> refresh() async {
     try {
       final DnsTunnelDetails? before = await _store.read();

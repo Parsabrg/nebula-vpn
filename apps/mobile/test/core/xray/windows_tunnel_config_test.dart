@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nebula_mobile/core/routing/tunnel_routes.dart';
 import 'package:nebula_mobile/core/xray/windows_tunnel_config.dart';
 
 void main() {
@@ -51,6 +52,32 @@ tls:
       ),
       throwsStateError,
     );
+  });
+
+  test('"Allow local network" keeps private networks off the TUN', () {
+    // A work network behind the office router (192.168.150.x) went into
+    // the tunnel with Hysteria2 on a Windows desktop.
+    final String config = windowsHysteriaFullTunnelConfig(
+      profile,
+      '203.0.113.4',
+      exclude: kPrivateRanges,
+    );
+    expect(
+      config,
+      contains(
+        'ipv4Exclude: [203.0.113.4/32, 10.0.0.0/8, 172.16.0.0/12, '
+        '192.168.0.0/16, 169.254.0.0/16]',
+      ),
+    );
+    expect(
+      routesSkipLocalNetwork(tunnelRoutes(bypassLocalNetwork: true)),
+      isTrue,
+    );
+    expect(
+      routesSkipLocalNetwork(tunnelRoutes(bypassLocalNetwork: false)),
+      isFalse,
+    );
+    expect(routesSkipLocalNetwork(null), isFalse);
   });
 
   test('missing numeric upstream fails instead of allowing a route loop', () {
@@ -247,7 +274,9 @@ void _killSwitchRanges() {
   }
 
   test('the kill switch blocks the internet but not the server or the LAN', () {
-    final List<String> ranges = windowsKillSwitchBlockedIpv4('203.0.113.4');
+    final List<String> ranges = windowsKillSwitchBlockedIpv4(<String>[
+      '203.0.113.4',
+    ]);
     for (final String ip in <String>[
       '1.1.1.1',
       '8.8.8.8',
@@ -272,5 +301,42 @@ void _killSwitchRanges() {
     }
     expect(ranges.first, '1.0.0.0-9.255.255.255');
     expect(ranges.last, '240.0.0.0-255.255.255.254');
+  });
+
+  test('over WARP the kill switch opens only Cloudflare\'s gateways', () {
+    final List<String> ranges = windowsKillSwitchBlockedIpv4(kWarpGatewayIpv4);
+    // Gateways Aether has picked, and the edges of its ranges.
+    for (final String ip in <String>[
+      '162.159.198.75',
+      '162.159.199.204',
+      '162.159.192.0',
+      '162.159.207.255',
+      '188.114.96.1',
+      '188.114.99.255',
+      '192.168.1.1',
+    ]) {
+      expect(blocked(ranges, ip), isFalse, reason: ip);
+    }
+    for (final String ip in <String>[
+      '1.1.1.1',
+      '162.159.191.255',
+      '162.159.208.0',
+      '188.114.100.0',
+      '104.16.123.96',
+    ]) {
+      expect(blocked(ranges, ip), isTrue, reason: ip);
+    }
+  });
+
+  test('over the DNS tunnel DNS reaches its resolvers and nothing else', () {
+    final List<String> ranges = windowsKillSwitchBlockedIpv4(<String>[
+      '5.6.7.8',
+      '9.9.9.9',
+    ], local: false);
+    expect(blocked(ranges, '5.6.7.8'), isFalse);
+    expect(blocked(ranges, '9.9.9.9'), isFalse);
+    // Not even the router: a lookup there leaks the name.
+    expect(blocked(ranges, '192.168.1.1'), isTrue);
+    expect(blocked(ranges, '8.8.8.8'), isTrue);
   });
 }

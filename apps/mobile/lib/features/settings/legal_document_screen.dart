@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/theme/color_tokens.dart';
 import '../../core/widgets/nebula/nebula_controls.dart';
@@ -137,7 +137,12 @@ List<Widget> markdownBlocks(String markdown, NebulaPalette palette) {
                   children: <Widget>[
                     for (final String cell in rows[r])
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(0, 6, 12, 6),
+                        padding: const EdgeInsetsDirectional.fromSTEB(
+                          0,
+                          6,
+                          12,
+                          6,
+                        ),
                         child: Text(
                           cell,
                           style: r == 0
@@ -163,7 +168,7 @@ List<Widget> markdownBlocks(String markdown, NebulaPalette palette) {
       }
       out.add(
         Padding(
-          padding: EdgeInsets.only(left: indent * 6.0, bottom: 6),
+          padding: EdgeInsetsDirectional.only(start: indent * 6.0, bottom: 6),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[

@@ -58,6 +58,7 @@
   "killSwitchMetaUnknown": "Android setting · shown while connected",
   "killSwitchDesktopMeta": "block the internet if the VPN drops",
   "bypassDomainsKillSwitchWindows": "On Windows, while the kill switch is on, these sites are blocked too: it lets nothing leave outside the VPN.",
+  "killSwitchWarpLimit": "Over Cloudflare WARP the kill switch is not used when WARP leaves through Psiphon or connects over IPv6: the address it reaches is not known beforehand.",
   "@killSwitchMeta": {
     "description": "Drawn in amber. This is the one protection on the screen the app cannot deliver, so it must not read as settled."
   },

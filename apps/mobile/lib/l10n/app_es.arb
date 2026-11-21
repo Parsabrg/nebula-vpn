@@ -41,6 +41,7 @@
   "killSwitchMetaUnknown": "ajuste de Android · se muestra al estar conectado",
   "killSwitchDesktopMeta": "bloquear internet si la VPN se cae",
   "bypassDomainsKillSwitchWindows": "En Windows, con el interruptor de corte activado, estos sitios también se bloquean: no deja salir nada fuera de la VPN.",
+  "killSwitchWarpLimit": "Con Cloudflare WARP el kill switch no se usa cuando WARP sale por Psiphon o se conecta por IPv6: la dirección a la que llega no se conoce de antemano.",
   "killSwitchBody": "Si el túnel se cae, el dispositivo vuelve a su conexión normal y tu tráfico queda expuesto hasta que se reconecte.\n\nAndroid puede impedirlo, pero solo desde sus propios ajustes: activa «VPN siempre activada» para Nebula y después «Bloquear conexiones sin VPN». Ninguna app puede activarlos por ti.",
   "killSwitchOpen": "Abrir ajustes de VPN de Android",
   "killSwitchNotNow": "Ahora no",

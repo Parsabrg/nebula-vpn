@@ -77,27 +77,23 @@ void main() {
     expect(rules[2]['outboundTag'], 'direct');
   });
 
-  test(
-    'the root helper is valid bash',
-    () async {
-      final File script = File(
-        '${Directory.systemTemp.createTempSync('nebula-test-').path}/s.sh',
-      );
-      await script.writeAsString(linuxVpnSupervisorScript);
-      final ProcessResult result;
-      try {
-        result = await Process.run('bash', <String>['-n', script.path]);
-      } on ProcessException {
-        markTestSkipped('bash is not available');
-        return;
-      } finally {
-        await script.parent.delete(recursive: true);
-      }
-      expect(result.exitCode, 0, reason: '${result.stderr}');
-      // On Windows "bash" is WSL's, which cannot see a Windows temp path.
-    },
-    skip: Platform.isWindows ? 'checked on Linux' : null,
-  );
+  test('the root helper is valid bash', () async {
+    final File script = File(
+      '${Directory.systemTemp.createTempSync('nebula-test-').path}/s.sh',
+    );
+    await script.writeAsString(linuxVpnSupervisorScript);
+    final ProcessResult result;
+    try {
+      result = await Process.run('bash', <String>['-n', script.path]);
+    } on ProcessException {
+      markTestSkipped('bash is not available');
+      return;
+    } finally {
+      await script.parent.delete(recursive: true);
+    }
+    expect(result.exitCode, 0, reason: '${result.stderr}');
+    // On Windows "bash" is WSL's, which cannot see a Windows temp path.
+  }, skip: Platform.isWindows ? 'checked on Linux' : null);
 
   test('the helper starts with its shebang and undoes the routes it adds', () {
     expect(linuxVpnSupervisorScript, startsWith('#!/bin/bash'));

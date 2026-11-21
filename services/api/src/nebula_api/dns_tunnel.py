@@ -1,4 +1,4 @@
-"""The DNS tunnel's details for signed-in apps (plan 10; ADR 0004, 2026-11-05).
+"""The DNS tunnel's details for signed-in apps.
 
 An app asks while the API is reachable and keeps the answer: in a shutdown,
 when only DNS still gets out, there is no API to ask. The tunnel forwards to

@@ -210,7 +210,7 @@ void main() {
 
   test('a connect retests a list with too few working resolvers', () async {
     // One resolver, found while another VPN carried the test, kept the
-    // tunnel from working for a week (Linux, 2026-11-13).
+    // tunnel from working for a week.
     final (DnsTunnelResolvers r, _FakePlatform platform) = await _resolvers(
       stored: <String, Object>{
         'nebula.dns_tunnel.resolvers.#built-in/mobile-43211': '9.0.0.1:53\n',

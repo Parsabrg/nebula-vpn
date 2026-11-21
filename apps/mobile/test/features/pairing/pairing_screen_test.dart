@@ -1,9 +1,12 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:cupertino_ui/cupertino_ui.dart'
+    show GlobalCupertinoLocalizations;
+import 'package:flutter_localizations/flutter_localizations.dart'
+    show GlobalWidgetsLocalizations;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nebula_mobile/core/pairing/pairing.dart';
 import 'package:nebula_mobile/core/pairing/pairing_providers.dart';
 import 'package:nebula_mobile/core/pairing/pairing_store.dart';
@@ -111,73 +114,65 @@ void main() {
   });
 
   group('on Android', () {
-    testWidgets(
-      'a scanned code pairs exactly as a pasted link does',
-      (WidgetTester tester) async {
-        final _Harness harness = _Harness(preferences)
-          ..scanResult =
-              'https://vpn.example.org/pair#v=1&d=$_deployment&ca=$pin';
-        await _pump(tester, harness);
+    testWidgets('a scanned code pairs exactly as a pasted link does', (
+      WidgetTester tester,
+    ) async {
+      final _Harness harness = _Harness(
+        preferences,
+      )..scanResult = 'https://vpn.example.org/pair#v=1&d=$_deployment&ca=$pin';
+      await _pump(tester, harness);
 
-        await tester.tap(find.text('Scan QR code'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.text('Scan QR code'));
+      await tester.pumpAndSettle();
 
-        expect(harness.scans, 1);
-        expect(harness.fetched.first, Uri.parse('https://vpn.example.org'));
-        expect((await harness.store.read())?.deploymentName, 'Home');
-        expect(find.text('sign-in screen'), findsOneWidget);
-      },
-      variant: TargetPlatformVariant.only(TargetPlatform.android),
-    );
+      expect(harness.scans, 1);
+      expect(harness.fetched.first, Uri.parse('https://vpn.example.org'));
+      expect((await harness.store.read())?.deploymentName, 'Home');
+      expect(find.text('sign-in screen'), findsOneWidget);
+    }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 
-    testWidgets(
-      'a scanned link with a tampered pin is refused',
-      (WidgetTester tester) async {
-        // One hex digit changed: the same check a pasted link gets.
-        final String tampered = (pin[0] == 'a' ? 'b' : 'a') + pin.substring(1);
-        final _Harness harness = _Harness(preferences)
-          ..scanResult =
-              'https://vpn.example.org/pair#v=1&d=$_deployment&ca=$tampered';
-        await _pump(tester, harness);
+    testWidgets('a scanned link with a tampered pin is refused', (
+      WidgetTester tester,
+    ) async {
+      // One hex digit changed: the same check a pasted link gets.
+      final String tampered = (pin[0] == 'a' ? 'b' : 'a') + pin.substring(1);
+      final _Harness harness = _Harness(preferences)
+        ..scanResult =
+            'https://vpn.example.org/pair#v=1&d=$_deployment&ca=$tampered';
+      await _pump(tester, harness);
 
-        await tester.tap(find.text('Scan QR code'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.text('Scan QR code'));
+      await tester.pumpAndSettle();
 
-        expect(await harness.store.read(), isNull);
-        expect(find.text('sign-in screen'), findsNothing);
-        expect(
-          find.textContaining("certificate doesn't match the link"),
-          findsOneWidget,
-        );
-      },
-      variant: TargetPlatformVariant.only(TargetPlatform.android),
-    );
+      expect(await harness.store.read(), isNull);
+      expect(find.text('sign-in screen'), findsNothing);
+      expect(
+        find.textContaining("certificate doesn't match the link"),
+        findsOneWidget,
+      );
+    }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 
-    testWidgets(
-      'closing the scanner without a code changes nothing',
-      (WidgetTester tester) async {
-        final _Harness harness = _Harness(preferences);
-        await _pump(tester, harness);
+    testWidgets('closing the scanner without a code changes nothing', (
+      WidgetTester tester,
+    ) async {
+      final _Harness harness = _Harness(preferences);
+      await _pump(tester, harness);
 
-        await tester.tap(find.text('Scan QR code'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.text('Scan QR code'));
+      await tester.pumpAndSettle();
 
-        expect(harness.scans, 1);
-        expect(harness.fetched, isEmpty);
-        expect(await harness.store.read(), isNull);
-      },
-      variant: TargetPlatformVariant.only(TargetPlatform.android),
-    );
+      expect(harness.scans, 1);
+      expect(harness.fetched, isEmpty);
+      expect(await harness.store.read(), isNull);
+    }, variant: TargetPlatformVariant.only(TargetPlatform.android));
   });
 
-  testWidgets(
-    'Windows has no scanner and still pastes',
-    (WidgetTester tester) async {
-      await _pump(tester, _Harness(preferences));
+  testWidgets('Windows has no scanner and still pastes', (
+    WidgetTester tester,
+  ) async {
+    await _pump(tester, _Harness(preferences));
 
-      expect(find.text('Scan QR code'), findsNothing);
-      expect(find.byType(TextFormField), findsOneWidget);
-    },
-    variant: TargetPlatformVariant.only(TargetPlatform.windows),
-  );
+    expect(find.text('Scan QR code'), findsNothing);
+    expect(find.byType(TextFormField), findsOneWidget);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
 }

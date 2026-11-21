@@ -403,7 +403,7 @@ services:
     volumes:
       - /etc/nebula/secrets:/etc/nebula/secrets:ro
       # The agent client identity the API issues there; without it every pass
-      # fails with AgentClientError (fresh install, 2026-10-26).
+      # fails with AgentClientError.
       - nebula-state:/var/lib/nebula:ro
     # See the identical note on the api service above.
     group_add:

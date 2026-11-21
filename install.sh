@@ -44,17 +44,16 @@ WORK=$(mktemp -d /tmp/nebula-install.XXXXXX)
 STATE=$ETC/install.conf
 COMPOSE_FILE=$REPO/infrastructure/compose/production.yaml
 PROJECT=nebula-production
-XRAY_VERSION=26.10.21
-HYSTERIA_VERSION=2.9.2
-# From the publishers' own .dgst / hashes.txt; Xray checked 2026-10-31,
-# Hysteria2 2026-10-26.
+XRAY_VERSION=26.11.9
+HYSTERIA_VERSION=2.14.0
+# From the publishers' own.dgst / hashes.txt, checked 2026-11-21.
 declare -A XRAY_SHA=(
-  [amd64]=0eec3ed4163c273d8c8bf821f7d219e257921cf584aa3fb970715e458e631978
-  [arm64]=d1304946c486d98e6b886e9b931eaaaebb23835b30e217638037b7f2721d4e9c
+  [amd64]=b651f7e1d9966ee2c1b1ee1bf8b52c72771824d3065dce96bbc8bcc19ed95f82
+  [arm64]=64ed6858982a7f5eb85d88b811089063bd4f17561f4c8f44e0f1dc8e6f6430be
 )
 declare -A HYSTERIA_SHA=(
-  [amd64]=86fef8e2f1b2bf41318ac96724eee6c3b449e4e510022cc89658b63a6713922a
-  [arm64]=9ec8f49f4ea554b1cac04e6f3690cea76ff835082e943e54196d7f323fcfba71
+  [amd64]=fc25edff9948708cb00a4ff01f3bccde677660aca050133bb1ad46c6860362d2
+  [arm64]=e7c52241299fe85aba11e9d36e85d8d88ddbb5799ac0e33d272219d20e313bab
 )
 # A joined server's resolver for the tunnels (the control plane runs AdGuard
 # Home in its stack). Hashes of the release files, 2026-11-04.
@@ -176,7 +175,7 @@ fetch() { curl -fsSL --retry 3 -m 600 ${NEBULA_INSTALL_PROXY:+--proxy "$NEBULA_I
 
 [ "$(id -u)" = 0 ] || die "run as root: sudo ./install.sh"
 # Two runs at once recreate the same containers and collide, leaving them
-# stopped (seen 2026-10-29). The lock is released when this process exits.
+# stopped. The lock is released when this process exits.
 exec 9>/run/nebula-install.lock
 flock -n 9 || die "another ./install.sh is already running; wait for it to finish"
 command -v apt-get >/dev/null || die "this installer supports Ubuntu and Debian"
@@ -727,7 +726,7 @@ if [ -n "$JOIN_URL" ]; then
     tar -xzf $WORK/dnsproxy.tgz -C $WORK
     install -m 0755 "$WORK/linux-$ARCH/dnsproxy" /usr/local/bin/dnsproxy
   fi
-  # Kept when present: the owner may list other upstreams here.
+  # Kept when present: the operator may list other upstreams here.
   [ -f $ETC/dns.env ] || printf '%s\n' \
     'NEBULA_DNS_UPSTREAMS=-u https://1.1.1.1/dns-query -u https://8.8.8.8/dns-query -u https://9.9.9.9/dns-query' \
     > $ETC/dns.env
@@ -769,7 +768,7 @@ ok "Xray $(/usr/local/bin/xray version | awk 'NR==1{print $2}'), Hysteria2, Wire
 
 step "Firewall"
 # awk reads to the end: one that exits early SIGPIPEs sshd, and pipefail
-# then ends the whole install (seen 2026-10-26, exit 141).
+# then ends the whole install.
 # sshd -T can fail (exit 255 with no /run/sshd, e.g. socket-activated ssh);
 # then the Port lines of its config decide, so a custom port stays open.
 SSH_PORT=$(sshd -T 2>/dev/null | awk '/^port /{p=$2} END{print p}' || true)
@@ -814,7 +813,7 @@ fi
 WAN=$(ip -4 route show default | awk '{for (i = 1; i < NF; i++) if ($i == "dev") d = $(i + 1)} END {print d}')
 [ -n "$WAN" ] || die "no default route: cannot tell which interface WireGuard clients leave by"
 wireguard_routing "$WAN" /etc/ufw/before.rules
-# New installs hop; an existing server keeps its ports until its owner adds
+# New installs hop; an existing server keeps its ports until the operator adds
 # NEBULA_XRAY_HYSTERIA_HOP_PORTS to agent.env and reruns this.
 if [ -f $ETC/agent.env ]; then
   HOP=$(sed -n 's/^NEBULA_XRAY_HYSTERIA_HOP_PORTS=//p' $ETC/agent.env | tail -1)
@@ -979,7 +978,7 @@ if [ -n "$CONFIGURE" ]; then
           # The site whose TLS handshake a probe sees: big, reachable from
           # Iran, TLS 1.3 and HTTP/2. Not www.microsoft.com: Iran drops that
           # name to an address that is not Microsoft's from its datacentres,
-          # which breaks it through an Iranian relay (2026-11-14); the home
+          # which breaks it through an Iranian relay; the home
           # line let it through.
           site=$(agentget NEBULA_XRAY_REALITY_SERVER_NAME); site=${site:-www.speedtest.net}
           read -rp "  site to borrow [$site]: " a; site=${a:-$site}

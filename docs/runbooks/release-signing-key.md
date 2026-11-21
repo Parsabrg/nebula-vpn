@@ -15,10 +15,16 @@ up" below.
 
 Both files, together. Either alone is useless.
 
+They live outside every copy of the repository, in `~/.nebula-release/`
+on the release machine (maintainers only), where the Android build looks for
+them; `NEBULA_KEY_PROPERTIES` can name another `key.properties`. Inside
+the tree they were one `git add -f` away from being published (client
+review S-09, moved 2026-11-16).
+
 | File | What it is |
 |---|---|
-| `apps/mobile/android/app/nebula-release.jks` | the key itself |
-| `apps/mobile/android/key.properties` | the two passwords, the alias, the filename |
+| `~/.nebula-release/nebula-release.jks` | the key itself |
+| `~/.nebula-release/key.properties` | the two passwords, the alias, and the keystore's absolute path |
 
 ## Identity of the current key
 
@@ -59,7 +65,7 @@ It was encrypted without the plaintext leaving the laptop:
 
 ```bash
 R=age1...   # NEBULA_BACKUP_AGE_RECIPIENT from /etc/nebula/backup.env; public
-docker run --rm -e R="$R"   -v "$PWD/apps/mobile/android/app/nebula-release.jks:/in/app/nebula-release.jks:ro"   -v "$PWD/apps/mobile/android/key.properties:/in/key.properties:ro"   -v "$PWD/out:/out" debian:bookworm-slim sh -c   'apt-get update && apt-get install -y age &&
+docker run --rm -e R="$R"   -v "$HOME/.nebula-release/nebula-release.jks:/in/app/nebula-release.jks:ro"   -v "$HOME/.nebula-release/key.properties:/in/key.properties:ro"   -v "$PWD/out:/out" debian:bookworm-slim sh -c   'apt-get update && apt-get install -y age &&
    tar -czf - -C /in key.properties app/nebula-release.jks |
    age -r "$R" -o /out/release-signing-key.tar.gz.age'
 ```
@@ -78,8 +84,9 @@ neighbours. Redo both steps if the keystore or its passwords ever change.
    age -d -i backup-identity.txt release-signing-key.tar.gz.age | tar -xzf -
    ```
 
-   That gives `key.properties` and `app/nebula-release.jks`; put them back
-   under `apps/mobile/android/`.
+   That gives `key.properties` and `app/nebula-release.jks`; put both in
+   `~/.nebula-release/` and set `storeFile` in `key.properties` to the
+   keystore's absolute path there.
 3. Check the fingerprint against the one recorded above before trusting it.
 
 Tested end to end 2026-10-30, after the backup identity of 2026-09 was found
@@ -111,7 +118,7 @@ install on Windows 10+, Linux or macOS. Created 2026-10-14.
 
 | File | Where | Committed |
 |---|---|---|
-| private key | `apps/mobile/android/app/nebula-release-sign` (no passphrase, like the release builds' other keys) | never -- gitignored |
+| private key | `~/.nebula-release/nebula-release-sign` (no passphrase, like the release builds' other keys) | never -- outside the repository |
 | public key | `docs/release-signers`, as OpenSSH's allowed-signers line | yes |
 
 ```
@@ -125,7 +132,7 @@ nightly backups carry it. The procedure above, with this one file:
 
 ```bash
 docker run --rm -e R="$R" \
-  -v "$PWD/apps/mobile/android/app/nebula-release-sign:/in/nebula-release-sign:ro" \
+  -v "$HOME/.nebula-release/nebula-release-sign:/in/nebula-release-sign:ro" \
   -v "$PWD/out:/out" debian:bookworm-slim sh -c \
   'apt-get update && apt-get install -y age &&
    tar -czf - -C /in nebula-release-sign |

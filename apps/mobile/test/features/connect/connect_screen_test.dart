@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nebula_mobile/core/format/bytes.dart';
 import 'package:nebula_mobile/core/servers/server_repository.dart';
 import 'package:nebula_mobile/core/theme/color_tokens.dart';

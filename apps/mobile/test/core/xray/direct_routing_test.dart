@@ -23,15 +23,13 @@ XrayClientResult _client({String transport = 'xhttp'}) => XrayClientResult(
 Map<String, dynamic> _render(
   AdvancedSettings settings, {
   String transport = 'xhttp',
-}) =>
-    jsonDecode(
-          renderXrayClientConfigJson(
-            _client(transport: transport),
-            localProxy: _proxy,
-            settings: settings,
-          ),
-        )
-        as Map<String, dynamic>;
+}) => jsonDecode(
+  renderXrayClientConfigJson(
+    _client(transport: transport),
+    localProxy: _proxy,
+    settings: settings,
+  ),
+) as Map<String, dynamic>;
 
 List<Map<String, dynamic>> _rules(Map<String, dynamic> config) =>
     ((config['routing'] as Map<String, dynamic>)['rules'] as List<dynamic>)
@@ -93,7 +91,7 @@ void main() {
     final Map<String, dynamic> routing =
         config['routing'] as Map<String, dynamic>;
     // No lookup of every new name before routing it: it slowed every new
-    // site down on a slow route (2026-11-10).
+    // site down on a slow route.
     expect(routing.containsKey('domainStrategy'), isFalse);
     final List<Map<String, dynamic>> rules = _rules(config);
     // The ad block still comes first.
@@ -184,19 +182,14 @@ void main() {
   });
 
   group("the app's own API goes through the server", () {
-    Map<String, dynamic> render(AdvancedSettings settings) =>
-        jsonDecode(
-              renderXrayClientConfigJson(
-                _client(),
-                localProxy: _proxy,
-                settings: settings,
-                apiHosts: const <String>[
-                  'cdn.example.org',
-                  'front.example.app',
-                ],
-              ),
-            )
-            as Map<String, dynamic>;
+    Map<String, dynamic> render(AdvancedSettings settings) => jsonDecode(
+      renderXrayClientConfigJson(
+        _client(),
+        localProxy: _proxy,
+        settings: settings,
+        apiHosts: const <String>['cdn.example.org', 'front.example.app'],
+      ),
+    ) as Map<String, dynamic>;
 
     test('ahead of every direct rule, in sanctions-only mode', () {
       final List<Map<String, dynamic>> rules = _rules(

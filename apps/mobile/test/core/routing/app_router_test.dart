@@ -1,10 +1,10 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nebula_mobile/core/auth/auth_notifier.dart';
 import 'package:nebula_mobile/core/auth/auth_state.dart';
 import 'package:nebula_mobile/core/auth/token_pair.dart';
@@ -406,8 +406,8 @@ void main() {
     WidgetTester tester,
   ) async {
     // Several screens deep (Connection details, Configuration are pushed
-    // straight onto the tab), tapping Connect did nothing (owner,
-    // 2026-11-15). Every tab tap lands on the tab's main page.
+    // straight onto the tab), tapping Connect used to do nothing. Every
+    // tab tap lands on the tab's main page.
     tester.view
       ..devicePixelRatio = 1
       ..physicalSize = const Size(400, 800);

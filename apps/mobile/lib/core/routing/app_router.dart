@@ -153,12 +153,11 @@ final routerProvider = Provider<GoRouter>((Ref ref) {
             buildNebulaPage(context, state, const PasswordResetConfirmScreen()),
       ),
       StatefulShellRoute.indexedStack(
-        builder:
-            (
-              BuildContext context,
-              GoRouterState state,
-              StatefulNavigationShell navigationShell,
-            ) => HomeShell(navigationShell: navigationShell),
+        builder: (
+          BuildContext context,
+          GoRouterState state,
+          StatefulNavigationShell navigationShell,
+        ) => HomeShell(navigationShell: navigationShell),
         branches: <StatefulShellBranch>[
           StatefulShellBranch(
             navigatorKey: branchKeys[0],

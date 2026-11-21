@@ -68,6 +68,11 @@ regexes = [
   # Aether (Cloudflare WARP) for Windows and Linux, pinned in both scripts.
   '''84ABF564B5549D4FEC2E6B8ECDE17A8309FFD4A829B3F96A412322CFB0E5E3BE''',
   '''35d56f3a30976da825c5fc0725eb76817e430182925b194284912bbbec98aa06''',
+  # Xray 26.11.9 and Hysteria2 2.14.0, Windows then Linux.
+  '''1262522266337B824F07BEB8E1375786B437683B3890105469088F8E17E0A69D''',
+  '''6EE18E99F826670A249AD20400C536900CB6FB5369237E30768DF9032AC92D80''',
+  '''b651f7e1d9966ee2c1b1ee1bf8b52c72771824d3065dce96bbc8bcc19ed95f82''',
+  '''fc25edff9948708cb00a4ff01f3bccde677660aca050133bb1ad46c6860362d2''',
   # appimagetool 1.9.0 and the AppImage type2 runtime, pinned in
   # apps/mobile/tool/build_linux_packages.sh.
   '''46fdd785094c7f6e545b61afcfb0f3d98d8eab243f644b4b17698c01d06083d1''',

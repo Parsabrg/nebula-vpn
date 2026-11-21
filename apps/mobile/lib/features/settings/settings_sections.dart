@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform;
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/app_info.dart';
 import '../../core/network/dns_tunnel_resolvers.dart';
@@ -127,6 +127,17 @@ class ProtectionSettingsScreen extends ConsumerWidget {
             ),
           ],
         ),
+        // Where the kill switch is not used, said here rather than left to
+        // be found out. Windows only: on Linux the kill
+        // switch stays on over WARP, Aether's traffic being marked.
+        if (defaultTargetPlatform == TargetPlatform.windows &&
+            protection.blockWhenVpnDrops) ...<Widget>[
+          const SizedBox(height: 12),
+          NebulaNotice(
+            text: text.killSwitchWarpLimit,
+            kind: NebulaNoticeKind.info,
+          ),
+        ],
       ],
     );
   }

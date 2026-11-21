@@ -119,6 +119,14 @@ def xray_outbound(answer: dict[str, object], client_uuid: str) -> dict[str, obje
             stream["tlsSettings"]["certificates"] = [  # type: ignore[index]
                 {"usage": "verify", "certificateFile": CA_FILE}
             ]
+    if answer["transport_security"] == "reality":
+        stream["realitySettings"] = {
+            "serverName": sni,
+            "fingerprint": "chrome",
+            "publicKey": answer["reality_public_key"],
+            "shortId": answer.get("reality_short_id") or "",
+            "spiderX": "",
+        }
     protocol = answer.get("protocol", "vless")
     if protocol == "shadowsocks":
         settings: dict[str, object] = {
@@ -136,6 +144,8 @@ def xray_outbound(answer: dict[str, object], client_uuid: str) -> dict[str, obje
         settings = {"vnext": [{"address": address, "port": port, "users": users}]}
     else:
         users = [{"id": client_uuid, "encryption": answer.get("encryption") or "none"}]
+        if answer.get("flow"):
+            users[0]["flow"] = answer["flow"]
         settings = {"vnext": [{"address": address, "port": port, "users": users}]}
     return {"protocol": protocol, "settings": settings, "streamSettings": stream}
 

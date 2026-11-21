@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/app_info.dart';
 import '../../core/auth/auth_notifier.dart';
@@ -62,7 +62,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           );
       // Tells the password manager the sign-in worked: it offers to save the
       // password, or to update a saved one that differs. Without this it was
-      // never asked, and saved once only by chance (2026-10-31).
+      // never asked, and saved once only by chance.
       TextInput.finishAutofillContext();
     } catch (error) {
       if (mounted) {

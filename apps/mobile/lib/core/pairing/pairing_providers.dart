@@ -58,7 +58,7 @@ class PairingNotifier extends Notifier<Pairing?> {
         previous.deploymentId != pairing.deploymentId) {
       // A session belongs to the deployment that issued it. Kept, the
       // previous one's refresh token went to the new server on the first
-      // request (2026-10-29): a credential handed to someone else's server,
+      // request: a credential handed to someone else's server,
       // and a "your session ended" on a server never signed in to.
       await ref.read(secureTokenStoreProvider).clear();
     }

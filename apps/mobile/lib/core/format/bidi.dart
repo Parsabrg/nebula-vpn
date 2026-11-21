@@ -4,7 +4,7 @@
 /// right in every language. Dropped into a Persian layout as-is, the
 /// bidirectional algorithm reorders it: `8.9 KB` is drawn `KB 8.9`, and a
 /// long code is cut from the wrong end with the ellipsis on the wrong side.
-/// Found on the phone, where every such value on the Account tab did it.
+/// Every such value on the Account tab did this.
 library;
 
 import 'package:flutter/widgets.dart';

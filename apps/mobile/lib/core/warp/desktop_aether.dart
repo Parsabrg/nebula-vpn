@@ -160,7 +160,7 @@ Future<void> registerAether(
 }
 
 /// Starts Aether and returns it once it serves SOCKS5, which it does only
-/// after its scan and data check (21-25 s on the owner's line); its port
+/// after its scan and data check (typically 20-25 s); its port
 /// accepts connections before that, so the port is no sign. [upstream] is
 /// the bridge, in a full-device tunnel.
 Future<Process> startAether(

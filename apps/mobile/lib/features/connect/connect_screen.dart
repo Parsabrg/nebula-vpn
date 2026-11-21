@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/auth/auth_notifier.dart';
 import '../../core/auth/auth_state.dart';
@@ -149,7 +149,7 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
 
 /// The brand on a phone, the "Connect" title on desktop, and "+" for Your
 /// links. Free mode shows it too: a first install looked for the Add
-/// buttons here (2026-10-17).
+/// buttons here.
 class _Header extends StatelessWidget {
   const _Header();
 
@@ -318,7 +318,7 @@ class ConnectStateBlock extends StatelessWidget {
             freeMode ? text.statusNoTunnel : text.statusPeerOnly,
           ConnectView.off => text.statusDisconnected,
           // The reason, not a guess at it: "check your network" over a
-          // working network sent the owner looking in the wrong place.
+          // working network sends people looking in the wrong place.
           ConnectView.unreachable =>
             state.loadErrorMessage ?? text.checkYourNetwork,
           ConnectView.noServers => text.noServersPermitted,
@@ -485,7 +485,7 @@ class ConnectMessages extends StatelessWidget {
           const SizedBox(height: 12),
         ],
         // Only while that connection is up: after it ended, "Connected with
-        // credentials saved on this device" sat under Off (2026-10-18).
+        // credentials saved on this device" sat under Off.
         if (serverUnreachable ||
             (state.fromSavedCredential && state.tunnelEstablished)) ...<Widget>[
           NebulaNotice(

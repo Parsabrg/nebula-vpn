@@ -46,7 +46,7 @@ services:
     restart: "no"
 
   redis:
-    image: redis:8.10.2-alpine3.23
+    image: redis:8.10.3-alpine3.23
     command:
       ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
     volumes:
@@ -60,7 +60,7 @@ services:
     restart: unless-stopped
 
   mailpit:
-    image: axllent/mailpit:v1.33.1
+    image: axllent/mailpit:v1.34.0
     environment:
       MP_DATABASE: /data/mailpit.db
     volumes:

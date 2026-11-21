@@ -42,6 +42,14 @@ class NativeTunnelChannel {
     return _channel.invokeMethod<bool>('hasNetwork');
   }
 
+  /// Android only: copies [text] marked sensitive (Android 13 and later
+  /// hide it from the clipboard preview). See copySensitive.
+  Future<void> copySensitive(String text) {
+    return _channel.invokeMethod<void>('copySensitive', <String, String>{
+      'text': text,
+    });
+  }
+
   /// Android only: taps on the tunnel notification's Disconnect button.
   ///
   /// The first listener also receives the tap that launched the app, if one

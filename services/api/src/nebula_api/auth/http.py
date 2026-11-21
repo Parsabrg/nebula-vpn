@@ -38,7 +38,7 @@ def install_auth_http_safeguards(application: FastAPI, settings: Settings) -> No
         except Exception:
             # The CSRF token this request spent has a staged replacement; a
             # bare 500 dropped it, and every later admin action was refused
-            # as "session ended" (2026-10-31).
+            # as "session ended".
             _LOGGER.exception("unhandled error answering %s %s", request.method, request.url.path)
             response = JSONResponse(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

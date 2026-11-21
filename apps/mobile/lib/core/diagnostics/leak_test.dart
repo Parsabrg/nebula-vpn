@@ -137,9 +137,8 @@ class LeakTest {
   /// that asked it.
   Future<String?> _resolverNetwork() async {
     try {
-      final List<InternetAddress> addresses = await _lookup(
-        'whoami.akamai.net',
-      ).timeout(const Duration(seconds: 8));
+      final List<InternetAddress> addresses = await _lookup('whoami.akamai.net')
+          .timeout(const Duration(seconds: 8));
       return addresses.isEmpty ? null : maskAddress(addresses.first.address);
     } on Object {
       return null;
@@ -150,9 +149,9 @@ class LeakTest {
     final HttpClient client = HttpClient()
       ..connectionTimeout = const Duration(seconds: 8);
     try {
-      final HttpClientResponse response = await (await client.getUrl(
-        url,
-      )).close().timeout(const Duration(seconds: 10));
+      final HttpClientResponse response = await (await client.getUrl(url))
+          .close()
+          .timeout(const Duration(seconds: 10));
       if (response.statusCode != 200) {
         return null;
       }

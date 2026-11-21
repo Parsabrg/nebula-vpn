@@ -193,41 +193,45 @@ mixin _Connecting on _DevicesCore {
             // A protocol and its ad-block twin are one inbound on the server: if
             // one carries nothing so does the other. Trying both spent half of
             // Automatic's tries on Cloudflare routes that were stalled, and the
-            // one protocol that worked was never reached (Windows, 2026-10-29).
+            // one protocol that worked was never reached.
             .where((AvailableProfile p) => inbounds.add(_inboundOf(p.code)))
             .take(_automaticTries)
             .toList();
 
     final AppText text = ref.read(appTextProvider);
-    for (final AvailableProfile profile in order) {
-      if (!ref.mounted || _cancelled(attempt)) {
-        return;
+    _choosingAutomatically = true;
+    try {
+      for (final AvailableProfile profile in order) {
+        if (!ref.mounted || _cancelled(attempt)) {
+          return;
+        }
+        state = state.copyWith(actionErrorMessage: () => null);
+        await _connectProfile(
+          attempt: attempt,
+          deviceId: deviceId,
+          serverCode: serverCode,
+          profileCode: profile.code,
+        );
+        if (!ref.mounted || _cancelled(attempt) || state.tunnelEstablished) {
+          return;
+        }
+        final String? error = state.actionErrorMessage;
+        // A refused VPN permission is the person's answer, not the network's:
+        // the next protocol would ask again, and the closing "none of the
+        // protocols got through" would hide why.
+        if (error == text.errorQuotaExhausted ||
+            error == text.errorRateLimited ||
+            error == text.errorOffline ||
+            error == text.vpnPermissionNotGranted ||
+            error ==
+                text.errorProxyPortInUse(
+                  '${ref.read(advancedSettingsControllerProvider).localProxyPort}',
+                )) {
+          return;
+        }
       }
-      state = state.copyWith(actionErrorMessage: () => null);
-      await _connectProfile(
-        attempt: attempt,
-        deviceId: deviceId,
-        serverCode: serverCode,
-        profileCode: profile.code,
-      );
-      if (!ref.mounted || _cancelled(attempt) || state.tunnelEstablished) {
-        return;
-      }
-      final String? error = state.actionErrorMessage;
-      // A refused VPN permission is the person's answer, not the network's:
-      // the next protocol would ask again, and the closing "none of the
-      // protocols got through" would hide why (found on a first install,
-      // 2026-10-17).
-      if (error == text.errorQuotaExhausted ||
-          error == text.errorRateLimited ||
-          error == text.errorOffline ||
-          error == text.vpnPermissionNotGranted ||
-          error ==
-              text.errorProxyPortInUse(
-                '${ref.read(advancedSettingsControllerProvider).localProxyPort}',
-              )) {
-        return;
-      }
+    } finally {
+      _choosingAutomatically = false;
     }
     if (ref.mounted && !_cancelled(attempt)) {
       state = state.copyWith(
@@ -350,7 +354,7 @@ mixin _Connecting on _DevicesCore {
       // The peer this device already holds, first: the server keeps it
       // between connects, and asking it again is a round trip to the API and
       // on to the server's agent -- most of a WireGuard connect from Iran
-      // (2026-11-03), where v2rayNG starts from its saved config at once. A
+      //, where v2rayNG starts from its saved config at once. A
       // saved peer that does not answer is forgotten and asked for below.
       final WireGuardPeerStore peers = ref.read(wireGuardPeerStoreProvider);
       WireGuardPeerResult? saved;
@@ -448,8 +452,8 @@ mixin _Connecting on _DevicesCore {
       }
       // A handshake alone is not traffic: on a network that lets the
       // server's packets in and drops the phone's, the phone answers the
-      // server's handshakes and the tunnel still carries nothing ("Protected"
-      // for minutes on the phone, 2026-10-17). This app's own requests go
+      // server's handshakes and the tunnel still carries nothing, while the
+      // screen says "Protected". This app's own requests go
       // through a WireGuard tunnel, so a plain one asks the question.
       if (!_cancelled(attempt) &&
           tunnelUp &&
@@ -478,7 +482,7 @@ mixin _Connecting on _DevicesCore {
         if (saved != null && ref.mounted && !_cancelled(attempt)) {
           // The saved peer may be one the server has since removed: ask for
           // a fresh one, once, before saying the server does not answer.
-          return _connectWireGuard(
+          return await _connectWireGuard(
             attempt: attempt,
             deviceId: deviceId,
             serverCode: serverCode,
@@ -576,7 +580,7 @@ mixin _Connecting on _DevicesCore {
     final String network = await resolvers.ensureFresh(details);
     // On a computer this app's own traffic goes through its tunnel: a test
     // still running would send its hundreds of questions through the DNS
-    // tunnel itself and stall it (Windows, 2026-11-12). Android's app is
+    // tunnel itself and stall it. Android's app is
     // outside its VPN, so its tests go on there.
     if (defaultTargetPlatform != TargetPlatform.android) {
       await resolvers.stop();
@@ -614,7 +618,7 @@ mixin _Connecting on _DevicesCore {
       // same one back on every request, so asking before connecting only
       // adds a round trip to an API the network may be slowing -- 30 s on a
       // filtered day, against v2rayNG's instant start from its saved config
-      // (2026-10-18). The server is asked afterwards, in the background; a
+      //. The server is asked afterwards, in the background; a
       // saved credential that carries nothing is replaced by asking first.
       final XrayClientResult? saved = trySaved
           ? await _recalled(
@@ -775,7 +779,7 @@ mixin _Connecting on _DevicesCore {
       // A saved credential the server has revoked can fail the start itself:
       // Hysteria2 logs in as it starts, so the tunnel never comes up and the
       // check below never runs. Asked here too, or the phone retried the dead
-      // credential on every connect (2026-11-04).
+      // credential on every connect.
       if (!tunnelUp &&
           usedSaved &&
           !_cancelled(attempt) &&
@@ -802,6 +806,7 @@ mixin _Connecting on _DevicesCore {
           !await _tunnelCarriesTraffic(
             attempt,
             slow: protocolProfileCode == kDnsTunnelProfileCode,
+            engineCheckedData: result.transport == kWarpTransport,
           ) &&
           !_cancelled(attempt)) {
         // Xray's tunnel is up the moment the engine starts, whether or not
@@ -815,7 +820,7 @@ mixin _Connecting on _DevicesCore {
         // Still "Connecting" on screen: what follows is usually another try
         // (the next dial, a credential the server changed, the next API
         // route). Shown as Off in between, every first connect after a
-        // server change flashed Off for a second (recorded, 2026-11-14).
+        // server change flashed Off for a second.
         await disconnect(deviceId, keepConnecting: true);
         // The same credential through Cloudflare, dialled the next way: each
         // of Iran's firewalls lets a different shape through.
@@ -856,7 +861,7 @@ mixin _Connecting on _DevicesCore {
         // next protocol would not help.
         // Off screen on Android this app's own requests may be held back
         // (see trafficCheckMeaningfulProvider): a connect finished there
-        // called an online phone offline (2026-10-29). Its checks are not
+        // called an online phone offline. Its checks are not
         // asked, and the failure is put as what is known -- nothing got
         // through the tunnel.
         final bool inFront = ref.read(trafficCheckMeaningfulProvider)();
@@ -955,7 +960,7 @@ mixin _Connecting on _DevicesCore {
         // What the Cloudflare address scan tests. Learned here, on every
         // CDN connection: learned only by opening that screen while
         // connected, a connect-then-disconnect left it saying "connect
-        // once" (reported 2026-10-18).
+        // once".
         if (cdnTransports.contains(result.transport)) {
           unawaited(
             ref
@@ -991,7 +996,7 @@ mixin _Connecting on _DevicesCore {
   /// can find one up that this run knows nothing about. The Xray plugin
   /// cannot start over it: it stops the old service, starts the core,
   /// reports CONNECTED -- and then the old service's shutdown lands on the
-  /// new core. On the phone that read "Protected" with no tunnel at all.
+  /// new core, and the screen read "Protected" with no tunnel at all.
   ///
   /// So stop first, and wait until Android no longer lists a VPN: the same
   /// sequence as disconnecting and connecting again by hand, which works.
@@ -1100,7 +1105,7 @@ mixin _Connecting on _DevicesCore {
     }
     // Off on screen as soon as traffic has stopped. Waiting for the server
     // made a disconnect take as long as the link to the control plane, which
-    // on a slow day was seconds (2026-11-03): v2rayNG's is instant.
+    // on a slow day was seconds: v2rayNG's is instant.
     state = state.copyWith(
       isSubmitting: keepConnecting,
       peer: () => null,

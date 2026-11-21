@@ -29,7 +29,7 @@ export async function toActionResult<T>(
     }
     if (error instanceof ApiError) {
       // The admin session ended (30 idle minutes): "Something went wrong"
-      // left an owner renaming a server with nothing to act on (2026-10-30).
+      // left an owner renaming a server with nothing to act on.
       if (error.status === 401) {
         return {
           ok: false,

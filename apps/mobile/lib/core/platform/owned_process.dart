@@ -5,7 +5,7 @@ import 'dart:io';
 /// The engines the app starts on the desktop (the DNS tunnel, proxy-mode
 /// Xray and Hysteria, Aether) are processes of their own, stopped by the
 /// app on disconnect -- which a crash or a kill skips, and a DNS tunnel
-/// engine was found running three days on (owner, Windows, 2026-11-15).
+/// engine was found running three days on.
 /// Windows ends them through the job object the runner puts the app in. On
 /// Linux a watcher does: the shell starts it in the background, then becomes
 /// the engine (`exec`, so the engine keeps the pid the app tracks), and the

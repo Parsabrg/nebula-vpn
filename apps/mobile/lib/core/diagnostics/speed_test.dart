@@ -41,9 +41,9 @@ class SpeedTest {
   Future<double?> _download() async {
     final HttpClient client = _client();
     try {
-      final HttpClientResponse response = await (await client.getUrl(
-        download,
-      )).close().timeout(limit);
+      final HttpClientResponse response = await (await client.getUrl(download))
+          .close()
+          .timeout(limit);
       if (response.statusCode != 200) {
         return null;
       }

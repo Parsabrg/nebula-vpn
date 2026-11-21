@@ -31,13 +31,12 @@ const XrayClientResult _reality = XrayClientResult(
 
 Map<String, dynamic> _render(XrayClientResult result, WarpSettings warp) =>
     jsonDecode(
-          renderXrayClientConfigJson(
-            result,
-            localProxy: _localProxy,
-            settings: AdvancedSettings.defaults.copyWith(warp: warp),
-          ),
-        )
-        as Map<String, dynamic>;
+      renderXrayClientConfigJson(
+        result,
+        localProxy: _localProxy,
+        settings: AdvancedSettings.defaults.copyWith(warp: warp),
+      ),
+    ) as Map<String, dynamic>;
 
 void main() {
   group('Aether arguments', () {
@@ -220,7 +219,7 @@ void main() {
 
   test('Aether is waited for as long as its scan mode may take', () {
     // Thorough sweeps for up to 300 s: a flat 150 s never let it finish
-    // from scratch (phone, home line, 2026-11-16).
+    // from scratch.
     Duration within(WarpScan scan) => aetherReadyWithin(
       aetherArguments(WarpSettings.defaults.copyWith(scan: scan), 20443),
     );

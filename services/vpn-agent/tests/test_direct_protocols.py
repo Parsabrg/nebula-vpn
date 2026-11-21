@@ -1,7 +1,7 @@
 """VLESS Encryption and VMess: direct profiles with their own encryption.
 
 Like Shadowsocks-2022 (test_ss2022.py), Iran let them through to the very
-address whose TLS it stalls (home line, 2026-10-22), so they are served on
+address whose TLS it stalls, so they are served on
 their own public ports and their users change live.
 """
 

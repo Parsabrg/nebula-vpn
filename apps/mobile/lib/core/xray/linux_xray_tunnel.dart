@@ -4,6 +4,7 @@ import 'dart:io';
 
 import '../network/dns_tunnel_engine.dart';
 import '../platform/owned_process.dart';
+import '../routing/tunnel_routes.dart';
 import '../tunnel/tunnel_traffic.dart';
 import '../warp/desktop_aether.dart';
 import 'linux_tunnel_config.dart';
@@ -37,6 +38,7 @@ class LinuxXrayTunnelController implements XrayTunnelController {
     xrayConfigJson,
     proxyOnly: proxyOnly,
     killSwitch: killSwitch,
+    routes: routes,
   );
 
   @override
@@ -104,6 +106,7 @@ class LinuxXrayRuntime {
     String encodedConfig, {
     required bool proxyOnly,
     bool killSwitch = false,
+    List<String>? routes,
   }) async {
     await stop();
     final Map<String, dynamic> source =
@@ -119,6 +122,7 @@ class LinuxXrayRuntime {
           state,
           proxyOnly: proxyOnly,
           killSwitch: killSwitch,
+          localNetworkDirect: routesSkipLocalNetwork(routes),
         );
         return;
       }
@@ -203,10 +207,17 @@ class LinuxXrayRuntime {
         engine: xray,
         config: configFile,
         dnsServers: resolvers,
-        // Its resolvers are many and change: a kill switch allowing them
-        // all would not be one. Off over the DNS tunnel, as on Windows.
-        killSwitch: killSwitch && dnsTunnel == null,
-        bypass: bypass,
+        // Over the DNS tunnel the kill switch lets its resolvers out too:
+        // its engine runs as the person and cannot mark its sockets. WARP
+        // needs nothing: Aether's traffic is marked.
+        killSwitch: killSwitch,
+        killSwitchAllows: dnsTunnel == null ? const <String>[] : bypass,
+        // "Allow local network": private networks keep the normal routes.
+        // Only the subnet the machine sits on did before, by its own route.
+        bypass: <String>[
+          ...bypass,
+          if (routesSkipLocalNetwork(routes)) ...kPrivateRanges,
+        ],
       );
       if (aetherEngine != null) {
         _aether = await startAether(
@@ -232,6 +243,7 @@ class LinuxXrayRuntime {
     Directory state, {
     required bool proxyOnly,
     required bool killSwitch,
+    bool localNetworkDirect = false,
   }) async {
     final String hysteria = await _runtimeBinary('hysteria');
     final File configFile = File('${state.path}/hysteria.yaml');
@@ -262,6 +274,7 @@ class LinuxXrayRuntime {
       config: configFile,
       dnsServers: windowsTunnelDnsServers(source),
       killSwitch: killSwitch,
+      bypass: localNetworkDirect ? kPrivateRanges : const <String>[],
     );
     _startTrafficMonitoring();
   }
@@ -299,9 +312,9 @@ class LinuxXrayRuntime {
     final int? enginePid =
         _localXrayPid ??
         int.tryParse(
-          await File(
-            '${linuxSessionOutputs(state.path)}/xray.pid',
-          ).readAsString().catchError((Object _) => ''),
+          await File('${linuxSessionOutputs(state.path)}/xray.pid')
+              .readAsString()
+              .catchError((Object _) => ''),
         );
     final Process? aether = _aether;
     if (aether != null && !await Directory('/proc/${aether.pid}').exists()) {
