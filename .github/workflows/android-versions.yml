@@ -80,7 +80,8 @@ jobs:
         with:
           api-level: ${{ matrix.api }}
           arch: x86_64
-          target: google_apis
+          # Android 8.1 has no google_apis image for x86_64; the plain one.
+          target: ${{ matrix.api == 27 && 'default' || 'google_apis' }}
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: bash apps/mobile/tool/android_smoke.sh apk/app-release.apk smoke
