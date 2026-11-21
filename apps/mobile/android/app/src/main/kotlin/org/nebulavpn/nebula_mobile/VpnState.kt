@@ -40,7 +40,8 @@ object VpnState {
 
     /**
      * Whose VPN is up: "own", "other", "none", or null where Android does not
-     * say -- 8 and 9 have no owner on a network.
+     * say -- before 11 there is no owner on a network (getOwnerUid is API 30;
+     * gated on 10, it crashed the app on a moto g8 plus, 2026-11-21).
      *
      * Every network, not `activeNetwork`: that one answers for the calling app,
      * and the Xray tunnel excludes this app from itself, so from in here a
@@ -61,7 +62,7 @@ object VpnState {
                 continue
             }
             anyVpn = true
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
                 capabilities.ownerUid == context.applicationInfo.uid
             ) {
                 return "own"
@@ -69,7 +70,7 @@ object VpnState {
         }
         return when {
             !anyVpn -> "none"
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> "other"
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> "other"
             else -> null
         }
     }
