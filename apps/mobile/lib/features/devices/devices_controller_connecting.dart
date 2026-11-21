@@ -266,6 +266,7 @@ mixin _Connecting on _DevicesCore {
       tunnelEstablishedAt: () => null,
       sanctionsOnly: false,
       throughWarp: () => null,
+      traits: ConnectionTraits.none,
       localProxy: () => null,
       actionErrorMessage: () => null,
     );
@@ -529,6 +530,10 @@ mixin _Connecting on _DevicesCore {
                 ref.read(advancedSettingsControllerProvider).warp.throughWarp
             ? false
             : null,
+        // Only the apps left outside change a WireGuard connection.
+        traits: tunnelUp
+            ? ConnectionTraits(bypassApps: _excludedPackages.length)
+            : ConnectionTraits.none,
         actionErrorMessage: () => tunnelError,
       );
       if (tunnelUp) {
@@ -930,6 +935,16 @@ mixin _Connecting on _DevicesCore {
                 result.transport != kWarpTransport
             ? reachesServerThroughWarp(result, settings)
             : null,
+        traits: tunnelUp
+            ? ConnectionTraits(
+                on: connectionTraits(result, settings),
+                bypassSites: routesBypassSites(result, settings)
+                    ? settings.bypassDomains.length
+                    : 0,
+                // A local proxy carries only what is sent to it.
+                bypassApps: runningProxy == null ? _excludedPackages.length : 0,
+              )
+            : ConnectionTraits.none,
         localProxy: () => runningProxy,
         actionErrorMessage: () => tunnelError,
       );
@@ -1097,6 +1112,7 @@ mixin _Connecting on _DevicesCore {
       tunnelEstablishedAt: () => null,
       sanctionsOnly: false,
       throughWarp: () => null,
+      traits: ConnectionTraits.none,
       localProxy: () => null,
     );
     _mark('disconnect: off');

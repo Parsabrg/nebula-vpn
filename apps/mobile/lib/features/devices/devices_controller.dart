@@ -34,6 +34,7 @@ import '../../core/storage/wireguard_peer_store.dart';
 import '../../core/storage/xray_credential_store.dart';
 import '../../core/tunnel/tunnel_health.dart';
 import '../../core/tunnel/tunnel_traffic.dart';
+import '../../core/wireguard/native_tunnel_channel.dart';
 import '../../core/wireguard/tunnel_controller.dart';
 import '../../core/wireguard/wireguard_config.dart';
 import '../../core/wireguard/wireguard_keys.dart';
@@ -194,6 +195,11 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
   /// Consecutive requests that did not come back through an Xray or
   /// Hysteria2 tunnel. See _checkTraffic.
   int _trafficFailedReadings = 0;
+
+  /// When the tunnel stopped answering, with a network present. The
+  /// tunnel is ended once this is [deadTunnelWindowProvider] old. See
+  /// _checkTraffic.
+  DateTime? _failingSince;
 
   /// The local proxy of the tunnel this app last started, which the traffic
   /// check asks through. Null for one picked back up after a restart.
@@ -864,6 +870,32 @@ final stillSignedInProvider = Provider<bool Function()>(
 
 /// How soon the traffic watch asks again: once after a connect, and after
 /// an unanswered reading. See DevicesController._checkTrafficSoon.
+/// How long a tunnel may go unanswered, with a network present, before it
+/// counts as dead and is ended. A minute: a Wi-Fi switch, a hand-over to
+/// mobile data or a blip on the line all recover well inside it, and Xray
+/// redials by itself -- it used to be three requests five seconds apart,
+/// which ended connections v2rayNG rode out (owner, 2026-11-16).
+/// Replaced in tests. The DNS tunnel gets three times as long: slow by
+/// nature, each of its requests may take 30 s.
+final deadTunnelWindowProvider = Provider<Duration>(
+  (Ref ref) => const Duration(minutes: 1),
+);
+
+/// Whether the device has a network to tunnel over at all. Android
+/// answers; elsewhere null, which never pauses the watch. Replaced in tests.
+final deviceHasNetworkProvider = Provider<Future<bool?> Function()>(
+  (Ref ref) => () async {
+    if (!Platform.isAndroid) {
+      return null;
+    }
+    try {
+      return await const NativeTunnelChannel().hasNetwork();
+    } on Object {
+      return null;
+    }
+  },
+);
+
 final trafficRecheckDelayProvider = Provider<Duration>(
   (Ref ref) => const Duration(seconds: 5),
 );

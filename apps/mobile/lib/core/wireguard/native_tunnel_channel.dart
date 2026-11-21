@@ -36,6 +36,12 @@ class NativeTunnelChannel {
     return _channel.invokeMethod<String>('vpnOwner');
   }
 
+  /// Android only: whether any network but a VPN offers the internet, or
+  /// null where Android does not say.
+  Future<bool?> hasNetwork() {
+    return _channel.invokeMethod<bool>('hasNetwork');
+  }
+
   /// Android only: taps on the tunnel notification's Disconnect button.
   ///
   /// The first listener also receives the tap that launched the app, if one

@@ -179,6 +179,8 @@ _harness({
   Duration? trafficInterval,
   Duration? trafficRecheck,
   Future<bool> Function(LocalProxy?)? tunnelMovesData,
+  Duration? deadWindow,
+  Future<bool?> Function()? hasNetwork,
   bool stillSignedIn = false,
   bool trafficMeaningful = true,
   bool Function()? appInFront,
@@ -270,6 +272,14 @@ _harness({
       // Out of the way unless a test is about it.
       trafficRecheckDelayProvider.overrideWithValue(
         trafficRecheck ?? const Duration(hours: 1),
+      ),
+      // Short, so the tests that wait it out do not take a minute each.
+      deadTunnelWindowProvider.overrideWithValue(
+        deadWindow ?? const Duration(milliseconds: 40),
+      ),
+      // The platform cannot tell unless a test says otherwise.
+      deviceHasNetworkProvider.overrideWithValue(
+        hasNetwork ?? () async => null,
       ),
       // Signed out unless a test says otherwise: a 401 ends the tunnel.
       stillSignedInProvider.overrideWithValue(() => stillSignedIn),
@@ -3400,13 +3410,13 @@ void _tunnelHonestyTests() {
     },
   );
 
-  test('a route that answers but stalls a download is caught', () async {
-    // The small request goes through; the 128 KB one does not. Only the soon
-    // readings move data, so the once-a-minute watch is an hour here.
+  test('a route that answers but is slow stays connected', () async {
+    // Slow is not dead (owner, 2026-11-12 and 2026-11-16): the watch asks for
+    // an answer, not for speed, which only the connect checks.
     bool moves = true;
     final harness = _harness(
       watchInterval: interval,
-      trafficInterval: const Duration(hours: 1),
+      trafficInterval: interval,
       trafficRecheck: interval,
       tunnelCarries: (_, {bool slow = false}) async => true,
       tunnelMovesData: (_) async => moves,
@@ -3420,12 +3430,83 @@ void _tunnelHonestyTests() {
     await notifier.connect(_deviceId);
     moves = false;
 
-    await _untilOff(harness.container, interval);
-    expect(
-      harness.container.read(devicesControllerProvider).tunnelEstablished,
-      isFalse,
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    final DevicesState state = harness.container.read(
+      devicesControllerProvider,
     );
-    expect(harness.xrayTunnel.connectCalls, 1);
+    expect(state.tunnelEstablished, isTrue);
+    expect(state.stall, isNull);
+  });
+
+  test(
+    'a tunnel that stops answering reads Reconnecting, then recovers',
+    () async {
+      bool carries = true;
+      final harness = _harness(
+        watchInterval: interval,
+        trafficInterval: interval,
+        trafficRecheck: interval,
+        deadWindow: const Duration(hours: 1),
+        tunnelCarries: (_, {bool slow = false}) async => carries,
+      );
+      addTearDown(harness.container.dispose);
+      final DevicesController notifier = await xraySelected(
+        harness.container,
+        harness.repository,
+      );
+      harness.xrayTunnel.sharedVpn = harness.tunnel;
+      await notifier.connect(_deviceId);
+      carries = false;
+
+      await Future<void>.delayed(interval * 10);
+      DevicesState state = harness.container.read(devicesControllerProvider);
+      expect(state.tunnelEstablished, isTrue);
+      expect(state.stall, TunnelStall.recovering);
+
+      carries = true;
+      await Future<void>.delayed(interval * 10);
+      state = harness.container.read(devicesControllerProvider);
+      expect(state.tunnelEstablished, isTrue);
+      expect(state.stall, isNull);
+      expect(harness.xrayTunnel.connectCalls, 1);
+    },
+  );
+
+  test('with no network at all, a tunnel is not ended', () async {
+    // Wi-Fi and mobile data both gone: not the protocol's fault. It waits,
+    // and the minute starts again once a network is back.
+    bool? network = false;
+    bool carries = true;
+    final harness = _harness(
+      watchInterval: interval,
+      trafficInterval: interval,
+      trafficRecheck: interval,
+      tunnelCarries: (_, {bool slow = false}) async => carries,
+      hasNetwork: () async => network,
+    );
+    addTearDown(harness.container.dispose);
+    final DevicesController notifier = await xraySelected(
+      harness.container,
+      harness.repository,
+    );
+    harness.xrayTunnel.sharedVpn = harness.tunnel;
+    await notifier.connect(_deviceId);
+    carries = false;
+
+    // Well past the 40 ms window.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    DevicesState state = harness.container.read(devicesControllerProvider);
+    expect(state.tunnelEstablished, isTrue);
+    expect(state.stall, TunnelStall.noNetwork);
+
+    network = true;
+    await _untilOff(harness.container, interval);
+    state = harness.container.read(devicesControllerProvider);
+    expect(state.tunnelEstablished, isFalse);
+    expect(
+      state.actionErrorMessage,
+      harness.container.read(appTextProvider).errorTunnelStopped,
+    );
   });
 
   test('a tunnel that stays dead ends Off with the reason', () async {
@@ -3487,12 +3568,14 @@ void _tunnelHonestyTests() {
 
   test('opening the app checks the tunnel at once', () async {
     // Off screen nothing is asked, so a tunnel that died meanwhile is found
-    // when the app is opened, not three one-a-minute checks later.
+    // when the app is opened -- and ended after the same window as always.
     bool carries = true;
+    bool inFront = false;
     final List<void Function()> onResume = <void Function()>[];
     final harness = _harness(
-      trafficMeaningful: false,
+      appInFront: () => inFront,
       onResume: onResume,
+      trafficRecheck: interval,
       tunnelCarries: (_, {bool slow = false}) async => carries,
     );
     addTearDown(harness.container.dispose);
@@ -3504,17 +3587,11 @@ void _tunnelHonestyTests() {
     await notifier.connect(_deviceId);
     carries = false;
 
+    inFront = true;
     for (final void Function() resumed in List<void Function()>.of(onResume)) {
       resumed();
     }
-    for (int waited = 0; waited < 100; waited++) {
-      if (!harness.container
-          .read(devicesControllerProvider)
-          .tunnelEstablished) {
-        break;
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    }
+    await _untilOff(harness.container, interval);
 
     expect(
       harness.container.read(devicesControllerProvider).tunnelEstablished,

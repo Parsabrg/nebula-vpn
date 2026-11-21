@@ -232,7 +232,7 @@ String renderXrayClientConfigJson(
             _withMux(
               result.transport == 'hysteria'
                   ? _hysteriaOutbound(result)
-                  : _vlessOutbound(result),
+                  : _withDeadPeerTimeout(_vlessOutbound(result)),
               settings,
             ),
             settings,
@@ -353,6 +353,10 @@ String renderXrayClientConfigJson(
       ),
       'port': warpPortFor(localProxy),
       'ready': aetherReadyLine(warpPortFor(localProxy), psiphon: psiphon),
+      // Seconds to wait for it to serve (Android reads this).
+      'readyWithin': aetherReadyWithin(
+        aetherArguments(settings.warp, warpPortFor(localProxy)),
+      ).inSeconds,
     };
   }
   // A clean Cloudflare address chosen for this very route: the tunnel dials
@@ -1028,6 +1032,63 @@ bool routingChanged(AdvancedSettings before, AdvancedSettings after) =>
     before.iranDirect != after.iranDirect ||
     !listEquals(before.bypassDomains, after.bypassDomains);
 
+/// A setting that changes how a connection behaves, shown with it.
+enum ConnectionTrait {
+  /// Reaches its server through Cloudflare WARP.
+  warp,
+
+  /// Iranian websites and addresses leave directly.
+  iranDirect,
+
+  /// Only sanctioned services go through the server.
+  sanctionsOnly,
+
+  /// The TLS hello is written in pieces.
+  fragment,
+
+  /// TCP connections share one connection to the server.
+  mux,
+
+  /// Ads are blocked (the ad-block profile).
+  adBlock,
+}
+
+/// What changes how this connection behaves: each only where it takes
+/// effect -- the same rules the config is built with -- so a setting that
+/// is on but does nothing for this protocol is not listed.
+Set<ConnectionTrait> connectionTraits(
+  XrayClientResult result,
+  AdvancedSettings settings,
+) {
+  final bool warpMode = result.transport == kWarpTransport;
+  final bool hysteria = result.transport == 'hysteria';
+  final bool throughWarp =
+      !warpMode && reachesServerThroughWarp(result, settings);
+  final bool vision = result.flow == 'xtls-rprx-vision';
+  final bool encrypted =
+      result.encryption != null && result.encryption != 'none';
+  return <ConnectionTrait>{
+    if (throughWarp) ConnectionTrait.warp,
+    if (routesIranDirect(result, settings)) ConnectionTrait.iranDirect,
+    if (routesSanctionsOnly(result, settings)) ConnectionTrait.sanctionsOnly,
+    // WARP carries the hello in place of the fragment hop.
+    if (settings.fragment.enabled && !warpMode && !hysteria && !throughWarp)
+      ConnectionTrait.fragment,
+    if (settings.muxEnabled &&
+        !warpMode &&
+        !hysteria &&
+        !vision &&
+        !encrypted &&
+        <String>{'vless', 'trojan'}.contains(result.protocol))
+      ConnectionTrait.mux,
+    if (result.adBlock) ConnectionTrait.adBlock,
+  };
+}
+
+/// Whether websites the person listed leave directly.
+bool routesBypassSites(XrayClientResult result, AdvancedSettings settings) =>
+    result.transport != 'hysteria' && settings.bypassDomains.isNotEmpty;
+
 /// Whether Iranian addresses and websites leave directly.
 bool routesIranDirect(XrayClientResult result, AdvancedSettings settings) {
   return settings.iranDirect && result.transport != 'hysteria';
@@ -1151,6 +1212,26 @@ Map<String, dynamic> _withFragment(
 }
 
 const String _fragmentTag = 'fragment';
+
+/// How long data sent to the server may go unacknowledged before Xray drops
+/// the connection and dials a fresh one (TCP_USER_TIMEOUT; TCP only, so
+/// QUIC transports ignore it). After a Wi-Fi switch or a hand-over to mobile
+/// data, connections over the old network otherwise sat dead for minutes
+/// before the system gave up on them; with this the tunnel recovers by
+/// itself within half a minute, as PattNG does (2026-11-13). Go already
+/// sends keepalives every 15 s, so idle connections are covered too.
+const int deadPeerTimeoutMs = 30000;
+
+Map<String, dynamic> _withDeadPeerTimeout(Map<String, dynamic> outbound) {
+  final Map<String, dynamic> streamSettings = <String, dynamic>{
+    ...?(outbound['streamSettings'] as Map<String, dynamic>?),
+  };
+  streamSettings['sockopt'] = <String, dynamic>{
+    ...?(streamSettings['sockopt'] as Map<String, dynamic>?),
+    'tcpUserTimeout': deadPeerTimeoutMs,
+  };
+  return <String, dynamic>{...outbound, 'streamSettings': streamSettings};
+}
 
 /// The transport of WARP mode's profile: its traffic leaves through
 /// Cloudflare WARP (Aether), not a server of ours.

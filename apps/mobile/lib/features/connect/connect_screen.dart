@@ -17,6 +17,7 @@ import '../../core/widgets/nebula/nebula_nav.dart';
 import '../../core/widgets/nebula/nebula_page.dart';
 import '../../core/widgets/nebula/nebula_rows.dart';
 import '../../core/widgets/panel/panel_atoms.dart';
+import '../../core/xray/xray_config.dart';
 import '../../l10n/app_localizations.dart';
 import '../devices/devices_controller.dart';
 import '../devices/devices_state.dart';
@@ -238,6 +239,16 @@ class ConnectStateBlock extends StatelessWidget {
       String title,
       Color? titleColor,
     ) = switch (view) {
+      // Connected but not answering: said in amber, not "Protected", for
+      // the minute it is given to recover (or while there is no network).
+      ConnectView.protected when state.stall != null => (
+        p.amber,
+        server ?? text.statusConnected,
+        state.stall == TunnelStall.noNetwork
+            ? text.wordNoNetwork
+            : text.wordReconnecting,
+        p.amberText,
+      ),
       ConnectView.protected => (
         p.ok,
         server ?? text.statusConnected,
@@ -287,6 +298,10 @@ class ConnectStateBlock extends StatelessWidget {
     final String subline =
         error ??
         switch (view) {
+          ConnectView.protected when state.stall == TunnelStall.noNetwork =>
+            text.statusWaitingForNetwork,
+          ConnectView.protected when state.stall != null =>
+            text.statusRecovering,
           ConnectView.protected when state.localProxy != null =>
             text.statusLocalProxy('127.0.0.1:${state.localProxy!.port}'),
           ConnectView.protected when state.sanctionsOnly =>
@@ -413,16 +428,14 @@ class ConnectServerRow extends StatelessWidget {
           // "Try another server" is what the error says when none of a
           // server's protocols got through: the row says where to do it.
           titleColor: view == ConnectView.notProtected ? p.amberText : null,
-          // "VLESS Encryption · through WARP": with "Reach servers through
-          // WARP" on, whether this connection actually does.
-          subtitle: switch (live ? state.throughWarp : null) {
-            true => '$protocol · ${text.viaWarp}',
-            false => '$protocol · ${text.notViaWarp}',
-            null => protocol,
-          },
-          subtitleColor: live && state.throughWarp == false
-              ? p.amberText
-              : null,
+          // "VLESS Encryption · through WARP · Iranian sites direct": on a
+          // working connection, the settings that change how it behaves --
+          // only those that apply to it, so a setting this protocol skips
+          // is simply not there.
+          subtitle: <String>[
+            protocol,
+            if (live && state.stall == null) ...traitLabels(text, state.traits),
+          ].join(' · '),
           trailing: tappable
               ? NebulaRowTrailing.valueChevron(context, text.change)
               : null,
@@ -559,3 +572,18 @@ List<String>? activeDnsResolvers(WidgetRef ref, DevicesState state) =>
     state.activeProfileCode == kDnsTunnelProfileCode
     ? ref.watch(dnsTunnelActiveResolversProvider).value
     : null;
+
+/// The settings that change how this connection behaves, in words: what
+/// follows the protocol on Connect. Only what applies to it is recorded
+/// (connectionTraits), so a setting this protocol skips is simply absent.
+List<String> traitLabels(AppText text, ConnectionTraits traits) => <String>[
+  if (traits.on.contains(ConnectionTrait.warp)) text.viaWarp,
+  if (traits.on.contains(ConnectionTrait.sanctionsOnly))
+    text.traitSanctionsOnly,
+  if (traits.on.contains(ConnectionTrait.iranDirect)) text.traitIranDirect,
+  if (traits.bypassSites > 0) text.traitSitesSkip(traits.bypassSites),
+  if (traits.bypassApps > 0) text.splitTunnelingCount(traits.bypassApps),
+  if (traits.on.contains(ConnectionTrait.fragment)) text.traitSplitHandshake,
+  if (traits.on.contains(ConnectionTrait.mux)) text.traitMux,
+  if (traits.on.contains(ConnectionTrait.adBlock)) text.traitAdBlock,
+];

@@ -5,6 +5,7 @@ import 'package:nebula_mobile/core/format/bytes.dart';
 import 'package:nebula_mobile/core/servers/server_repository.dart';
 import 'package:nebula_mobile/core/theme/color_tokens.dart';
 import 'package:nebula_mobile/core/tunnel/tunnel_traffic.dart';
+import 'package:nebula_mobile/core/xray/xray_config.dart';
 import 'package:nebula_mobile/features/connect/connect_screen.dart';
 import 'package:nebula_mobile/features/connect/connect_view.dart';
 import 'package:nebula_mobile/features/connect/connection_details_screen.dart';
@@ -415,16 +416,31 @@ void _trafficTests() {
     expect(find.textContaining('sanctioned services only'), findsOneWidget);
   });
 
-  testWidgets('says whether the connection goes through WARP', (
+  testWidgets('a working connection lists the settings that change it', (
     WidgetTester tester,
   ) async {
-    // With "Reach servers through WARP" on, the protocol line says whether
-    // this connection really does: Hysteria2 and WireGuard cannot.
-    for (final (bool? through, String? expected) in <(bool?, String?)>[
-      (true, 'through WARP'),
-      (false, 'not through WARP'),
-      (null, null),
-    ]) {
+    // After the protocol, only what applies to this connection: a setting
+    // this protocol skips (WARP for Hysteria2, say) is simply not there.
+    for (final (ConnectionTraits traits, String? expected)
+        in <(ConnectionTraits, String?)>[
+          (
+            const ConnectionTraits(on: <ConnectionTrait>{ConnectionTrait.warp}),
+            'through WARP',
+          ),
+          (
+            const ConnectionTraits(
+              on: <ConnectionTrait>{
+                ConnectionTrait.sanctionsOnly,
+                ConnectionTrait.iranDirect,
+              },
+              bypassSites: 2,
+              bypassApps: 1,
+            ),
+            'sanctioned services only · Iranian sites direct · 2 websites skip'
+                ' · 1 app bypasses',
+          ),
+          (ConnectionTraits.none, null),
+        ]) {
       await _pump(
         tester,
         ConnectView.protected,
@@ -434,15 +450,35 @@ void _trafficTests() {
           selectedServerCode: 'de-fra-1',
           xrayClient: _client,
           tunnelEstablished: true,
-          throughWarp: through,
+          traits: traits,
         ),
       );
       if (expected == null) {
         expect(find.textContaining('WARP'), findsNothing);
+        expect(find.textContaining('direct'), findsNothing);
       } else {
         expect(find.textContaining('· $expected'), findsOneWidget);
       }
     }
+    // Not while it is not answering: the line says what is running, and
+    // "Reconnecting" says it is not.
+    await _pump(
+      tester,
+      ConnectView.protected,
+      DevicesState(
+        loadStatus: DevicesLoadStatus.loaded,
+        servers: const <AvailableServer>[_frankfurt],
+        selectedServerCode: 'de-fra-1',
+        xrayClient: _client,
+        tunnelEstablished: true,
+        stall: TunnelStall.recovering,
+        traits: const ConnectionTraits(
+          on: <ConnectionTrait>{ConnectionTrait.warp},
+        ),
+      ),
+    );
+    expect(find.textContaining('through WARP'), findsNothing);
+    expect(find.text('Reconnecting'), findsOneWidget);
   });
 
   testWidgets('details: an unknown session is a dash, a known one a clock', (

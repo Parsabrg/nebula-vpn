@@ -449,6 +449,22 @@ String aetherReadyLine(int port, {bool psiphon = false}) => psiphon
     ? 'psiphon is ready; 127.0.0.1:${psiphonPortFor(port)}'
     : 'socks5 server listening on 127.0.0.1:$port';
 
+/// How long to wait for Aether to serve: its scan mode's own budget, plus
+/// half a minute to verify the address it chose, and never less than the
+/// 150 s every mode was given before. Thorough sweeps for up to 300 s and
+/// Ironclad 180 s (Aether 2.4.0's log): with a flat 150 s, Thorough from
+/// scratch could never finish (phone, home line, 2026-11-16).
+Duration aetherReadyWithin(List<String> args) {
+  final int at = args.indexOf('--scan');
+  final String mode = at < 0 || at + 1 >= args.length ? '' : args[at + 1];
+  final int budget = switch (mode) {
+    'thorough' => 300,
+    'ironclad' => 180,
+    _ => 120,
+  };
+  return Duration(seconds: budget + 30 < 150 ? 150 : budget + 30);
+}
+
 /// [psiphon]: leave through Psiphon (WARP mode with "Leave outside Iran");
 /// the binary is found next to Aether, or named by the Android plugin.
 List<String> aetherArguments(

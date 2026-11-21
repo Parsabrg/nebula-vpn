@@ -43,6 +43,7 @@ Updated in the same pull request as the work (section 92).
 
 | Section | Item | State |
 | --- | --- | --- |
+| Dependable tunnel | A connected tunnel is ended only after a minute with no answer while a network is there (was: three requests 5 s apart); no network at all counts for nothing; slow but answering stays (the download check is at connect only); Connect reads "Reconnecting" or "No network" meanwhile; Android's VPN service follows the default network (setUnderlyingNetworks, as v2rayNG); Xray drops connections that died with the old network after 30 s (tcpUserTimeout) and redials | In progress 2026-11-16: unit tests pass; phone test of Wi-Fi/mobile-data switching next |
 | Redesign | The app, admin panel and emails redrawn from `nebula-redesign`: four looks and five accents, tab pages with their own headers, a side rail on wide windows, one layout on every size (checked by a sweep over phone, tablet and desktop sizes, text up to 2x); tabs go back to their first page when tapped; HTML emails with the code side by side | In progress 2026-11-15: merged with main, release 0.1.38 next; on the phone, Windows and Linux (WSL) as test builds |
 | 96, 4 | "Reach servers through WARP" leaves relays in Iran out (Iran blocks coming in from abroad; every protocol through Tehran failed with it on); Connect shows "through WARP" or "not through WARP" after the protocol | Done 2026-11-15; REALITY Vision to Germany through WARP checked on the phone (exit DE, 16-24 Mbit/s) |
 | l10n | The redesign's 34 new strings in all nine languages | Done 2026-11-15 |

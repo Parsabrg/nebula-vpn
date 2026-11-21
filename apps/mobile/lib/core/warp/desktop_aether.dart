@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 
 import '../platform/owned_process.dart';
+import 'warp_settings.dart';
 
 /// Cloudflare WARP (Aether) on Windows and Linux, run as the person, as on
 /// Android.
@@ -219,7 +220,7 @@ Future<Process> startAether(
         .listen(onLine, onDone: onDone, onError: (Object _) {});
   }
   final bool ok = await serving.future.timeout(
-    const Duration(seconds: 150),
+    aetherReadyWithin(args),
     onTimeout: () => false,
   );
   if (!ok) {
@@ -306,7 +307,7 @@ Future<int> startAetherHidden(
     throw StateError('Cloudflare WARP did not start.');
   }
   final Map<File, int> read = <File, int>{out: 0, err: 0};
-  final DateTime deadline = DateTime.now().add(const Duration(seconds: 150));
+  final DateTime deadline = DateTime.now().add(aetherReadyWithin(args));
   while (DateTime.now().isBefore(deadline)) {
     for (final File file in read.keys.toList()) {
       try {
