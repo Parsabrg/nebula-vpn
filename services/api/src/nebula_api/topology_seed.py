@@ -68,15 +68,15 @@ HYSTERIA2_REQUIRED_PORT = 8450
 
 # Shadowsocks-2022: its own Protocol, served by Xray on a raw TCP+UDP port
 # with no TLS. Its traffic looks random, which Iran let through to the very
-# address whose TLS it stalls (home line, 2026-10-22).
+# address whose TLS it stalls.
 SHADOWSOCKS_PROTOCOL_CODE = "shadowsocks"
 SS2022_PROFILE_CODE = "shadowsocks-2022"
 SS2022_PROFILE_DISPLAY_NAME = "Shadowsocks-2022"
 SS2022_REQUIRED_PORT = 8451
 
 # Two more profiles with their own encryption and no TLS, dialled directly
-# like Shadowsocks-2022: VLESS Encryption (53 Mbit/s from the home line) and
-# VMess raw / WebSocket (39-47 Mbit/s), 2026-10-22. Not on mobile data.
+# like Shadowsocks-2022: VLESS Encryption (around 50 Mbit/s on Iranian home
+# lines) and VMess raw / WebSocket (around 40 Mbit/s). Not on mobile data.
 VLESSENC_PROFILE_CODE = "vless-enc"
 VLESSENC_REQUIRED_PORT = 8453
 REALITY_VISION_PROFILE_CODE = "vless-reality-vision"

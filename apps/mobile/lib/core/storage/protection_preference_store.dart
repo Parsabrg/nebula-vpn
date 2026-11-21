@@ -43,7 +43,7 @@ class ProtectionPreferences {
   /// Off by default: the restored tunnel starts before the app does, with
   /// the config it had, and nothing checks it carries traffic -- on a route
   /// that had stopped working it read connected and carried nothing
-  /// (owner, 2026-11-10). On only as somebody's choice.
+  ///. On only as somebody's choice.
   final bool reconnectAfterRestart;
 
   /// Windows and Linux: while connected, nothing leaves except through the

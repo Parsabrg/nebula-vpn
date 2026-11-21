@@ -98,7 +98,7 @@ class _PulsingDotState extends State<_PulsingDot>
     duration: const Duration(milliseconds: 2618),
     // A few breaths when the tunnel comes up, then still: breathing for as
     // long as the screen was open redrew it every frame, a quarter of a
-    // CPU core on the phone just to fade a dot (2026-11-12). The session
+    // CPU core on the phone just to fade a dot. The session
     // clock beside it, ticking each second, says the screen is live.
   )..repeat(count: 3);
 

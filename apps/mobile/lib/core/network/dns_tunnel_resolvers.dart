@@ -338,7 +338,7 @@ class DnsTunnelResolvers extends ChangeNotifier {
     final DateTime? at = scannedAtOn(here);
     // Also when too few worked last time: one resolver found while another
     // VPN carried the test kept the tunnel from ever working for a week
-    // (Linux, 2026-11-13).
+    //.
     if (at == null ||
         _now().difference(at) >= maxAge ||
         workingOn(here).length < minWorking) {

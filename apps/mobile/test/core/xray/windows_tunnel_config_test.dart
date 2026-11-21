@@ -56,7 +56,7 @@ tls:
 
   test('"Allow local network" keeps private networks off the TUN', () {
     // A work network behind the office router (192.168.150.x) went into
-    // the tunnel with Hysteria2 on a Windows desktop (owner, 2026-11-20).
+    // the tunnel with Hysteria2 on a Windows desktop.
     final String config = windowsHysteriaFullTunnelConfig(
       profile,
       '203.0.113.4',
@@ -305,7 +305,7 @@ void _killSwitchRanges() {
 
   test('over WARP the kill switch opens only Cloudflare\'s gateways', () {
     final List<String> ranges = windowsKillSwitchBlockedIpv4(kWarpGatewayIpv4);
-    // Gateways Aether picked on the phone (2026-11-21), its ranges' edges.
+    // Gateways Aether has picked, and the edges of its ranges.
     for (final String ip in <String>[
       '162.159.198.75',
       '162.159.199.204',

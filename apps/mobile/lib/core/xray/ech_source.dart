@@ -10,7 +10,7 @@ import 'local_proxy.dart' show dnsQuery;
 ///
 /// Every route through Cloudflare depends on this one lookup: with no key
 /// there is no ECH, and without ECH the route's name is visible and
-/// throttled (measured from Iran, 2026-10-15). One blocked resolver must not
+/// throttled. One blocked resolver must not
 /// take every route down, so the app checks which of these answers before
 /// connecting. Plain UDP to all three answered on that line while 1.1.1.1
 /// over HTTPS was reset.

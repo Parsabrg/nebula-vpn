@@ -406,8 +406,8 @@ void main() {
     WidgetTester tester,
   ) async {
     // Several screens deep (Connection details, Configuration are pushed
-    // straight onto the tab), tapping Connect did nothing (owner,
-    // 2026-11-15). Every tab tap lands on the tab's main page.
+    // straight onto the tab), tapping Connect used to do nothing. Every
+    // tab tap lands on the tab's main page.
     tester.view
       ..devicePixelRatio = 1
       ..physicalSize = const Size(400, 800);

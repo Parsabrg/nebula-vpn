@@ -79,14 +79,14 @@ class XrayInboundProfile:
     # Shadowsocks-2022 only: the inbound's own key. Set, the inbound is
     # Shadowsocks rather than VLESS, on a raw TCP+UDP listener with no TLS:
     # its traffic looks random, which Iran let through at 40-80 Mbit/s to the
-    # very address whose TLS it stalls (home line, 2026-10-22).
+    # very address whose TLS it stalls.
     ss2022_server_key: str | None = None
     # VLESS Encryption (Xray's own, no TLS): the server's `decryption` and
     # the `encryption` string its clients dial with, a pair from
-    # `xray vlessenc`. Ran 53 Mbit/s from the home line, 2026-10-22.
+    # `xray vlessenc`.
     vless_decryption: str | None = None
     vless_encryption: str | None = None
-    # VMess with no TLS: its own encryption, 39-47 Mbit/s from the home line.
+    # VMess with no TLS: its own encryption.
     vmess: bool = False
     # REALITY only: the server key, the site whose TLS handshake it borrows
     # ("host:443"), the name clients send, and the short id they show.
@@ -354,7 +354,7 @@ def render_xray_server_config(
             # 2026-10-15). IPv4 only, not `UseIP`: that picks IPv4 or IPv6
             # per connection, and YouTube ties a video's stream to the
             # address that asked for the page -- with this host on both,
-            # videos opened and never played (seen on the phone 2026-10-17).
+            # videos opened and never played.
             # In sockopt: Xray 26.10 deprecates freedom's own domainStrategy
             # and moves it there itself, so this is the same behaviour.
             {
@@ -376,7 +376,7 @@ def render_xray_server_config(
                             # Xray 26.10 refuses private and loopback targets
                             # for traffic from VLESS and the like unless a rule
                             # allows them: without this every tunnel's DNS was
-                            # blackholed (2026-11-04). Only the resolver.
+                            # blackholed. Only the resolver.
                             "finalRules": [
                                 {
                                     "action": "allow",

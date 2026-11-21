@@ -862,7 +862,7 @@ void main() {
   test('the controller survives being built again', () async {
     // Changing server rebuilds it on the same object; its dependencies were
     // set once only, and the second build threw. The app drew a grey screen
-    // after re-pairing (2026-10-29).
+    // after re-pairing.
     final harness = _harness();
     addTearDown(harness.container.dispose);
     harness.container.read(devicesControllerProvider);
@@ -1012,8 +1012,8 @@ void main() {
     });
 
     test('a handshake that carries nothing is undone too', () async {
-      // Seen on the phone: the server's handshakes got in, the phone's
-      // traffic did not, and the screen said Protected for minutes.
+      // The server's handshakes get in, the device's traffic does not,
+      // and the screen must not say Protected.
       final harness = _harness(
         tunnelCarries: (_, {bool slow = false}) async => false,
       );
@@ -1042,7 +1042,7 @@ void main() {
       'a picked protocol is up once it answers, before data moves',
       () async {
         // As in v2rayNG: the 128 KB check runs in the background for a protocol
-        // the person picked (owner, 2026-11-20); only Automatic waits for it.
+        // the person picked; only Automatic waits for it.
         final harness = _harness(tunnelMovesData: (_) async => false);
         addTearDown(harness.container.dispose);
         harness.repository.servers = <AvailableServer>[_wireGuardOnlyServer];
@@ -1400,9 +1400,9 @@ void main() {
       );
 
       test('a sign-in that cannot be renewed leaves the tunnel up', () async {
-        // Seen on the phone: the token refresh failed on a flaky network, the
-        // 401 that followed was taken for a refusal, and a working tunnel
-        // was dropped again and again.
+        // A token refresh that fails on a flaky network, followed by a 401,
+        // must not be taken for a refusal: that dropped a working tunnel
+        // again and again.
         final harness = _harness();
         addTearDown(harness.container.dispose);
         final DevicesController notifier = await saved(harness);
@@ -1444,7 +1444,7 @@ void main() {
           );
           harness.repository.requestXrayClientResult = rotated;
           // The screen stays on Connecting from the tap to the end: it
-          // flashed Off between the two tries (recorded, 2026-11-14).
+          // flashed Off between the two tries.
           final List<bool> submitting = <bool>[];
           harness.container.listen<DevicesState>(
             devicesControllerProvider,
@@ -1837,7 +1837,7 @@ void main() {
 
     test('off screen, a failed connect is not called offline', () async {
       // Android may hold back a backgrounded app's own requests; an online
-      // phone was told it was offline (2026-10-29).
+      // phone was told it was offline.
       final harness = _harness(
         tunnelCarries: (_, {bool slow = false}) async => false,
         online: () async => false,
@@ -1922,7 +1922,7 @@ void main() {
       });
 
       // The direct profiles pass a quick check but a browser's traffic over
-      // them was cut on a home line in Iran; Automatic leaves them out.
+      // them is cut on Iranian home lines; Automatic leaves them out.
       test('skips the direct, hand-picked-only profiles', () async {
         final harness = _harness(
           tunnelCarries: (_, {bool slow = false}) async => true,
@@ -2721,7 +2721,7 @@ void _selectionMemoryTests() {
 
     test('a routing change while connected reconnects to apply it', () async {
       // Changing "sanctioned services only" used to wait for the next
-      // connection, which on the phone looked like the switch doing nothing.
+      // connection, which looked like the switch doing nothing.
       final harness = _harness();
       addTearDown(harness.container.dispose);
       harness.repository.servers = <AvailableServer>[_xrayOnlyServer];
@@ -3115,8 +3115,8 @@ void _connectOnLaunchTests() {
 
 /// "Protected" is only ever shown over a tunnel Android actually lists.
 ///
-/// Found on the phone: reopening the app while a tunnel was still up and
-/// pressing Connect left the screen saying Protected, with no VPN at all.
+/// Reopening the app while a tunnel was still up and pressing Connect used
+/// to leave the screen saying Protected, with no VPN at all.
 void _tunnelHonestyTests() {
   const Duration interval = Duration(milliseconds: 5);
 
@@ -3402,7 +3402,7 @@ void _tunnelHonestyTests() {
   );
 
   test('a route that answers but is slow stays connected', () async {
-    // Slow is not dead (owner, 2026-11-12 and 2026-11-16): the watch asks for
+    // Slow is not dead: the watch asks for
     // an answer, not for speed, which only the connect checks.
     bool moves = true;
     final harness = _harness(
@@ -4517,8 +4517,7 @@ void _accessTests() {
 
   test('a spent allowance stops the tunnel and says why', () async {
     // What the server does to a spent account leaves the tunnel carrying
-    // nothing and the screen saying Protected. Measured on the phone: twenty
-    // minutes of it.
+    // nothing and the screen saying Protected, for as long as it lasts.
     await expectEnded(
       _accounts(
         account: _account(quotaBytes: 30 * 1024 * 1024, remainingBytes: 0),
@@ -4549,7 +4548,7 @@ void _accessTests() {
 
   test('a revoked credential on a server still offered is replaced', () async {
     // A saved copy of a credential the server had revoked raised a working
-    // tunnel, and "access ended" followed (phone, 2026-10-30): the account
+    // tunnel, and "access ended" followed: the account
     // still had the server. Asked afresh, the server lists it again.
     final FakeAccountRepository accounts = _accounts(
       devices: <AccountDevice>[_thisDevice(serverCodes: <String>[])],

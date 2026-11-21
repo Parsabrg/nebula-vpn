@@ -1,7 +1,7 @@
-"""The DNS tunnel's server (plan 10; ADR 0004, 2026-11-05 revision).
+"""The DNS tunnel's server.
 
-CottenDNS answers one delegated name behind the owner's CottenRouter on port
-53, which forwards it to the loopback address here. Fixed-TCP-target mode:
+CottenDNS answers one delegated name behind the server's CottenRouter on
+port 53, which forwards it to the loopback address here. Fixed-TCP-target mode:
 every tunnelled connection goes to this server's VLESS Encryption inbound, so
 the tunnel key alone reaches nothing -- a Nebula credential is still needed,
 and revocation and allowances apply as on any other route.

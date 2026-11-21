@@ -142,14 +142,14 @@ final localProxyFactoryProvider = Provider<Future<LocalProxy> Function()>(
 /// On Android this app is kept out of its own tunnel (the engine's sockets
 /// must not loop back into it), so an ordinary request from here goes
 /// straight to the network and answers whenever the phone is online. That
-/// said "Protected" for a tunnel that carried nothing (seen 2026-10-06 on a
-/// throttled address). Asked through the proxy tun2socks feeds, the request
+/// said "Protected" for a tunnel that carried nothing (on a throttled
+/// address). Asked through the proxy tun2socks feeds, the request
 /// takes the tunnel's own path.
 ///
 /// HTTPS, not plain HTTP: through the server's throttled direct address,
 /// plain requests inside the tunnel were answered while every HTTPS page --
 /// TLS inside the tunnel's own TLS -- hung after its handshake, and a phone
-/// showed "Protected" over a tunnel nobody could browse with (2026-10-14).
+/// showed "Protected" over a tunnel nobody could browse with.
 /// The certificate is checked: a blockpage answering for the name is not an
 /// answer. [onBadCertificate] is for tests only.
 Future<bool> answersThroughSocks(

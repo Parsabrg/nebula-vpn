@@ -37,8 +37,7 @@ final tunnelTrafficProvider = StreamProvider.autoDispose<TunnelTraffic?>((
 ) {
   // Only what makes a session: rebuilt on every change of the controller's
   // state, the figures restarted from a new baseline and showed "-" -- with a
-  // subscription's list refreshing and its tests running, for good (owner's
-  // video, 2026-11-10).
+  // subscription's list refreshing and its tests running, for good.
   final ({
     bool tunnelEstablished,
     String? activeProtocolCode,

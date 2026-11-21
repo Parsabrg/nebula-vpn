@@ -8,11 +8,11 @@ import 'dart:io';
 ///   ours, no account; Cloudflare's free WARP service carries it.
 /// - [WarpSettings.throughWarp]: a Nebula server is reached *through* WARP,
 ///   so the network only ever sees Cloudflare, while the exit, the account
-///   and its limits stay ours. Measured 2026-11-13 on the owner's home line,
-///   where the server's own address is throttled: 2.6-2.9 MB/s, exit DE.
+///   and its limits stay ours. Where the server's own address is
+///   throttled, this has carried 2.6-2.9 MB/s.
 ///
-/// MASQUE over HTTP/2 is the default because it is what got through on the
-/// owner's line (3-4 MB/s, 2026-11-13) while WireGuard and HTTP/3 did not;
+/// MASQUE over HTTP/2 is the default because it gets through in Iran where
+/// WireGuard and HTTP/3 do not;
 /// Aether's own default is HTTP/3.
 
 enum WarpProtocol {
@@ -453,7 +453,7 @@ String aetherReadyLine(int port, {bool psiphon = false}) => psiphon
 /// half a minute to verify the address it chose, and never less than the
 /// 150 s every mode was given before. Thorough sweeps for up to 300 s and
 /// Ironclad 180 s (Aether 2.4.0's log): with a flat 150 s, Thorough from
-/// scratch could never finish (phone, home line, 2026-11-16).
+/// scratch could never finish.
 Duration aetherReadyWithin(List<String> args) {
   final int at = args.indexOf('--scan');
   final String mode = at < 0 || at + 1 >= args.length ? '' : args[at + 1];

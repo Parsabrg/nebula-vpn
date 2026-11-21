@@ -83,7 +83,7 @@ typedef TrafficMark = ({int rx, int tx, DateTime at});
 /// least 4 KB sent since anything was last received, 15 s ago or more. How a
 /// route that throttles bigger transfers looks between the minute checks --
 /// direct to Germany from Iran answered small requests and then stalled
-/// pages and video (2026-11-11).
+/// pages and video.
 bool trafficStalled(TunnelTraffic reading, TrafficMark? last, DateTime now) {
   if (last == null || reading.rxBytes > last.rx) {
     return false;
@@ -108,7 +108,7 @@ const String _delayProbeUrl = 'https://www.gstatic.com/generate_204';
 
 /// What the per-protocol test fetches: 128 KB, read to the end. A delay to
 /// the tiny URL above read as working on routes that answer small requests
-/// and stall anything bigger (owner, 2026-11-10); the delay shown is still
+/// and stall anything bigger; the delay shown is still
 /// the time to the first answer.
 const String _protocolTestUrl =
     'https://speed.cloudflare.com/__down?bytes=$dataProbeBytes';
@@ -311,7 +311,7 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
     }
     // A protocol picked by hand that failed last time is not tried again
     // unasked: a dead server held every launch at Connecting for over a
-    // minute (2026-10-17). Automatic still runs; it moves on by itself.
+    // minute. Automatic still runs; it moves on by itself.
     final String serverCode = state.selectedServerCode!;
     final String profileCode = state.selectedProfileCode!;
     if (profileCode != automaticProfileCode) {
@@ -791,7 +791,7 @@ final trafficCheckIntervalProvider = Provider<Duration>(
 
 /// Whether a [dataProbeBytes] download completes through the tunnel; see
 /// DevicesController._tunnelAnswers. Cloudflare's speed endpoint answered
-/// from both an Iranian and a German exit (2026-10-30).
+/// from both an Iranian and a German exit.
 const int dataProbeBytes = 131072;
 
 /// What the YouTube half of the data check must receive when it gets the page.
@@ -801,7 +801,7 @@ const int _pageProbeBytes = 32768;
 /// the YouTube home page, at once. Cloudflare alone was not enough: direct to
 /// Germany from Iran it kept downloading while YouTube failed to play and
 /// Google, Telegram and GitHub stalled, and the screen said Protected
-/// (2026-11-11). A redirect from YouTube (a consent page) still counts as an
+///. A redirect from YouTube (a consent page) still counts as an
 /// answer, so a working tunnel is never turned off over one.
 final tunnelMovesDataProvider =
     Provider<Future<bool> Function(LocalProxy? through)>(
@@ -887,7 +887,7 @@ final stillSignedInProvider = Provider<bool Function()>(
 /// counts as dead and is ended. A minute: a Wi-Fi switch, a hand-over to
 /// mobile data or a blip on the line all recover well inside it, and Xray
 /// redials by itself -- it used to be three requests five seconds apart,
-/// which ended connections v2rayNG rode out (owner, 2026-11-16).
+/// which ended connections v2rayNG rode out.
 /// Replaced in tests. The DNS tunnel gets three times as long: slow by
 /// nature, each of its requests may take 30 s.
 final deadTunnelWindowProvider = Provider<Duration>(
@@ -1003,11 +1003,11 @@ final deviceOnlineProvider = Provider<Future<bool> Function()>(
         'https://connectivitycheck.gstatic.com/generate_204',
         // Not Google: on a filtered day Google alone timed out while the
         // network worked, and the app told a connected phone it was offline
-        // (2026-10-18).
+        //.
         'https://checkip.amazonaws.com/',
-        // Neither answered from a home line in Iran on 2026-11-21 (both
-        // left hanging), and a Windows connect that failed for another
-        // reason was told "You're offline". Cloudflare answers there.
+        // Both can go unanswered from Iran while the network works, and a
+        // connect that failed for another reason was then reported as
+        // "You're offline". Cloudflare answers there.
         'https://www.cloudflare.com/cdn-cgi/trace',
       ]),
 );

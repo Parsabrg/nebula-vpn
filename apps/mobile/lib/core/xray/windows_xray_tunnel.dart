@@ -282,7 +282,7 @@ class WindowsXrayRuntime {
         // otherwise the server. Off over WARP only where the far end is not
         // known beforehand: leaving through Psiphon, or WARP over IPv6.
         // It used to be off over WARP and the DNS tunnel altogether, with
-        // nothing on screen saying so (audit, 2026-11-21).
+        // nothing on screen saying so.
         killSwitch:
             killSwitch &&
             (aether == null ||
@@ -583,7 +583,7 @@ class WindowsXrayRuntime {
       // VLESS and VMess name their server under vnext; Hysteria2 and
       // Shadowsocks under servers. Reading only vnext, every Shadowsocks-2022
       // connect on Windows ended in "could not resolve the VPN server
-      // address" before it dialled anything (owner, 2026-11-21).
+      // address" before it dialled anything.
       final List<dynamic> servers =
           (settings['vnext'] ?? settings['servers']) as List<dynamic>;
       return (servers.first as Map<String, dynamic>)['address'] as String?;

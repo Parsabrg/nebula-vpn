@@ -104,7 +104,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     ];
     // A tab tap lands on that tab's main page, however deep it was left:
     // several screens into Connection details, tapping Connect did nothing
-    // (owner, 2026-11-15), because those screens are pushed straight onto
+    //, because those screens are pushed straight onto
     // the tab's navigator, which the router's own reset leaves alone.
     void goBranch(int index) {
       popHomeBranch(ref, index);
@@ -118,8 +118,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       location: roots[navigationShell.currentIndex],
       // Settings is a tab wherever it would otherwise be hard to find: on a
       // narrow desktop window (phone layout, no sidebar) and in free mode,
-      // where it sat at the bottom of the Free page, out of sight (owner,
-      // 2026-11-20).
+      // where it sat at the bottom of the Free page, out of sight.
       withSettings: desktop || free || Platform.isWindows || Platform.isLinux,
       goBranch: goBranch,
     );

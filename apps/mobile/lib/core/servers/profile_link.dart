@@ -65,7 +65,7 @@ ImportedProfile? parseLink(String text) {
 /// The link's Encrypted Client Hello setting (Xray's `echConfigList`), as
 /// v2rayN and v2rayNG write it: `ech=cloudflare-ech.com+udp://1.1.1.1`.
 /// Dropped, a Cloudflare link carried nothing from Iran where the same link
-/// worked in v2rayN (2026-10-14).
+/// worked in v2rayN.
 String? _ech(Map<String, String> query) {
   final String value = (query['ech'] ?? '').trim();
   return value.isEmpty ? null : value;

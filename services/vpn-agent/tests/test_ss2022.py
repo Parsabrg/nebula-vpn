@@ -1,7 +1,7 @@
 """Shadowsocks-2022: an inbound with no TLS whose traffic looks random.
 
-Iran let it through to the very address whose TLS it stalls (home line,
-2026-10-22), so it is served beside the VLESS transports, its users added and
+Iran lets it through to the very address whose TLS it stalls, so it is
+served beside the VLESS transports, its users added and
 removed live the same way.
 """
 

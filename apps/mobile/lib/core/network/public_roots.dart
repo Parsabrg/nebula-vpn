@@ -7,7 +7,7 @@ import 'dart:io' show SecurityContext, TlsException;
 /// fetch a missing one the way Windows' own networking does. A fresh PC
 /// ships with a small store, so until something else had loaded ISRG Root X1
 /// the server's Let's Encrypt certificate did not verify and the app said
-/// "You're offline" (Windows Sandbox, 2026-11-21). Android 8+ and Linux
+/// "You're offline". Android 8+ and Linux
 /// distributions carry them; added there too, for a minimal or odd store.
 ///
 /// SHA-256: X1 96:BC:EC:06:...:08:C6, X2 69:72:9B:8E:...:14:70.

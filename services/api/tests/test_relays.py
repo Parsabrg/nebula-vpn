@@ -362,7 +362,7 @@ def test_relay_codes_are_unique_and_empty_means_none() -> None:
 
 def test_a_device_on_the_exit_also_holds_its_relays() -> None:
     # The app ends a tunnel whose server is missing from its device's codes;
-    # without this, a relay tunnel dropped with "access ended" (phone, 2026-11-04).
+    # without this, a relay tunnel dropped with "access ended".
     relays = parse_relays(RELAYS)
     assert with_relay_codes(["de-1", "thr"], relays) == ["de-1", "de-via-thr", "thr"]
     assert with_relay_codes(["thr"], relays) == ["thr"]

@@ -62,7 +62,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           );
       // Tells the password manager the sign-in worked: it offers to save the
       // password, or to update a saved one that differs. Without this it was
-      // never asked, and saved once only by chance (2026-10-31).
+      // never asked, and saved once only by chance.
       TextInput.finishAutofillContext();
     } catch (error) {
       if (mounted) {

@@ -208,9 +208,8 @@ class LinuxXrayRuntime {
         config: configFile,
         dnsServers: resolvers,
         // Over the DNS tunnel the kill switch lets its resolvers out too:
-        // its engine runs as the person and cannot mark its sockets. It was
-        // off there altogether, with nothing on screen saying so (audit,
-        // 2026-11-21). WARP needs nothing: Aether's traffic is marked.
+        // its engine runs as the person and cannot mark its sockets. WARP
+        // needs nothing: Aether's traffic is marked.
         killSwitch: killSwitch,
         killSwitchAllows: dnsTunnel == null ? const <String>[] : bypass,
         // "Allow local network": private networks keep the normal routes.

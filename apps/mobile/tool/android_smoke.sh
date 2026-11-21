@@ -7,7 +7,7 @@
 #
 # It checks that the app runs on that Android version, not that a tunnel
 # gets through: CI's network is not the one the app is built for. A crash
-# like getOwnerUid() on Android 10 (2026-11-21) is what it catches.
+# like getOwnerUid() on Android 10 is what it catches.
 set -u
 APK=$1
 OUT=${2:-smoke}

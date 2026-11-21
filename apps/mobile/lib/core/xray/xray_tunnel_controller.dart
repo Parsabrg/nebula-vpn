@@ -211,7 +211,7 @@ class AndroidXrayTunnelController implements XrayTunnelController {
       await completer.future.timeout(
         // The DNS tunnel's engine finds resolvers before Xray starts; the
         // plugin itself gives up after 90 s. Aether serves only after its
-        // scan and data check (25 s on the owner's line); the plugin gives
+        // scan and data check (typically 25 s); the plugin gives
         // it 150 s.
         xrayConfigJson.contains('"nebulaAether"')
             ? const Duration(seconds: 160)
@@ -329,7 +329,7 @@ final xrayTunnelControllerProvider = Provider<XrayTunnelController>((Ref ref) {
 /// The engine never reported the tunnel up: for Hysteria2, its client never
 /// finished the handshake (a network that drops UDP), and the native side
 /// tore it down. Said as a protocol that did not get through, not as
-/// "something went wrong" (seen on the phone, 2026-10-17).
+/// "something went wrong".
 class TunnelStartTimeout implements Exception {
   const TunnelStartTimeout();
 

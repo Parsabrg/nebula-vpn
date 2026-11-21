@@ -16,7 +16,7 @@ up" below.
 Both files, together. Either alone is useless.
 
 They live outside every copy of the repository, in `~/.nebula-release/`
-on the release machine (owner only), where the Android build looks for
+on the release machine (maintainers only), where the Android build looks for
 them; `NEBULA_KEY_PROPERTIES` can name another `key.properties`. Inside
 the tree they were one `git add -f` away from being published (client
 review S-09, moved 2026-11-16).

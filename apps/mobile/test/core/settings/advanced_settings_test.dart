@@ -159,7 +159,7 @@ void main() {
       expect(mux['enabled'], isTrue);
       expect(mux['concurrency'], -1);
       expect(mux['xudpConcurrency'], 16);
-      // QUIC carried, as v2rayNG does (owner, 2026-11-20).
+      // QUIC carried, as v2rayNG does.
       expect(mux['xudpProxyUDP443'], 'allow');
     });
 

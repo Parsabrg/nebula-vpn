@@ -149,7 +149,7 @@ void main() {
     test('a change elsewhere in the state does not restart them', () async {
       // A subscription refreshing or its tests running changed the state
       // every few seconds, and each change restarted the figures at "-"
-      // (owner's video, 2026-11-10).
+      //.
       final FakeXrayTunnelController xray = FakeXrayTunnelController();
       final _StubDevicesController controller = _StubDevicesController(
         _state(tunnel: true, protocol: 'vless-xhttp-tls'),

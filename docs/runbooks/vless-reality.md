@@ -12,7 +12,7 @@ Both are dialled at the server itself, never through the CDN route.
 
 ## Turning it on
 
-It opens two new ports, so the owner decides, server by server.
+It opens two new ports, so the operator decides, server by server.
 
 ```sh
 sudo ./install.sh --configure

@@ -41,8 +41,8 @@ object VpnState {
 
     /**
      * Whose VPN is up: "own", "other", "none", or null where Android does not
-     * say -- before 11 there is no owner on a network (getOwnerUid is API 30;
-     * gated on 10, it crashed the app on a moto g8 plus, 2026-11-21).
+     * say -- before 11 there is no owner on a network (getOwnerUid is API
+     * 30; called on Android 10, it crashes).
      *
      * Every network, not `activeNetwork`: that one answers for the calling app,
      * and the Xray tunnel excludes this app from itself, so from in here a
@@ -75,7 +75,7 @@ object VpnState {
             // 8-10 name no owner. A VPN up while this app's own VPN service
             // runs is this app's: answered "unknown", the app opened from
             // the notification showed Off over its own running tunnel
-            // (moto g8 plus, Android 10, 2026-11-21).
+            //.
             ownVpnServiceRunning(context) -> "own"
             else -> null
         }

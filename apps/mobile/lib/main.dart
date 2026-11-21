@@ -121,7 +121,7 @@ Future<void> main(List<String> arguments) async {
 
 /// Shows the window and makes sure it is painted. Started hidden at sign-in
 /// and opened from the tray, the window stayed white: Flutter had not drawn
-/// into it while it was hidden (owner, Windows, 2026-11-10). A forced frame
+/// into it while it was hidden. A forced frame
 /// and a one-pixel size nudge make it draw.
 Future<void> _showWindow() async {
   final Window? window = WindowManager.instance.getCurrent();

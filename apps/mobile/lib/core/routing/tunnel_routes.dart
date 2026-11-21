@@ -55,9 +55,9 @@ const String kIPv6Everything = '::/0';
 
 /// The private networks "Allow local network" keeps off the tunnel on
 /// Windows and Linux, where routes are added around the tunnel rather than
-/// listed: a work network over 192.168.150.x behind the office router,
+/// listed: a work network such as 192.168.150.x behind an office router,
 /// not only the subnet the machine sits on (which its own route already
-/// covers). Seen on a Windows desktop, 2026-11-20: Hysteria2 took them all.
+/// covers). Without them Hysteria2's routes took the whole range.
 const List<String> kPrivateRanges = <String>[
   '10.0.0.0/8',
   '172.16.0.0/12',

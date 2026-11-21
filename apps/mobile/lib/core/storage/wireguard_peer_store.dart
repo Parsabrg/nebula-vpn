@@ -10,7 +10,7 @@ import '../servers/server_repository.dart';
 /// Kept so a connect can bring the tunnel up at once, as v2rayNG starts from
 /// its saved config, instead of asking the control plane first: that request
 /// is a round trip to the API and from there to the server's agent, which
-/// was most of a WireGuard connect from Iran (2026-11-03). The server keeps
+/// was most of a WireGuard connect from Iran. The server keeps
 /// the peer until sign-out, an admin, or the account's access or data
 /// running out removes it; a saved peer that no longer answers is forgotten
 /// and asked for again.

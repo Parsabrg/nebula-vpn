@@ -55,7 +55,7 @@ class AvailableProfile {
   /// The direct, self-encrypted profiles (Shadowsocks-2022, VLESS
   /// Encryption, VMess). Automatic leaves them out: they pass a quick check,
   /// but a browser's traffic over them was cut about 2.5 KB into each
-  /// connection on a home line in Iran (Chrome on the phone, 2026-10-23),
+  /// connection on a home line in Iran,
   /// so a page hung while the app said Protected. Still there to pick by
   /// hand.
   bool get manualOnly =>

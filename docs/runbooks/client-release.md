@@ -16,7 +16,7 @@ gives (the app then learns the deployment's other routes from `/v1/routes`).
 A build with a deployment's addresses compiled in is a private build for
 that deployment only, never a published release.
 
-0.1.31 is the one exception, and the last: it still carries the owner
+0.1.31 is the one exception, and the last: it still carries the operator
 deployment's address and keeps it as the phone's pairing on first launch
 (`pairing_providers.dart`), so the generic 0.1.32 that follows does not send
 every existing user back to the pairing screen. Build it without the
@@ -140,7 +140,7 @@ tested. No links to the deployment, no tokens, no keys.
 ## 5. Promote
 
 Test the pre-release on a real phone and on Windows before it becomes the
-default download (0.1.5 was published untested and pulled). Then the owner
+default download (0.1.5 was published untested and pulled). Then the operator
 promotes it:
 
 ```sh

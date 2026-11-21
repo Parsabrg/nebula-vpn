@@ -122,7 +122,7 @@ class AuthInterceptor extends Interceptor {
     } on NebulaConnectivityException catch (refreshError) {
       // The refresh never reached the server. That is not the server
       // refusing anyone: surfaced as the 401 it followed, a network hiccup
-      // read "Authentication was not accepted" (Windows, 2026-10-18), while
+      // read "Authentication was not accepted", while
       // the session itself was fine. Reported as what it was.
       handler.next(
         DioException(
@@ -141,7 +141,7 @@ class AuthInterceptor extends Interceptor {
       // The server answered the refresh but did not judge the session: a
       // 429 (rate limited) or a 503 (its auth store down). The session is
       // fine; the caller sees that answer, not the 401 it followed, which
-      // read as signed out and took a connected tunnel down (2026-10-30).
+      // read as signed out and took a connected tunnel down.
       handler.next(
         DioException(
           requestOptions: request,

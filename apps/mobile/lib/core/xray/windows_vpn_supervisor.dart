@@ -230,7 +230,7 @@ try {
   # One session runs at a time, so a rule of ours still here is a session
   # that ended without its cleanup (a crash, a power cut). Left, it kept
   # sending every lookup to the tunnel's resolver with the VPN off, and the
-  # check below then added no rule of this session's own (seen 2026-10-17).
+  # check below then added no rule of this session's own.
   Get-DnsClientNrptRule -ErrorAction SilentlyContinue |
     Where-Object { $_.Comment -like 'Nebula VPN session *' } |
     ForEach-Object { Remove-DnsClientNrptRule -Name $_.Name -Force -ErrorAction SilentlyContinue }

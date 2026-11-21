@@ -4,7 +4,7 @@ name: Android versions
 # each on an emulator: installed, opened, connected in free mode, and
 # failed on any crash (apps/mobile/tool/android_smoke.sh). Real phones
 # cover only a few versions; on Android 10 the app's screen died on a call
-# from API 30 (2026-11-21), which nothing here would have noticed before.
+# from API 30, which nothing here would have noticed before.
 
 on:
   pull_request:

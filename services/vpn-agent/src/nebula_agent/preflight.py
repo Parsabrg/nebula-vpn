@@ -96,7 +96,7 @@ async def check_advertised_endpoints(
         reachable, detail = await _probe(host, port)
         if not reachable:
             # One more try before calling it dead: a host connecting to its own
-            # public address lost one connection in five at times (2026-10-26)
+            # public address lost one connection in five at times
             # while outside clients connected every time.
             reachable, detail = await _probe(host, port)
         results.append(EndpointCheck(code, host, port, transport, reachable, detail))

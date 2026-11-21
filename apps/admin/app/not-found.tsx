@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 
 /**
  * A wrong address in the panel. Next's own page was black with no way back
- * (found in the 2026-11-01 sweep).
+ *.
  */
 export default function NotFound() {
   return (

@@ -77,7 +77,7 @@ rather than assumed.
 | Hysteria2 client | Mihomo `hysteria2.go`, or upstream library | MIT | see D5; not yet chosen |
 | TUN <-> SOCKS bridge | `hev-socks5-tunnel` | MIT | built per ABI, as v2rayNG does |
 | DNS tunnel engine | `WhiteDNS/CottenDNS` | MIT (bundles QUIC-GO, QPACK and SOAR licences) | its **released** clients, pinned by version and sha256: CLI for Windows and Linux, the Android engine bundle (4 ABIs). Nothing ported or rebuilt (revised 2026-11-05, below; it was a submodule pinned at `8eea49d`) |
-| DNS tunnel server | same project, released server | MIT | a Nebula-only backend behind the owner's CottenRouter on the VPS (2026-11-05) |
+| DNS tunnel server | same project, released server | MIT | a Nebula-only backend behind the server's CottenRouter on the VPS (2026-11-05) |
 
 The DNS lineage is MasterDnsVPN -> StormDNS -> CottenDNS, MIT throughout, and
 CottenDNS keeps wire compatibility with the older clients. It is the actively
@@ -271,7 +271,7 @@ exposed so the UI can show movement rather than a state word.
 
 ## 2026-11-05 revision: the DNS tunnel (plan 10)
 
-Decided by the owner after reading the WhiteDNS projects. It replaces the DNS
+Decided after reading the WhiteDNS projects. It replaces the DNS
 parts of D0 and of steps 7-9 below; the rest of this ADR stands. Built after
 plan 6, unless a shutdown looks likely.
 
@@ -284,8 +284,8 @@ WhiteDNS-Android (code, resolver lists or assets): its licence is proprietary
 ("source-available, not open-source").
 
 **Server (the German VPS).**
-- A new CottenDNS backend just for Nebula, behind the owner's existing
-  CottenRouter on port 53, on a name under a separate domain. The owner adds the
+- A new CottenDNS backend just for Nebula, behind an existing
+  CottenRouter on port 53, on a name under a separate domain. The operator adds the
   router rule and the DNS records (an NS record and its glue A record, DNS only,
   not proxied); the runbook gives them exactly. Nothing else on port 53 changes.
 - Fixed-TCP-target mode, pointing only at Nebula's VLESS Encryption inbound on

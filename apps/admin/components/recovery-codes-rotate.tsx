@@ -6,7 +6,7 @@ import { RecoveryCodeActions } from "./login-flow";
 
 /**
  * New single-use recovery codes, replacing the old ones. There was no way to
- * do this from the panel: codes that leaked (a screenshot, 2026-10-29) stayed
+ * do this from the panel: codes that leaked stayed
  * valid with nothing an admin could do about it.
  */
 export function RecoveryCodesRotate() {

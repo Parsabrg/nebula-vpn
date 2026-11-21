@@ -35,7 +35,7 @@ int RunElevatedStep(const wchar_t* powershell_arguments) {
   // Out of the app's job (see wWinMain). Windows puts this elevated process
   // in it, as the child of the app that asked for it, and closing the job
   // ended the helper mid-session: its DNS rule and kill switch stayed, and
-  // the PC had no internet after Exit until a reset (owner, 2026-11-20).
+  // the PC had no internet after Exit until a reset.
   // Outside, the helper sees the app gone and undoes them, as it was built
   // to. Where breaking away is refused, it starts as before.
   if (!::CreateProcessW(powershell.c_str(), command.data(), nullptr, nullptr,
@@ -103,7 +103,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // Every engine the app starts (the DNS tunnel, proxy-mode Xray and
   // Hysteria, Aether) is a process of its own. Stopping them is the app's
   // job, which a crash, an End task or a power cut skips: a DNS tunnel
-  // engine was found still running three days on (owner, 2026-11-15). In a
+  // engine was found still running three days on. In a
   // job that ends its processes when it closes, Windows stops them however
   // the app ends. The handle is never closed by hand; the app's exit closes
   // it. The elevated VPN helper lands in it too -- Windows starts it as this

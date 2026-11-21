@@ -461,7 +461,7 @@ class FakeResolverHealth:
 
 def test_a_server_whose_resolver_does_not_answer_hands_out_none() -> None:
     # A joined server without its own resolver blackholed every lookup sent
-    # to the redirected address (Tehran, 2026-11-04): the app keeps its own.
+    # to the redirected address: the app keeps its own.
     with _cdn_client(
         FakeProvisioningService(), xray_client_dns="198.18.0.53", resolver_up=False
     ) as client:
@@ -491,7 +491,7 @@ def test_request_xray_client_through_the_cdn_points_the_tunnel_through_it() -> N
     assert body["transport_security"] == "tls"
     assert body["path"] == "/xhttp"
     # Through Cloudflare, with Encrypted Client Hello: without it the tunnel
-    # carried nothing from Iran (2026-10-07).
+    # carried nothing from Iran.
     assert body["ech_config_list"] == "cloudflare-ech.com+udp://1.1.1.1"
 
 
@@ -661,7 +661,7 @@ def test_the_deployments_resolver_is_handed_to_xray_clients() -> None:
 
 def test_hysteria_clients_are_given_the_resolver_too() -> None:
     # The Hysteria2 server lets the address through and the host redirects
-    # it to its resolver; plain DNS from Tehran was forged (2026-11-04).
+    # it to its resolver; plain DNS from Tehran was forged.
     service = FakeProvisioningService()
     service.xray_request_result = replace(
         service.xray_request_result, transport="hysteria", port=8450, path=None

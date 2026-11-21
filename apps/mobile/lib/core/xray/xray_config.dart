@@ -135,7 +135,7 @@ String renderWireGuardDelayProbeConfigJson({
 ///
 /// [apiHosts] are the app's own API addresses. They always go through the
 /// server, whatever the routing mode: sent straight out, on a network that
-/// stalls them (mobile data, 2026-10-20) the tunnel worked while the account
+/// stalls them the tunnel worked while the account
 /// and device list said "offline".
 String renderXrayClientConfigJson(
   XrayClientResult result, {
@@ -217,8 +217,7 @@ String renderXrayClientConfigJson(
             // address the app already resolved. Without it, the name went
             // on to the server or Aether, which looked it up again through
             // the tunnel: a round trip on every new connection, ~450 ms
-            // over WARP on MCI (TLS 780 ms against PattNG's 300 ms on the
-            // same endpoint, phone, 2026-11-21).
+            // over WARP on mobile data.
             'routeOnly': true,
           },
       },
@@ -260,7 +259,7 @@ String renderXrayClientConfigJson(
       'routing': <String, dynamic>{
         // No 'IPIfNonMatch': it looked every new name up through the tunnel
         // before routing it, a round trip per site that on a slow route
-        // made pages and apps start late and unevenly (owner, 2026-11-10).
+        // made pages and apps start late and unevenly.
         // Iranian sites are matched by name (.ir and the known list) and
         // Iranian addresses when an app connects to one directly.
         'rules': <Map<String, dynamic>>[
@@ -400,8 +399,8 @@ enum CdnDial {
   asGiven,
 
   /// No ECH, a plain Chrome hello and the transport's ALPN, through a clean
-  /// address: partly through on a TCI home line on 2026-10-22 (1 request in 4
-  /// and a whole 3 MB download) when nothing else Cloudflare carried was.
+  /// address: on some Iranian home lines this gets partly through (1 request
+  /// in 4, and whole downloads) when nothing else through Cloudflare does.
   plain,
 
   /// The "F&F" shape reported to pass the Irancell firewall: a clean
@@ -731,7 +730,7 @@ const Map<String, dynamic> _adBlockDnsModule = <String, dynamic>{
 /// resolver sent lookups into a tunnel that dropped them (measured on a
 /// phone: the VPN's `ValidatedPrivateDnsAddresses` listed only the v4 one,
 /// every lookup paying for the attempt). hev-socks5-tunnel does carry IPv6
-/// -- a phone's IPv6 went out at the server's address on 2026-10-14 -- and
+/// -- IPv6 traffic leaves at the server's address -- and
 /// the resolver is reached over the tunnel either way, so v4 still answers
 /// AAAA questions; nothing is gained by adding a v6 address here.
 const Map<String, dynamic> _plainDnsModule = <String, dynamic>{
@@ -822,8 +821,7 @@ Map<String, dynamic> _vlessStreamSettings(XrayClientResult result) {
 
 /// Encrypted Client Hello for a tunnel through Cloudflare, or null.
 ///
-/// Measured from Iran on 2026-10-07, on a home line and on Hamrah-e-Avval
-/// mobile data: WebSocket, XHTTP and gRPC through Cloudflare -- a free
+/// From Iran, on home lines and on Hamrah-e-Avval mobile data: WebSocket, XHTTP and gRPC through Cloudflare -- a free
 /// relay on `workers.dev` too -- carried nothing over HTTPS without it and
 /// everything with it, and the hello written in pieces that got a relay
 /// through on 2026-10-02 no longer did. With ECH the name the network sees is
@@ -1118,8 +1116,8 @@ bool routesSanctionsOnly(XrayClientResult result, AdvancedSettings settings) {
 /// existed -- which is what makes "I changed nothing and it broke" a
 /// question with an answer.
 /// Whether a VLESS outbound uses VLESS Encryption. Mux's UDP (XUDP) over it
-/// lost DNS answers -- 1 of 3 through, against 3 of 3 without mux, measured
-/// from the home line on 2026-10-23 -- and the tunnel check then reported a
+/// lost DNS answers -- 1 of 3 through, against 3 of 3 without mux -- and the
+/// tunnel check then reported a
 /// working connection as dead. VLESS carries each UDP flow itself instead.
 bool _vlessEncrypted(Map<String, dynamic> outbound) {
   final Object? settings = outbound['settings'];
@@ -1161,11 +1159,11 @@ Map<String, dynamic> _withMux(
       // Every UDP flow -- every app's DNS -- over one connection instead of
       // a new one each. Over the CDN with WebSocket a lookup went from 0.54 s
       // to 0.15 s and a fresh HTTPS connection from 1.26 s to 0.50 s
-      // (measured from Iran, 2026-10-14).
+      //.
       'xudpConcurrency': 16,
       // QUIC carried, as v2rayNG does: refused, YouTube had to fall back
       // to TCP and played noticeably worse than in v2rayNG on the same
-      // server (owner, 2026-11-20).
+      // server.
       'xudpProxyUDP443': 'allow',
     },
   };
@@ -1226,7 +1224,7 @@ const String _fragmentTag = 'fragment';
 /// QUIC transports ignore it). After a Wi-Fi switch or a hand-over to mobile
 /// data, connections over the old network otherwise sat dead for minutes
 /// before the system gave up on them; with this the tunnel recovers by
-/// itself within half a minute, as PattNG does (2026-11-13). Go already
+/// itself within half a minute, as PattNG does. Go already
 /// sends keepalives every 15 s, so idle connections are covered too.
 const int deadPeerTimeoutMs = 30000;
 
