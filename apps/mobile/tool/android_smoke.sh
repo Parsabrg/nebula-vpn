@@ -50,7 +50,18 @@ fail() {
 }
 
 adb logcat -c
-adb install -r "$APK" || fail "the APK did not install"
+# Booted is not ready: the package service can still refuse an install
+# ("Broken pipe") for a while after boot.
+for _ in $(seq 1 30); do
+  adb shell pm list packages android > /dev/null 2>&1 && break
+  sleep 2
+done
+installed=""
+for _ in 1 2 3; do
+  adb install -r "$APK" && { installed=1; break; }
+  sleep 10
+done
+[ -n "$installed" ] || fail "the APK did not install"
 adb shell am start -W -n "$PKG/.MainActivity" > /dev/null
 sleep 20
 shot started
