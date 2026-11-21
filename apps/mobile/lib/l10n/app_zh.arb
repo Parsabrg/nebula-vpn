@@ -41,6 +41,7 @@
   "killSwitchMetaUnknown": "Android 设置 · 连接后显示",
   "killSwitchDesktopMeta": "VPN 断开时阻止上网",
   "bypassDomainsKillSwitchWindows": "在 Windows 上，开启断网保护时这些网站也会被阻止：任何流量都不会绕过 VPN。",
+  "killSwitchWarpLimit": "通过 Cloudflare WARP 时，如果 WARP 经由 Psiphon 出口或通过 IPv6 连接，则不使用断网保护：它所连接的地址事先无法得知。",
   "killSwitchBody": "如果隧道断开，此设备会回退到普通连接，在重新连接之前你的流量会暴露。\n\nAndroid 可以阻止这种情况，但只能在系统设置中开启：为 Nebula 打开“始终开启的 VPN”，再打开“屏蔽未使用 VPN 的连接”。任何应用都无法替你开启。",
   "killSwitchOpen": "打开 Android VPN 设置",
   "killSwitchNotNow": "以后再说",

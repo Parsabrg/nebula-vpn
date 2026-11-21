@@ -41,6 +41,7 @@
   "killSwitchMetaUnknown": "Android ayarı · bağlıyken gösterilir",
   "killSwitchDesktopMeta": "VPN koparsa interneti engelle",
   "bypassDomainsKillSwitchWindows": "Windows'ta acil kesme açıkken bu siteler de engellenir: VPN dışından hiçbir şey çıkmaz.",
+  "killSwitchWarpLimit": "Cloudflare WARP üzerinden, WARP Psiphon aracılığıyla çıktığında veya IPv6 ile bağlandığında kill switch kullanılmaz: ulaştığı adres önceden bilinmez.",
   "killSwitchBody": "Tünel koparsa bu cihaz normal bağlantısına döner ve yeniden bağlanana kadar trafiğiniz açıkta kalır.\n\nAndroid bunu engelleyebilir, ancak yalnızca kendi ayarlarından: Nebula için \"Her zaman açık VPN\" seçeneğini, ardından \"VPN'siz bağlantıları engelle\" seçeneğini açın. Hiçbir uygulama bunları sizin yerinize açamaz.",
   "killSwitchOpen": "Android VPN ayarlarını aç",
   "killSwitchNotNow": "Şimdi değil",

@@ -17,7 +17,8 @@ param(
   [string]$IsXray,
   [string]$KillSwitch = 'false',
   [string]$BlockedJson = '[]',
-  [string]$BypassJson = '[]'
+  [string]$BypassJson = '[]',
+  [string]$BlockedDnsJson = '[]'
 )
 $ErrorActionPreference = 'Stop'
 $stage = 'validating the VPN configuration'
@@ -279,9 +280,21 @@ try {
     $blocking = $true
     New-NetFirewallRule -DisplayName $fwGroup -Group $fwGroup -Direction Outbound -Action Block `
       -InterfaceAlias $physical -RemoteAddress $blocked -Profile Any | Out-Null
+    # Over the DNS tunnel its resolvers answer on port 53: DNS is blocked to
+    # every other address instead of to all of them.
+    $parsedDnsBlocked = ConvertFrom-Json -InputObject $BlockedDnsJson
+    $dnsBlocked = @($parsedDnsBlocked)
+    foreach ($range in $dnsBlocked) {
+      if ($range -isnot [string] -or $range -notmatch '^[0-9a-fA-F:.]+-[0-9a-fA-F:.]+$') { throw 'invalid ranges' }
+    }
     foreach ($protocol in @('UDP', 'TCP')) {
-      New-NetFirewallRule -DisplayName "$fwGroup (DNS)" -Group $fwGroup -Direction Outbound -Action Block `
-        -InterfaceAlias $physical -Protocol $protocol -RemotePort 53 -Profile Any | Out-Null
+      if ($dnsBlocked.Count -gt 0) {
+        New-NetFirewallRule -DisplayName "$fwGroup (DNS)" -Group $fwGroup -Direction Outbound -Action Block `
+          -InterfaceAlias $physical -Protocol $protocol -RemotePort 53 -RemoteAddress $dnsBlocked -Profile Any | Out-Null
+      } else {
+        New-NetFirewallRule -DisplayName "$fwGroup (DNS)" -Group $fwGroup -Direction Outbound -Action Block `
+          -InterfaceAlias $physical -Protocol $protocol -RemotePort 53 -Profile Any | Out-Null
+      }
     }
   }
 

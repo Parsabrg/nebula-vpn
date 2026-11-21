@@ -41,6 +41,7 @@
   "killSwitchMetaUnknown": "إعداد Android · يظهر أثناء الاتصال",
   "killSwitchDesktopMeta": "حظر الإنترنت إذا انقطع VPN",
   "bypassDomainsKillSwitchWindows": "على Windows، ما دام مفتاح الإيقاف مفعّلًا، تُحظر هذه المواقع أيضًا: لا يخرج شيء خارج VPN.",
+  "killSwitchWarpLimit": "عبر Cloudflare WARP لا يُستخدم مفتاح الإيقاف عندما يخرج WARP عبر Psiphon أو يتصل عبر IPv6: فالعنوان الذي يصل إليه غير معروف مسبقًا.",
   "killSwitchBody": "إذا انقطع النفق، يعود هذا الجهاز إلى اتصاله العادي وتصبح حركة بياناتك مكشوفة حتى يُعاد الاتصال.\n\nيستطيع Android منع ذلك، لكن من إعداداته فقط: فعّل «شبكة VPN قيد التشغيل دائمًا» لتطبيق Nebula، ثم «حظر الاتصالات بدون VPN». لا يستطيع أي تطبيق تفعيلها نيابةً عنك.",
   "killSwitchOpen": "فتح إعدادات VPN في Android",
   "killSwitchNotNow": "ليس الآن",

@@ -41,6 +41,7 @@
   "killSwitchMetaUnknown": "Android-Einstellung · wird bei Verbindung angezeigt",
   "killSwitchDesktopMeta": "Internet sperren, wenn das VPN abbricht",
   "bypassDomainsKillSwitchWindows": "Unter Windows werden diese Seiten bei aktivem Kill Switch ebenfalls gesperrt: Er lässt nichts außerhalb des VPN hinaus.",
+  "killSwitchWarpLimit": "Über Cloudflare WARP wird der Kill Switch nicht verwendet, wenn WARP über Psiphon hinausgeht oder sich über IPv6 verbindet: Die Adresse, die es erreicht, ist vorher nicht bekannt.",
   "killSwitchBody": "Bricht der Tunnel ab, fällt das Gerät auf seine normale Verbindung zurück, und Ihr Datenverkehr ist ungeschützt, bis er sich wieder verbindet.\n\nAndroid kann das verhindern, aber nur in den eigenen Einstellungen: Aktivieren Sie „Durchgehend aktives VPN“ für Nebula und dann „Verbindungen ohne VPN blockieren“. Keine App kann das für Sie einschalten.",
   "killSwitchOpen": "Android-VPN-Einstellungen öffnen",
   "killSwitchNotNow": "Nicht jetzt",

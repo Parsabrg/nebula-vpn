@@ -55,6 +55,9 @@ ENGINE="$1"; CONFIG="$2"; STATE="$3"; OWNER="$4"; OWNER_START="$5"; DNS="$6"; KI
 # IPv4 addresses that leave around the tunnel: the DNS tunnel's resolvers,
 # reached by its engine, which runs as the person and cannot mark.
 BYPASS="${8:-}"
+# IPv4 addresses the kill switch lets out besides the server's: the DNS
+# tunnel's resolvers. Its engine runs as the person and cannot mark either.
+ALLOW="${9:-}"
 DEV=nebula
 MARK=51888
 TABLE=51888
@@ -105,6 +108,12 @@ for b in ${BYPASS//,/ }; do
   bypass_count=$((bypass_count + 1))
 done
 [ "$bypass_count" -le 64 ] || fail "Linux refused too many resolvers."
+allow_count=0
+for a in ${ALLOW//,/ }; do
+  [[ "$a" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}(/[0-9]{1,2})?$ ]] || fail "Linux refused a resolver that is not an address."
+  allow_count=$((allow_count + 1))
+done
+[ "$allow_count" -le 64 ] || fail "Linux refused too many resolvers."
 engine_name="$(basename "$ENGINE")"
 if [ "$ENGINE" = wireguard ]; then
   command -v wg > /dev/null 2>&1 || fail "Linux needs WireGuard tools for this protocol. Install the wireguard-tools package."
@@ -350,6 +359,8 @@ if [ "$KILL" = 1 ]; then
   local_v4="10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 224.0.0.0/4, 255.255.255.255"
   server_line=""
   [ -n "$server_ip" ] && server_line="ip daddr $server_ip accept"
+  allow_line=""
+  [ -n "$ALLOW" ] && allow_line="ip daddr { ${ALLOW//,/, } } accept"
   nft delete table inet nebula_killswitch 2>/dev/null
   nft -f - <<NFT || fail "Linux could not turn on the kill switch."
 table inet nebula_killswitch {
@@ -362,6 +373,7 @@ table inet nebula_killswitch {
     ip6 daddr { fe80::/10, ff00::/8 } accept
     udp dport { 67, 68 } accept
     $server_line
+    $allow_line
   }
 }
 NFT
@@ -445,6 +457,7 @@ Future<void> startLinuxVpnHelper({
   required List<String> dnsServers,
   bool killSwitch = false,
   List<String> bypass = const <String>[],
+  List<String> killSwitchAllows = const <String>[],
 }) async {
   final Directory state = config.parent;
   final String run =
@@ -481,6 +494,7 @@ Future<void> startLinuxVpnHelper({
       dnsServers.join(','),
       if (killSwitch) '1' else '0',
       bypass.join(','),
+      killSwitchAllows.join(','),
     ]);
   } on ProcessException {
     throw StateError(

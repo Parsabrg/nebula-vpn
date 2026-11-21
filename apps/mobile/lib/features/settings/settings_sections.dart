@@ -127,6 +127,17 @@ class ProtectionSettingsScreen extends ConsumerWidget {
             ),
           ],
         ),
+        // Where the kill switch is not used, said here rather than left to
+        // be found out (audit, 2026-11-21). Windows only: on Linux the kill
+        // switch stays on over WARP, Aether's traffic being marked.
+        if (defaultTargetPlatform == TargetPlatform.windows &&
+            protection.blockWhenVpnDrops) ...<Widget>[
+          const SizedBox(height: 12),
+          NebulaNotice(
+            text: text.killSwitchWarpLimit,
+            kind: NebulaNoticeKind.info,
+          ),
+        ],
       ],
     );
   }

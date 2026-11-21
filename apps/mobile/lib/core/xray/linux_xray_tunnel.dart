@@ -207,9 +207,12 @@ class LinuxXrayRuntime {
         engine: xray,
         config: configFile,
         dnsServers: resolvers,
-        // Its resolvers are many and change: a kill switch allowing them
-        // all would not be one. Off over the DNS tunnel, as on Windows.
-        killSwitch: killSwitch && dnsTunnel == null,
+        // Over the DNS tunnel the kill switch lets its resolvers out too:
+        // its engine runs as the person and cannot mark its sockets. It was
+        // off there altogether, with nothing on screen saying so (audit,
+        // 2026-11-21). WARP needs nothing: Aether's traffic is marked.
+        killSwitch: killSwitch,
+        killSwitchAllows: dnsTunnel == null ? const <String>[] : bypass,
         // "Allow local network": private networks keep the normal routes.
         // Only the subnet the machine sits on did before, by its own route.
         bypass: <String>[

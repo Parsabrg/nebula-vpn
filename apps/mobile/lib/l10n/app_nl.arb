@@ -41,6 +41,7 @@
   "killSwitchMetaUnknown": "Android-instelling · zichtbaar tijdens verbinding",
   "killSwitchDesktopMeta": "internet blokkeren als de VPN wegvalt",
   "bypassDomainsKillSwitchWindows": "Op Windows worden deze sites ook geblokkeerd zolang de kill switch aan staat: er gaat niets buiten de VPN om naar buiten.",
+  "killSwitchWarpLimit": "Via Cloudflare WARP wordt de kill switch niet gebruikt als WARP via Psiphon naar buiten gaat of via IPv6 verbindt: het adres dat het bereikt is vooraf niet bekend.",
   "killSwitchBody": "Als de tunnel wegvalt, gebruikt dit apparaat weer zijn normale verbinding en is je verkeer onbeschermd tot de tunnel terug is.\n\nAndroid kan dat voorkomen, maar alleen via zijn eigen instellingen: zet 'Altijd-aan VPN' aan voor Nebula en daarna 'Verbindingen zonder VPN blokkeren'. Geen enkele app kan dit voor je aanzetten.",
   "killSwitchOpen": "Android-VPN-instellingen openen",
   "killSwitchNotNow": "Niet nu",

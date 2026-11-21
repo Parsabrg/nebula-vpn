@@ -287,10 +287,15 @@ String? pinnedUpstream(Map<String, dynamic> config, String? host) {
 }
 
 /// The IPv4 ranges the Windows kill switch blocks on the real adapters:
-/// every address except the VPN server's, the local network, loopback,
-/// link-local, multicast and broadcast. Windows Firewall block rules cannot
-/// say "all but", so the rest is written out as ranges.
-List<String> windowsKillSwitchBlockedIpv4(String upstreamIpv4) {
+/// every address except [allowed] (the VPN server's; over WARP, Cloudflare's
+/// WARP blocks; over the DNS tunnel, its resolvers -- addresses or CIDR
+/// ranges) and, with [local], the local network, loopback, link-local,
+/// multicast and broadcast. Windows Firewall block rules cannot say "all
+/// but", so the rest is written out as ranges.
+List<String> windowsKillSwitchBlockedIpv4(
+  List<String> allowed, {
+  bool local = true,
+}) {
   int parse(String ip) => ip
       .split('.')
       .map(int.parse)
@@ -306,20 +311,25 @@ List<String> windowsKillSwitchBlockedIpv4(String upstreamIpv4) {
     return (start, start + (1 << (32 - bits)) - 1);
   }
 
-  final List<(int, int)> allowed = <(int, int)>[
-    (parse(upstreamIpv4), parse(upstreamIpv4)),
+  final List<(int, int)> open = <(int, int)>[
+    for (final String entry in allowed)
+      entry.contains('/')
+          ? cidr(entry.split('/')[0], int.parse(entry.split('/')[1]))
+          : (parse(entry), parse(entry)),
     cidr('0.0.0.0', 8),
-    cidr('10.0.0.0', 8),
     cidr('127.0.0.0', 8),
-    cidr('169.254.0.0', 16),
-    cidr('172.16.0.0', 12),
-    cidr('192.168.0.0', 16),
-    cidr('224.0.0.0', 4),
-    cidr('255.255.255.255', 32),
+    if (local) ...<(int, int)>[
+      cidr('10.0.0.0', 8),
+      cidr('169.254.0.0', 16),
+      cidr('172.16.0.0', 12),
+      cidr('192.168.0.0', 16),
+      cidr('224.0.0.0', 4),
+      cidr('255.255.255.255', 32),
+    ],
   ]..sort(((int, int) a, (int, int) b) => a.$1.compareTo(b.$1));
   final List<String> blocked = <String>[];
   int next = 0;
-  for (final (int start, int end) in allowed) {
+  for (final (int start, int end) in open) {
     if (start > next) {
       blocked.add('${show(next)}-${show(start - 1)}');
     }
@@ -333,9 +343,24 @@ List<String> windowsKillSwitchBlockedIpv4(String upstreamIpv4) {
   return blocked;
 }
 
+/// Cloudflare's WARP gateways: every address Aether scans or remembers
+/// lies in these (its own lists: 162.159.192-199.x, 188.114.96-99.x). The
+/// registration API (162.159.137.105) is outside them; it is needed only to
+/// enrol, which happens before the tunnel and its kill switch.
+const List<String> kWarpGatewayIpv4 = <String>[
+  '162.159.192.0/20',
+  '188.114.96.0/22',
+];
+
 /// The IPv6 the kill switch blocks: everything but link-local (fe80::/10)
 /// and multicast (ff00::/8), which neighbour discovery needs.
 const List<String> windowsKillSwitchBlockedIpv6 = <String>[
   '::-fe7f:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
   'fec0::-feff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
+];
+
+/// Every IPv6 address, for the DNS block over the DNS tunnel: lookups go
+/// to its resolvers only, not to a router over link-local either.
+const List<String> windowsAllIpv6 = <String>[
+  '::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
 ];

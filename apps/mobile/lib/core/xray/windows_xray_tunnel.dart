@@ -276,11 +276,29 @@ class WindowsXrayRuntime {
         upstreamIp: upstreamIp,
         dnsServers: dnsServers,
         isXray: true,
-        // Its resolvers are many and change: a kill switch allowing them all
-        // would not be one. Off over the DNS tunnel.
-        // Over WARP too: the gateway Aether finds is not known beforehand,
-        // and the firewall rules allow one address.
-        killSwitch: killSwitch && dnsTunnel == null && aether == null,
+        // The kill switch allows what this session dials outside the
+        // tunnel: over the DNS tunnel its resolvers (and DNS to them only),
+        // over WARP Cloudflare's gateway blocks, Aether picking one of them;
+        // otherwise the server. Off over WARP only where the far end is not
+        // known beforehand: leaving through Psiphon, or WARP over IPv6.
+        // It used to be off over WARP and the DNS tunnel altogether, with
+        // nothing on screen saying so (audit, 2026-11-21).
+        killSwitch:
+            killSwitch &&
+            (aether == null ||
+                (!aetherArgs.contains('--psiphon') &&
+                    _aetherIpVersion(aetherArgs) == 'v4')),
+        killSwitchAllows: dnsTunnel != null
+            ? bypass
+            : aether != null
+            ? kWarpGatewayIpv4
+            : const <String>[],
+        killSwitchDnsBlocked: dnsTunnel != null
+            ? <String>[
+                ...windowsKillSwitchBlockedIpv4(bypass, local: false),
+                ...windowsAllIpv6,
+              ]
+            : const <String>[],
         bypass: bypass,
       );
 
@@ -550,6 +568,12 @@ class WindowsXrayRuntime {
       ? config
       : windowsXrayTunConfig(config, localNetworkDirect: localNetworkDirect);
 
+  /// The IP version Aether's arguments ask for: v4 unless `--ip` says.
+  static String _aetherIpVersion(List<String> args) {
+    final int at = args.indexOf('--ip');
+    return at < 0 || at + 1 >= args.length ? 'v4' : args[at + 1];
+  }
+
   String? _upstreamAddress(Map<String, dynamic> source, bool isHysteria) {
     try {
       final List<dynamic> outbounds = source['outbounds'] as List<dynamic>;
@@ -603,6 +627,8 @@ class WindowsXrayRuntime {
     required List<String> dnsServers,
     required bool isXray,
     bool killSwitch = false,
+    List<String> killSwitchAllows = const <String>[],
+    List<String> killSwitchDnsBlocked = const <String>[],
     List<String> bypass = const <String>[],
   }) async {
     final File runner = File('$state\\elevated-supervisor.ps1');
@@ -620,11 +646,19 @@ class WindowsXrayRuntime {
       killSwitch ? "'true'" : "'false'",
       windowsPowerShellLiteral(
         jsonEncode(<String>[
-          if (killSwitch) ...windowsKillSwitchBlockedIpv4(upstreamIp),
+          if (killSwitch)
+            ...windowsKillSwitchBlockedIpv4(
+              killSwitchAllows.isEmpty
+                  ? <String>[upstreamIp]
+                  : killSwitchAllows,
+            ),
           if (killSwitch) ...windowsKillSwitchBlockedIpv6,
         ]),
       ),
       windowsPowerShellLiteral(jsonEncode(bypass)),
+      windowsPowerShellLiteral(
+        jsonEncode(killSwitch ? killSwitchDnsBlocked : const <String>[]),
+      ),
     ].join(' ');
     final String encoded = windowsEncodedCommand(invocation);
     final String launch =
