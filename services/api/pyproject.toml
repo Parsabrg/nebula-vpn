@@ -13,16 +13,16 @@ dependencies = [
   "alembic==1.20.1",
   "argon2-cffi==25.1.0",
   "cryptography==50.0.2",
-  "email-validator==2.3.0",
-  "fastapi==0.162.4",
+  "email-validator==2.4.0",
+  "fastapi==0.163.2",
   "prometheus-client==0.26.0",
   "httpx==0.28.1",
-  "pydantic-settings==2.16.2",
-  "psycopg[binary]==3.3.8",
+  "pydantic-settings==2.16.3",
+  "psycopg[binary]==3.3.9",
   "PyJWT[crypto]==2.15.1",
   "redis==8.1.0",
   "segno==1.6.6",
-  "sqlalchemy[asyncio]==2.1.8",
+  "sqlalchemy[asyncio]==2.1.9",
   "uvicorn[standard]==0.54.0",
   "webauthn==3.0.1",
 ]
@@ -37,12 +37,12 @@ build = ["hatchling==1.33.0"]
 [project.optional-dependencies]
 dev = [
   "hypothesis==6.170.15",
-  "httpx2==2.16.0",
+  "httpx2==2.16.2",
   "mypy==2.4.1",
   "pip-audit==2.10.1",
   "pytest==9.2.0",
   "pytest-cov==7.1.0",
-  "ruff==0.17.4",
+  "ruff==0.17.5",
 ]
 
 [tool.hatch.build.targets.wheel]
