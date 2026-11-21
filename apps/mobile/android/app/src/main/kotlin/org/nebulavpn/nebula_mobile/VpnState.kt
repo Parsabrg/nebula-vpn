@@ -88,7 +88,8 @@ object VpnState {
         return try {
             activities.getRunningServices(Int.MAX_VALUE).any {
                 it.service.packageName == context.packageName &&
-                    it.service.className.endsWith("VpnService")
+                    // V2rayVPNService and GoBackend$VpnService: the case differs.
+                    it.service.className.endsWith("VpnService", ignoreCase = true)
             }
         } catch (error: SecurityException) {
             false
