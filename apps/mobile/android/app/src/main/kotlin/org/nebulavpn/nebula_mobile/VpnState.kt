@@ -1,5 +1,6 @@
 package org.nebulavpn.nebula_mobile
 
+import android.app.ActivityManager
 import android.app.AppOpsManager
 import android.content.Context
 import android.net.ConnectivityManager
@@ -71,7 +72,26 @@ object VpnState {
         return when {
             !anyVpn -> "none"
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> "other"
+            // 8-10 name no owner. A VPN up while this app's own VPN service
+            // runs is this app's: answered "unknown", the app opened from
+            // the notification showed Off over its own running tunnel
+            // (moto g8 plus, Android 10, 2026-11-21).
+            ownVpnServiceRunning(context) -> "own"
             else -> null
+        }
+    }
+
+    /** Whether one of this app's VPN services (Xray's or WireGuard's) runs. */
+    @Suppress("DEPRECATION") // Still answers for the app's own services.
+    private fun ownVpnServiceRunning(context: Context): Boolean {
+        val activities = context.getSystemService(ActivityManager::class.java) ?: return false
+        return try {
+            activities.getRunningServices(Int.MAX_VALUE).any {
+                it.service.packageName == context.packageName &&
+                    it.service.className.endsWith("VpnService")
+            }
+        } catch (error: SecurityException) {
+            false
         }
     }
 

@@ -807,6 +807,7 @@ mixin _Connecting on _DevicesCore {
           !await _tunnelCarriesTraffic(
             attempt,
             slow: protocolProfileCode == kDnsTunnelProfileCode,
+            engineCheckedData: result.transport == kWarpTransport,
           ) &&
           !_cancelled(attempt)) {
         // Xray's tunnel is up the moment the engine starts, whether or not

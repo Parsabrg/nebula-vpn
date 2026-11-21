@@ -504,6 +504,7 @@ mixin _HealthChecks on _DevicesCore {
     int attempt, {
     bool viaProxy = true,
     bool slow = false,
+    bool engineCheckedData = false,
   }) async {
     final Future<bool> Function(LocalProxy?, {bool slow}) carries = ref.read(
       tunnelCarriesTrafficProvider,
@@ -528,7 +529,17 @@ mixin _HealthChecks on _DevicesCore {
       // Not over the DNS tunnel: its first request takes 7-9 s while the
       // session warms up, so one timeout says nothing (2 of 3 reconnects
       // failed on 0.1.35, 2026-11-11).
-      if (!answered && !slow && took.elapsed >= _probeGaveUp) {
+      // Nor over WARP: Aether confirms data end to end before it serves at
+      // all, and on a filtering evening the first request on a fresh tunnel
+      // was dropped while the next went through (its own check failed once
+      // and passed on retry, twice in one connect). Giving up there tore a
+      // working tunnel down, and the restart found every saved gateway
+      // "dead" -- Cloudflare still held the old session -- and scanned
+      // again: 78 s to connect (moto g8 plus, 2026-11-21).
+      if (!answered &&
+          !slow &&
+          !engineCheckedData &&
+          took.elapsed >= _probeGaveUp) {
         // It waited out its whole deadline: nothing is there. Trying twice
         // more only adds the same wait again (a dead server sat at
         // Connecting for 79 s). A quick failure -- the engine still coming

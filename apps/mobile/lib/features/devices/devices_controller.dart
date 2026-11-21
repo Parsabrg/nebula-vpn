@@ -756,6 +756,7 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
     int attempt, {
     bool viaProxy = true,
     bool slow = false,
+    bool engineCheckedData = false,
   });
   Future<String> _probeConfig(
     XrayClientResult credential,
