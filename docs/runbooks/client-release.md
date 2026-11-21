@@ -134,14 +134,36 @@ gh release edit vX --draft=false --prerelease -R Parsabrg/nebula-vpn
 Large uploads can drop through the Cloudflare route; upload the files one
 at a time and repeat a failed one (`--clobber`).
 
-Release notes say what changed for a person using the app, and how it was
-tested. No links to the deployment, no tokens, no keys.
+Release notes follow this shape, and nothing else:
+
+```markdown
+## What's new
+- One line per change a person using the app would notice.
+
+## Fixes
+- One line per bug fixed, said as the behaviour now ("Hysteria2 connects on
+  Windows again"), not as the history of finding it.
+
+## Downloads
+Which file to pick: `-arm64` for most Android phones, `-arm` for older 32-bit
+ones, `-universal` when unsure; the Windows installer or portable zip; the
+Linux .deb, AppImage or tar.gz.
+
+## Verifying a download
+`SHA256SUMS.txt` lists every file and is signed (`SHA256SUMS.txt.sig`, key in
+`docs/release-signers`). Windows and Linux files carry GitHub build
+attestations: `gh attestation verify <file> -R Parsabrg/nebula-vpn`.
+```
+
+Written in the project's voice: no test diary, no whose phone or which day,
+no links to the deployment, no tokens, no keys. How a release was tested
+belongs in the pull requests and CI, not in the notes.
 
 ## 5. Promote
 
 Test the pre-release on a real phone and on Windows before it becomes the
-default download (0.1.5 was published untested and pulled). Then the operator
-promotes it:
+default download (0.1.5 was published untested and pulled). Then promote
+it:
 
 ```sh
 gh release edit vX --prerelease=false --latest
