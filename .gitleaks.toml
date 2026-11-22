@@ -73,6 +73,10 @@ regexes = [
   '''6EE18E99F826670A249AD20400C536900CB6FB5369237E30768DF9032AC92D80''',
   '''b651f7e1d9966ee2c1b1ee1bf8b52c72771824d3065dce96bbc8bcc19ed95f82''',
   '''fc25edff9948708cb00a4ff01f3bccde677660aca050133bb1ad46c6860362d2''',
+  # Xray 26.11.9 for macOS (Apple silicon, then Intel), pinned in
+  # apps/mobile/tool/vendor_macos_runtime.sh and checked with shasum.
+  '''233f0c66681cd0726f81a6b2b6ed6a5710869e312047b522e46ed53035bebd26''',
+  '''488963e676e06f5e48547f9dd38116aaca8de4234959b4272ae8f284e658dfd0''',
   # appimagetool 1.9.0 and the AppImage type2 runtime, pinned in
   # apps/mobile/tool/build_linux_packages.sh.
   '''46fdd785094c7f6e545b61afcfb0f3d98d8eab243f644b4b17698c01d06083d1''',

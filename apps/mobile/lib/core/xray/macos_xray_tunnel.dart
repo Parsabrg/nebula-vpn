@@ -136,32 +136,33 @@ class MacosXrayRuntime {
       final File helper = File('${state.path}/helper.sh');
       await helper.writeAsString(macosVpnHelperScript);
       // AppleScript quotes each argument for the shell itself.
-      final ProcessResult result = await Process.run('/usr/bin/osascript', <
-        String
-      >[
-        '-e',
-        'on run argv',
-        '-e',
-        'set command to "/bin/bash"',
-        '-e',
-        'repeat with arg in argv',
-        '-e',
-        'set command to command & " " & quoted form of arg',
-        '-e',
-        'end repeat',
-        '-e',
-        'do shell script command with prompt "Nebula VPN wants to start '
-            'the VPN." with administrator privileges',
-        '-e',
-        'end run',
-        helper.path,
-        'start',
-        xray,
-        configFile.path,
-        state.path,
-        '$pid',
-        resolvers.join(','),
-      ]);
+      final ProcessResult result = await Process.run(
+        '/usr/bin/osascript',
+        <String>[
+          '-e',
+          'on run argv',
+          '-e',
+          'set command to "/bin/bash"',
+          '-e',
+          'repeat with arg in argv',
+          '-e',
+          'set command to command & " " & quoted form of arg',
+          '-e',
+          'end repeat',
+          '-e',
+          'do shell script command with prompt "Nebula VPN wants to start '
+              'the VPN." with administrator privileges',
+          '-e',
+          'end run',
+          helper.path,
+          'start',
+          xray,
+          configFile.path,
+          state.path,
+          '$pid',
+          resolvers.join(','),
+        ],
+      );
       if (result.exitCode != 0) {
         final String error = await File(
           '${macosSessionOutputs(state.path)}/startup.error',
@@ -195,9 +196,7 @@ class MacosXrayRuntime {
     final String out = macosSessionOutputs(state.path);
     if (await File('$out/routes-ready').exists()) {
       await File('${state.path}/stop').writeAsString('');
-      final DateTime deadline = DateTime.now().add(
-        const Duration(seconds: 10),
-      );
+      final DateTime deadline = DateTime.now().add(const Duration(seconds: 10));
       while (DateTime.now().isBefore(deadline) &&
           !await File('$out/stopped').exists()) {
         await Future<void>.delayed(const Duration(milliseconds: 200));
@@ -216,13 +215,13 @@ class MacosXrayRuntime {
       return null;
     }
     if (_localPid != null) {
-      return (await Process.run('/bin/ps', <String>['-p', '$_localPid']))
-              .exitCode ==
+      return (await Process.run('/bin/ps', <String>[
+            '-p',
+            '$_localPid',
+          ])).exitCode ==
           0;
     }
-    return !await File(
-      '${macosSessionOutputs(state.path)}/stopped',
-    ).exists();
+    return !await File('${macosSessionOutputs(state.path)}/stopped').exists();
   }
 
   Future<List<String>> logs() async {
@@ -231,9 +230,8 @@ class MacosXrayRuntime {
       return const <String>[];
     }
     try {
-      return await File(
-        '${macosSessionOutputs(state.path)}/xray.log',
-      ).readAsLines();
+      return await File('${macosSessionOutputs(state.path)}/xray.log')
+          .readAsLines();
     } on FileSystemException {
       return const <String>[];
     }

@@ -35,7 +35,6 @@ void main(List<String> args) {
       },
     ],
   };
-  File(
-    '$folder/client.json',
-  ).writeAsStringSync(jsonEncode(macosXrayTunConfig(profile)));
+  File('$folder/client.json')
+      .writeAsStringSync(jsonEncode(macosXrayTunConfig(profile)));
 }
