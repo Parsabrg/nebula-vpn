@@ -1,4 +1,7 @@
+import asyncio
+import os
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -59,3 +62,32 @@ async def test_the_child_does_not_inherit_the_parent_environment(
     )
 
     assert result.stdout.strip() == b"absent"
+
+
+@pytest.mark.anyio
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX process check")
+async def test_a_cancelled_call_kills_and_reaps_its_child(tmp_path: Path) -> None:
+    pid_file = tmp_path / "pid"
+    task = asyncio.create_task(
+        run_fixed_argv(
+            [
+                sys.executable,
+                "-c",
+                f"import os, time; open({str(pid_file)!r}, 'w').write(str(os.getpid())); "
+                "time.sleep(60)",
+            ],
+            timeout_seconds=60,
+        )
+    )
+    for _ in range(100):
+        if pid_file.exists() and pid_file.read_text():
+            break
+        await asyncio.sleep(0.05)
+    pid = int(pid_file.read_text())
+
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    with pytest.raises(ProcessLookupError):
+        os.kill(pid, 0)

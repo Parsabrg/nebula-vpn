@@ -42,13 +42,29 @@ async def run_fixed_argv(
     try:
         stdout, stderr = await asyncio.wait_for(process.communicate(stdin), timeout=timeout_seconds)
     except TimeoutError as error:
-        process.kill()
-        await process.wait()
+        await reap(process)
         raise SubprocessTimeoutError(
             f"{argv[0]} did not finish within {timeout_seconds}s"
         ) from error
+    except asyncio.CancelledError:
+        # The caller went away (client disconnect, shutdown): the child must
+        # not outlive it, running on or left unreaped.
+        await reap(process)
+        raise
 
     returncode = process.returncode
     if returncode is None:
         raise RuntimeError("subprocess exited without reporting a return code")
     return CompletedRun(returncode=returncode, stdout=stdout, stderr=stderr)
+
+
+async def reap(process: asyncio.subprocess.Process) -> None:
+    """Kill [process] if it is still running and wait for it, even while the
+    calling task is being cancelled."""
+
+    if process.returncode is None:
+        try:
+            process.kill()
+        except ProcessLookupError:
+            pass
+    await asyncio.shield(process.wait())

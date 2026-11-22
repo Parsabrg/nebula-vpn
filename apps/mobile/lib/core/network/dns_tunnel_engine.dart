@@ -117,6 +117,15 @@ String renderDnsTunnelConfig(
   ].join('\n');
 }
 
+/// [resolvers] without the entries a desktop full tunnel cannot route around
+/// itself: only IPv4 resolvers get a route by the physical gateway (and a
+/// kill-switch exception), so an IPv6 one would send its queries into the
+/// tunnel they are meant to carry. Left out rather than looped.
+String dnsTunnelRoutableResolvers(String resolvers) => resolvers
+    .split(RegExp(r'[\s,]+'))
+    .where((String entry) => dnsTunnelResolverIpv4s(entry).isNotEmpty)
+    .join('\n');
+
 /// The IPv4 addresses among [resolvers] (one per line, `ip`, `ip:port` or
 /// `[ipv6]:port`), each once, at most 64: on Windows and Linux the engine
 /// runs outside the VPN and these leave by the physical gateway.

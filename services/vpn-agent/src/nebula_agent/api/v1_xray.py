@@ -48,6 +48,7 @@ async def provision_client(
         idempotency_key=payload.idempotency_key,
         operation_kind="provision_device",
         target_id=payload.target_id,
+        payload=payload,
         response_model=ProvisionXrayClientResponse,
         run=lambda: driver.provision_client(payload),
     )
@@ -68,6 +69,7 @@ async def revoke_client(
         idempotency_key=payload.idempotency_key,
         operation_kind="revoke_device",
         target_id=payload.target_id,
+        payload=payload,
         response_model=RevokeXrayClientResponse,
         run=lambda: driver.revoke_client(payload),
     )

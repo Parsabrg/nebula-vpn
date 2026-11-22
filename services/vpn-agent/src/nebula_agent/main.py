@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request, Response, status
 from pydantic import BaseModel, ConfigDict
 
 from nebula_agent import __version__
+from nebula_agent.api._dispatch import MAX_OPERATION_BODY_BYTES
 from nebula_agent.api.v1 import router as operations_router
 from nebula_agent.api.v1_relay import router as relay_router
 from nebula_agent.api.v1_usage import router as usage_router
@@ -25,6 +26,7 @@ from nebula_agent.drivers.xray_base import XrayDriver
 from nebula_agent.hysteria_auth import HysteriaAuthServer
 from nebula_agent.ledger import OperationLedger
 from nebula_agent.metrics import MetricsMiddleware
+from nebula_agent.request_limits import RequestBodyLimitMiddleware
 from nebula_agent.settings import Settings, get_settings
 
 _LOGGER = logging.getLogger(__name__)
@@ -158,6 +160,8 @@ def create_app(
         return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     application.add_middleware(MetricsMiddleware)
+    # Every route takes at most a small typed body (usage takes none).
+    application.add_middleware(RequestBodyLimitMiddleware, max_bytes=MAX_OPERATION_BODY_BYTES)
     application.include_router(operations_router)
     application.include_router(xray_operations_router)
     application.include_router(usage_router)

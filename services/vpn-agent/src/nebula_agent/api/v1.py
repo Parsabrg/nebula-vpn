@@ -52,6 +52,7 @@ async def provision_device(
         idempotency_key=payload.idempotency_key,
         operation_kind="provision_device",
         target_id=payload.target_id,
+        payload=payload,
         response_model=ProvisionDeviceResponse,
         run=lambda: driver.provision_device(payload),
     )
@@ -72,6 +73,7 @@ async def revoke_device(
         idempotency_key=payload.idempotency_key,
         operation_kind="revoke_device",
         target_id=payload.target_id,
+        payload=payload,
         response_model=RevokeDeviceResponse,
         run=lambda: driver.revoke_device(payload),
     )
@@ -92,6 +94,7 @@ async def enable_device(
         idempotency_key=payload.idempotency_key,
         operation_kind="enable_device",
         target_id=payload.target_id,
+        payload=payload,
         response_model=EnableDeviceResponse,
         run=lambda: driver.enable_device(payload),
     )
@@ -112,6 +115,7 @@ async def disable_device(
         idempotency_key=payload.idempotency_key,
         operation_kind="disable_device",
         target_id=payload.target_id,
+        payload=payload,
         response_model=DisableDeviceResponse,
         run=lambda: driver.disable_device(payload),
     )
