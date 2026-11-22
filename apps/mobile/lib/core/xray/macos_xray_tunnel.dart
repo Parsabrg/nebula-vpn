@@ -6,7 +6,7 @@ import '../routing/tunnel_routes.dart';
 import '../tunnel/tunnel_traffic.dart';
 import 'linux_vpn_supervisor.dart' show linuxPrivateTemp;
 import 'linux_xray_tunnel.dart';
-import 'macos_vpn_helper.dart';
+import 'macos_tunnel_config.dart';
 import 'windows_tunnel_config.dart';
 import 'xray_tunnel_controller.dart';
 
@@ -62,49 +62,6 @@ class MacosXrayTunnelController implements XrayTunnelController {
   @override
   Future<double?> measureDownload(String config, {required String url}) =>
       _runtime.probe.measureDownload(config, url: url);
-}
-
-/// The full-device tunnel around a rendered Xray client config on macOS: the
-/// Windows one (Xray sets the routes and binds its own connections to the
-/// real interface on both), on a utun.
-Map<String, dynamic> macosXrayTunConfig(
-  Map<String, dynamic> config, {
-  bool localNetworkDirect = false,
-}) {
-  final Map<String, dynamic> tun = windowsXrayTunConfig(
-    config,
-    localNetworkDirect: localNetworkDirect,
-  );
-  final Map<String, dynamic> inbound =
-      (tun['inbounds'] as List<Map<String, dynamic>>).single;
-  final Map<String, dynamic> settings = <String, dynamic>{
-    ...(inbound['settings'] as Map<String, dynamic>),
-    'name': macosTunnelInterface,
-  }..remove('desc');
-  return <String, dynamic>{
-    ...tun,
-    'inbounds': <Map<String, dynamic>>[
-      <String, dynamic>{...inbound, 'settings': settings},
-    ],
-  };
-}
-
-/// The byte counters of [interface] from `netstat -ibI`: its link row ends
-/// with Ibytes, Opkts, Oerrs, Obytes, Coll.
-TunnelTraffic? macosTunnelTraffic(String netstat, String interface) {
-  for (final String line in const LineSplitter().convert(netstat)) {
-    final List<String> fields = line.trim().split(RegExp(r'\s+'));
-    if (fields.length >= 7 &&
-        fields.first == interface &&
-        fields.any((String field) => field.startsWith('<Link#'))) {
-      final int? rx = int.tryParse(fields[fields.length - 5]);
-      final int? tx = int.tryParse(fields[fields.length - 2]);
-      if (rx != null && tx != null) {
-        return TunnelTraffic(rxBytes: rx, txBytes: tx);
-      }
-    }
-  }
-  return null;
 }
 
 class MacosXrayRuntime {
@@ -324,24 +281,5 @@ class MacosXrayRuntime {
     } on SocketException {
       return null;
     }
-  }
-}
-
-/// The server the first outbound dials: under vnext (VLESS, VMess),
-/// servers (Shadowsocks, Trojan) or, for MASQUE, the settings themselves.
-String? macosUpstreamAddress(Map<String, dynamic> source) {
-  try {
-    final Map<String, dynamic> settings =
-        ((source['outbounds'] as List<dynamic>).first
-                as Map<String, dynamic>)['settings']
-            as Map<String, dynamic>;
-    final Object? servers = settings['vnext'] ?? settings['servers'];
-    if (servers == null) {
-      return settings['address'] as String?;
-    }
-    return ((servers as List<dynamic>).first as Map<String, dynamic>)['address']
-        as String?;
-  } on Object {
-    return null;
   }
 }

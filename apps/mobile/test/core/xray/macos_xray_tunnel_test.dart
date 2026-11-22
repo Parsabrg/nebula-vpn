@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nebula_mobile/core/xray/macos_vpn_helper.dart';
-import 'package:nebula_mobile/core/xray/macos_xray_tunnel.dart';
+import 'package:nebula_mobile/core/xray/macos_tunnel_config.dart';
 
 void main() {
   final Map<String, dynamic> profile = <String, dynamic>{

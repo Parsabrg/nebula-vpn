@@ -4,8 +4,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:nebula_mobile/core/xray/macos_vpn_helper.dart';
-import 'package:nebula_mobile/core/xray/macos_xray_tunnel.dart';
+import 'package:nebula_mobile/core/xray/macos_tunnel_config.dart';
 
 void main(List<String> args) {
   final String folder = args.single;
