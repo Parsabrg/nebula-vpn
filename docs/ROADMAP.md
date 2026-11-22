@@ -26,7 +26,7 @@ written plan in [plans/2026-11-plans.md](plans/2026-11-plans.md), agreed
 
 **Apps**
 - Signed Windows builds (SignPath, needs a SignPath sign-up).
-- *plan 9* iOS and macOS apps (needs an Apple developer account and a Mac).
+- *plan 9* iOS and macOS apps: plan and checklist in [plans/apple-platforms.md](plans/apple-platforms.md). Builds need no Mac (GitHub macOS runners); a tunnel needs the paid Apple Developer Program, and testing a real iPhone and Mac.
 
 **Project**
 - A second maintainer, and how someone else cuts releases and runs the servers.
