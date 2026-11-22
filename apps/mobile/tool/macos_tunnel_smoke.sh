@@ -49,7 +49,7 @@ networksetup -listallnetworkservices
 scutil --dns | grep -m3 nameserver || true
 
 curl -fsS -m 20 -o /dev/null -w 'through the tunnel: HTTP %{http_code}\n' https://www.example.com/
-grep -q "example.com" "$work/server-access.log" || { echo "server saw no request"; cat "$work/server-access.log"; exit 1; }
+grep -q "accepted tcp:.*:443" "$work/server-access.log" || { echo "server carried no HTTPS connection"; cat "$work/server-access.log"; exit 1; }
 echo "DNS lookup: $(dscacheutil -q host -a name github.com | awk '/ip_address/ {print $2; exit}')"
 grep -c accepted "$work/server-access.log" | xargs echo "connections the server carried:"
 

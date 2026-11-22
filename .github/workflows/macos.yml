@@ -1,22 +1,21 @@
-name: Apple
+name: macOS
 
-# The iOS and macOS builds, on GitHub's hosted macOS runner (free for a
-# public repository). Both are unsigned: signing needs an Apple Developer
-# Program membership, which the project does not have. See
-# docs/plans/apple-platforms.md for what that blocks.
+# The macOS build, on GitHub's hosted macOS runner (free for a public
+# repository): unsigned, as signing needs an Apple Developer Program
+# membership. See docs/plans/apple-platforms.md.
 on:
   pull_request:
-    paths: ["apps/mobile/**", ".github/workflows/apple.yml"]
+    paths: ["apps/mobile/**", ".github/workflows/macos.yml"]
   push:
     branches: [main]
-    paths: ["apps/mobile/**", ".github/workflows/apple.yml"]
+    paths: ["apps/mobile/**", ".github/workflows/macos.yml"]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: apple-${{ github.ref }}
+  group: macos-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -53,15 +52,8 @@ jobs:
           flutter build macos --release --dart-define=API_BASE_URL=https://api.example.invalid
           mkdir -p dist
           ditto -c -k --keepParent "build/macos/Build/Products/Release/Nebula VPN.app" dist/NebulaVPN-macos-unsigned.zip
-      - name: Build iOS (unsigned, not installable as is)
-        working-directory: apps/mobile
-        run: |
-          flutter build ios --release --no-codesign --dart-define=API_BASE_URL=https://api.example.invalid
-          mkdir -p ipa/Payload
-          cp -R build/ios/iphoneos/Runner.app ipa/Payload/
-          (cd ipa && zip -qry ../dist/NebulaVPN-ios-unsigned.ipa Payload)
       # actions/upload-artifact v7.0.2
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: NebulaVPN-apple-unsigned
+          name: NebulaVPN-macos-unsigned
           path: apps/mobile/dist/
