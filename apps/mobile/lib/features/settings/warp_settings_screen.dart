@@ -82,6 +82,10 @@ class WarpSettingsScreen extends ConsumerWidget {
       (WarpProtocol.warpInWarp, text.warpInWarp),
       (WarpProtocol.masqueInMasque, text.warpMasqueInMasque),
     ];
+    final List<(WarpEngine, String)> engines = <(WarpEngine, String)>[
+      (WarpEngine.aether, 'Aether'),
+      (WarpEngine.xray, text.warpEngineXray),
+    ];
     final List<(WarpTransport, String)> transports = <(WarpTransport, String)>[
       (WarpTransport.http2, 'HTTP/2 (TCP)'),
       (WarpTransport.http3, 'HTTP/3 (QUIC)'),
@@ -161,6 +165,17 @@ class WarpSettingsScreen extends ConsumerWidget {
         NebulaSectionLabel(text.warpSectionConnection),
         NebulaRowGroup(
           children: <Widget>[
+            if (warpSupported)
+              pick(
+                text.warpEngine,
+                label(engines, warp.engine),
+                () => choose(
+                  text.warpEngine,
+                  engines,
+                  warp.engine,
+                  (WarpEngine v) => save(warp.copyWith(engine: v)),
+                ),
+              ),
             pick(
               text.warpProtocol,
               label(protocols, warp.protocol),
@@ -214,6 +229,8 @@ class WarpSettingsScreen extends ConsumerWidget {
             ),
           ],
         ),
+        if (warpSupported && warp.engine == WarpEngine.xray)
+          explain(text.warpEngineXrayExplain),
         explain(text.warpConnectionExplain),
         NebulaSectionLabel(text.warpSectionMore),
         NebulaRowGroup(

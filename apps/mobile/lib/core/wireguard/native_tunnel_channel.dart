@@ -157,6 +157,11 @@ class NativeTunnelChannel {
     return (await _channel.invokeMethod<String>('updateDirectory'))!;
   }
 
+  /// Android only: Aether's folder, where its WARP identities are.
+  Future<String> aetherDirectory() async {
+    return (await _channel.invokeMethod<String>('aetherDirectory'))!;
+  }
+
   /// Android only: hands a downloaded APK to the system installer, which
   /// asks the person to confirm. Throws when it cannot be opened.
   Future<void> installApk(String path) async {

@@ -2142,7 +2142,7 @@ index 93ab730..6553b29 100644
      public enum V2RAY_SERVICE_COMMANDS {
          START_SERVICE,
 diff --git a/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/utils/Utilities.java b/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/utils/Utilities.java
-index 7a668ee..799cce3 100644
+index 7a668ee..d9ebc3d 100644
 --- a/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/utils/Utilities.java
 +++ b/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/utils/Utilities.java
 @@ -68,6 +68,7 @@ public class Utilities {
@@ -2166,6 +2166,30 @@ index 7a668ee..799cce3 100644
                          }
                      } catch (Exception e) {
                          //ignore
+@@ -102,14 +109,15 @@ public class Utilities {
+                         .getJSONArray("vnext").getJSONObject(0)
+                         .getString("port");
+             } catch (Exception e) {
+-                v2rayConfig.CONNECTED_V2RAY_SERVER_ADDRESS = config_json.getJSONArray("outbounds")
+-                        .getJSONObject(0).getJSONObject("settings")
+-                        .getJSONArray("servers").getJSONObject(0)
+-                        .getString("address");
+-                v2rayConfig.CONNECTED_V2RAY_SERVER_PORT = config_json.getJSONArray("outbounds")
+-                        .getJSONObject(0).getJSONObject("settings")
+-                        .getJSONArray("servers").getJSONObject(0)
+-                        .getString("port");
++                final JSONObject settings = config_json.getJSONArray("outbounds")
++                        .getJSONObject(0).getJSONObject("settings");
++                // MASQUE (Cloudflare WARP inside Xray) names its endpoint in
++                // the settings themselves, with no servers list.
++                final JSONObject server = settings.has("servers")
++                        ? settings.getJSONArray("servers").getJSONObject(0)
++                        : settings;
++                v2rayConfig.CONNECTED_V2RAY_SERVER_ADDRESS = server.getString("address");
++                v2rayConfig.CONNECTED_V2RAY_SERVER_PORT = server.getString("port");
+             }
+             try {
+                 if (config_json.has("policy")) {
 diff --git a/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/utils/V2rayConfig.java b/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/utils/V2rayConfig.java
 index f7db76b..8313feb 100644
 --- a/android/src/main/java/dev/amirzr/flutter_v2ray_client/v2ray/utils/V2rayConfig.java

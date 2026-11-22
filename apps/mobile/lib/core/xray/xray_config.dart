@@ -6,6 +6,7 @@ import '../routing/sanctioned_domains.dart';
 import '../servers/server_repository.dart';
 import '../storage/advanced_settings_store.dart';
 import '../warp/warp_settings.dart';
+import '../warp/warp_xray.dart';
 import 'ech_source.dart';
 import 'local_proxy.dart';
 import 'windows_tunnel_config.dart';
@@ -143,7 +144,13 @@ String renderXrayClientConfigJson(
   AdvancedSettings settings = AdvancedSettings.defaults,
   List<String> apiHosts = const <String>[],
   CdnDial cdnDial = CdnDial.asGiven,
+  WarpIdentity? warpIdentity,
 }) {
+  // WARP inside Xray with the identity Aether registered (warp_xray.dart):
+  // passed only where Xray can carry it (usesXrayWarp); without one, Aether
+  // does as before.
+  final bool xrayWarp =
+      result.transport == kWarpTransport && warpIdentity != null;
   if (result.transport == 'hysteria') {
     return _renderHysteriaClientConfigJson(
       result,
@@ -225,7 +232,9 @@ String renderXrayClientConfigJson(
     'outbounds': <Map<String, dynamic>>[
       // First outbound is Xray's default route, so the real one stays first
       // and the blackhole is only ever reached by an explicit rule below.
-      if (result.transport == kWarpTransport)
+      if (xrayWarp)
+        xrayWarpOutbound('proxy', settings.warp, warpIdentity)
+      else if (result.transport == kWarpTransport)
         _aetherSocksOutbound(
           'proxy',
           leavesThroughPsiphon(result, settings)
@@ -339,7 +348,7 @@ String renderXrayClientConfigJson(
         ],
       },
   };
-  if (result.transport == kWarpTransport ||
+  if ((result.transport == kWarpTransport && !xrayWarp) ||
       reachesServerThroughWarp(result, settings)) {
     final bool psiphon = leavesThroughPsiphon(result, settings);
     if (psiphon) {

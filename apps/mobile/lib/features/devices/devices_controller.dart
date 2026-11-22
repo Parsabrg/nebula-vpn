@@ -34,6 +34,7 @@ import '../../core/storage/wireguard_peer_store.dart';
 import '../../core/storage/xray_credential_store.dart';
 import '../../core/tunnel/tunnel_health.dart';
 import '../../core/tunnel/tunnel_traffic.dart';
+import '../../core/warp/warp_xray.dart';
 import '../../core/wireguard/native_tunnel_channel.dart';
 import '../../core/wireguard/tunnel_controller.dart';
 import '../../core/wireguard/wireguard_config.dart';

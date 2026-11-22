@@ -558,9 +558,14 @@ class LinuxXrayRuntime {
           (outbounds.first as Map<String, dynamic>)['settings']
               as Map<String, dynamic>;
       // VLESS names its server under vnext, Hysteria2 under servers.
-      final List<dynamic> servers =
-          (settings['vnext'] ?? settings['servers']) as List<dynamic>;
-      return (servers.first as Map<String, dynamic>)['address'] as String?;
+      final Object? servers = settings['vnext'] ?? settings['servers'];
+      // MASQUE (WARP inside Xray) names its endpoint in the settings.
+      if (servers == null) {
+        return settings['address'] as String?;
+      }
+      return ((servers as List<dynamic>).first
+              as Map<String, dynamic>)['address']
+          as String?;
     } on Object {
       return null;
     }
