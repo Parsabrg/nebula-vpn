@@ -14,7 +14,7 @@ dependencies = [
   "argon2-cffi==25.1.0",
   "cryptography==50.0.2",
   "email-validator==2.4.0",
-  "fastapi==0.163.2",
+  "fastapi==0.165.0",
   "prometheus-client==0.26.0",
   "httpx==0.28.1",
   "pydantic-settings==2.16.3",
