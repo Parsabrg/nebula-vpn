@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,13 +20,61 @@ const String releasesRepository = String.fromEnvironment(
 
 /// A newer release than the one installed.
 class AvailableUpdate {
-  const AvailableUpdate({required this.version, required this.page});
+  const AvailableUpdate({
+    required this.version,
+    required this.page,
+    this.notes = const <String>[],
+  });
 
   /// `0.1.7`, without the tag's `v`.
   final String version;
 
   /// The release's page, where its notes and APK are.
   final Uri page;
+
+  /// The "What's new" points of its notes, as plain text; empty when the
+  /// release came from Nebula's own API, which carries no notes.
+  final List<String> notes;
+}
+
+/// The bullet points under the first heading of a release's notes ("What's
+/// new"), without Markdown, at most [limit]: the bold lead of each point when
+/// it has one, which is the point itself in these notes.
+List<String> releaseHighlights(Object? body, {int limit = 5}) {
+  if (body is! String) {
+    return const <String>[];
+  }
+  final List<String> points = <String>[];
+  bool inSection = false;
+  for (final String raw in const LineSplitter().convert(body)) {
+    final String line = raw.trim();
+    if (line.startsWith('#')) {
+      if (inSection) {
+        break;
+      }
+      inSection = true;
+      continue;
+    }
+    if (!inSection || !(line.startsWith('- ') || line.startsWith('* '))) {
+      continue;
+    }
+    String point = line.substring(2).trim();
+    final Match? lead = RegExp(r'^\*\*(.+?)\*\*').firstMatch(point);
+    if (lead != null) {
+      point = lead.group(1)!;
+    }
+    point = point.replaceAll(RegExp(r'[*`]'), '').trim();
+    if (point.endsWith('.') || point.endsWith(':')) {
+      point = point.substring(0, point.length - 1);
+    }
+    if (point.isNotEmpty) {
+      points.add(point);
+    }
+    if (points.length == limit) {
+      break;
+    }
+  }
+  return points;
 }
 
 /// Compares dotted version numbers: negative, zero or positive, or null for
@@ -94,7 +144,11 @@ AvailableUpdate? updateFromRelease(
     return null;
   }
   final String version = tag.startsWith('v') ? tag.substring(1) : tag;
-  return AvailableUpdate(version: version, page: page);
+  return AvailableUpdate(
+    version: version,
+    page: page,
+    notes: releaseHighlights(release['body']),
+  );
 }
 
 /// The latest published release, as GitHub describes it, or null.
@@ -242,3 +296,22 @@ final availableUpdateProvider = FutureProvider<AvailableUpdate?>((
       .latest();
   return release == null ? null : updateFromRelease(release, installed);
 });
+
+/// The version whose pop-up was answered with "Later": it is not shown again
+/// for that version, only for a newer one. The Account row still offers it.
+class DismissedUpdateController extends Notifier<String?> {
+  static const String _key = 'nebula.update_dismissed';
+
+  @override
+  String? build() => ref.watch(sharedPreferencesProvider).getString(_key);
+
+  Future<void> dismiss(String version) async {
+    state = version;
+    await ref.read(sharedPreferencesProvider).setString(_key, version);
+  }
+}
+
+final dismissedUpdateProvider =
+    NotifierProvider<DismissedUpdateController, String?>(
+      DismissedUpdateController.new,
+    );

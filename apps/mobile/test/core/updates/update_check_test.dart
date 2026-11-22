@@ -163,4 +163,28 @@ void main() {
       expect(await container.read(availableUpdateProvider.future), isNull);
     });
   });
+
+  test("the pop-up lists the release's What's new points, not the rest", () {
+    const String body = """## What's new
+
+- **Faster connections on Android.** Every new connection waited longer.
+- Settings is a tab on narrow windows.
+
+## Fixes
+
+- **Windows:** something else.""";
+    expect(releaseHighlights(body), <String>[
+      'Faster connections on Android',
+      'Settings is a tab on narrow windows',
+    ]);
+    expect(releaseHighlights(null), isEmpty);
+    expect(
+      updateFromRelease(<String, dynamic>{
+        'tag_name': 'v0.2.0',
+        'html_url': 'https://github.com/o/r/releases/tag/v0.2.0',
+        'body': body,
+      }, '0.1.40')!.notes,
+      hasLength(2),
+    );
+  });
 }
