@@ -112,13 +112,19 @@ Future<WarpIdentity?> readWarpIdentity(WarpSettings settings) async {
   }
 }
 
-/// The gateway to dial: the one pinned in WARP settings, else the newest
-/// Aether connected through, else Cloudflare's first.
-String warpGatewayFor(WarpSettings settings, WarpIdentity identity) =>
-    settings.endpoint ??
-    (identity.recentGateways.isEmpty
-        ? defaultWarpGateway
-        : identity.recentGateways.first);
+/// The gateway to dial, on port 443: MASQUE over HTTP/2 is TCP on 443,
+/// while the port Aether records is often a QUIC one (8095, 4500, 8443...),
+/// where a TCP connect gets nothing -- seen on Windows. The address is the
+/// one pinned in WARP settings, else the newest Aether connected through,
+/// else Cloudflare's first.
+String warpGatewayFor(WarpSettings settings, WarpIdentity identity) {
+  final String chosen =
+      settings.endpoint ??
+      (identity.recentGateways.isEmpty
+          ? defaultWarpGateway
+          : identity.recentGateways.first);
+  return '${chosen.substring(0, chosen.lastIndexOf(':'))}:443';
+}
 
 /// The Xray outbound that carries WARP.
 Map<String, dynamic> xrayWarpOutbound(

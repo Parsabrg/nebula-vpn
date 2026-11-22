@@ -81,7 +81,18 @@ void main() {
     expect(warpGatewayFor(WarpSettings.defaults, fresh), defaultWarpGateway);
     expect(
       warpGatewayFor(const WarpSettings(endpoint: '162.159.192.1:2408'), seen),
-      '162.159.192.1:2408',
+      '162.159.192.1:443',
+    );
+    // A QUIC port Aether recorded is not where HTTP/2 is served.
+    expect(
+      warpGatewayFor(
+        WarpSettings.defaults,
+        parseWarpIdentity(
+          _identityToml,
+          lastConnection: 'recent = ["162.159.198.176:8095"]',
+        )!,
+      ),
+      '162.159.198.176:443',
     );
   });
 
