@@ -113,6 +113,18 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       }
       unawaited(offerUpdate(context, ref, update));
     });
+    // GitHub is often unreachable before the tunnel is up: a check that found
+    // nothing then is asked again once it is.
+    ref.listen<bool>(
+      devicesControllerProvider.select((state) => state.tunnelEstablished),
+      (bool? previous, bool next) {
+        if (next &&
+            previous != true &&
+            ref.read(availableUpdateProvider).value == null) {
+          ref.invalidate(availableUpdateProvider);
+        }
+      },
+    );
 
     final List<String> roots = <String>[
       RoutePaths.homeConnect,
