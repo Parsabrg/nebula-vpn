@@ -1,0 +1,59 @@
+name: macOS
+
+# The macOS build, on GitHub's hosted macOS runner (free for a public
+# repository): unsigned, as signing needs an Apple Developer Program
+# membership. See docs/plans/apple-platforms.md.
+on:
+  pull_request:
+    paths: ["apps/mobile/**", ".github/workflows/macos.yml"]
+  push:
+    branches: [main]
+    paths: ["apps/mobile/**", ".github/workflows/macos.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      # subosito/flutter-action v2.21.0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: "3.50.1"
+          channel: stable
+      - name: Vendor the patched tunnel plugin (Dart side only)
+        working-directory: apps/mobile
+        run: |
+          flutter pub cache add flutter_v2ray_client --version 3.4.1
+          python3 third_party_src/vendor_plugin.py --source-only
+      - name: Analyze and test
+        working-directory: apps/mobile
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+      - name: Fetch the macOS engine (pinned by digest)
+        working-directory: apps/mobile
+        run: bash tool/vendor_macos_runtime.sh
+      - name: macOS tunnel end to end (root helper, utun, DNS, teardown)
+        working-directory: apps/mobile
+        run: bash tool/macos_tunnel_smoke.sh
+      - name: Build macOS (unsigned)
+        working-directory: apps/mobile
+        run: |
+          flutter build macos --release --dart-define=API_BASE_URL=https://api.example.invalid
+          mkdir -p dist
+          ditto -c -k --keepParent "build/macos/Build/Products/Release/Nebula VPN.app" dist/NebulaVPN-macos-unsigned.zip
+      # actions/upload-artifact v7.0.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: NebulaVPN-macos-unsigned
+          path: apps/mobile/dist/
