@@ -74,7 +74,8 @@ class UpdateInstaller {
 
   Future<void> install(
     AvailableUpdate update, {
-    void Function(double progress)? onProgress,
+    void Function(int received, int total)? onProgress,
+    CancelToken? cancel,
   }) async {
     final String base =
         'https://github.com/$releasesRepository/releases/download/v${update.version}/';
@@ -115,10 +116,9 @@ class UpdateInstaller {
       await _dio.download(
         '$base$name',
         file.path,
+        cancelToken: cancel,
         onReceiveProgress: (int received, int total) {
-          if (total > 0) {
-            onProgress?.call(received / total);
-          }
+          onProgress?.call(received, total);
         },
       );
     } on Object {

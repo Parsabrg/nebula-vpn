@@ -12,8 +12,10 @@ import '../../core/routing/home_branches.dart';
 import '../../core/routing/route_paths.dart';
 import '../../core/storage/storage_providers.dart';
 import '../../core/theme/color_tokens.dart';
+import '../../core/updates/update_check.dart';
 import '../../core/widgets/nebula/nebula_nav.dart';
 import '../../core/wireguard/tunnel_controller.dart';
+import '../account/update_dialog.dart';
 import '../devices/devices_controller.dart';
 import 'desktop_frame.dart';
 
@@ -97,14 +99,29 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       }
     });
 
+    // A newer release: offered once per version, as a pop-up over whichever
+    // tab is showing. "Later" waits for the next one; Account still lists it.
+    ref.listen<AsyncValue<AvailableUpdate?>>(availableUpdateProvider, (
+      AsyncValue<AvailableUpdate?>? previous,
+      AsyncValue<AvailableUpdate?> next,
+    ) {
+      final AvailableUpdate? update = next.value;
+      if (update == null ||
+          previous?.value?.version == update.version ||
+          ref.read(dismissedUpdateProvider) == update.version) {
+        return;
+      }
+      unawaited(offerUpdate(context, ref, update));
+    });
+
     final List<String> roots = <String>[
       RoutePaths.homeConnect,
       RoutePaths.homeDevices,
       RoutePaths.homeAccount,
     ];
     // A tab tap lands on that tab's main page, however deep it was left:
-    // several screens into Connection details, tapping Connect did nothing
-    //, because those screens are pushed straight onto
+    // several screens into Connection details, tapping Connect did nothing,
+    // because those screens are pushed straight onto
     // the tab's navigator, which the router's own reset leaves alone.
     void goBranch(int index) {
       popHomeBranch(ref, index);
