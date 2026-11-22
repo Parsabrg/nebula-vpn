@@ -53,6 +53,8 @@ app.*.map.json
 !/assets/windows_runtime/.gitkeep
 /assets/linux_runtime/*
 !/assets/linux_runtime/.gitkeep
+/assets/macos_runtime/*
+!/assets/macos_runtime/.gitkeep
 
 # Portable-build output. `dist/` alone does not match these: every Windows
 # build so far has gone to its own `dist-<something>/`, and there are 2.7 GB

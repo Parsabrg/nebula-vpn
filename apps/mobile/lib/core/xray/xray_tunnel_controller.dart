@@ -6,6 +6,7 @@ import 'package:flutter_v2ray_client/flutter_v2ray.dart';
 
 import '../tunnel/tunnel_traffic.dart';
 import 'linux_xray_tunnel.dart';
+import 'macos_xray_tunnel.dart';
 import 'windows_xray_tunnel.dart';
 
 /// Establishes/tears down the real local Xray tunnel -- kept separate from
@@ -322,6 +323,9 @@ final xrayTunnelControllerProvider = Provider<XrayTunnelController>((Ref ref) {
   }
   if (Platform.isLinux) {
     return LinuxXrayTunnelController();
+  }
+  if (Platform.isMacOS) {
+    return MacosXrayTunnelController();
   }
   return const UnsupportedXrayTunnelController();
 });

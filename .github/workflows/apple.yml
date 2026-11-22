@@ -41,6 +41,12 @@ jobs:
           flutter pub get
           flutter analyze
           flutter test
+      - name: Fetch the macOS engine (pinned by digest)
+        working-directory: apps/mobile
+        run: bash tool/vendor_macos_runtime.sh
+      - name: macOS tunnel end to end (root helper, utun, DNS, teardown)
+        working-directory: apps/mobile
+        run: bash tool/macos_tunnel_smoke.sh
       - name: Build macOS (unsigned)
         working-directory: apps/mobile
         run: |

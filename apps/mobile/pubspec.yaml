@@ -63,6 +63,8 @@ flutter:
       platforms: [windows]
     - path: assets/linux_runtime/
       platforms: [linux]
+    - path: assets/macos_runtime/
+      platforms: [macos]
 
   # Bundled, not fetched. The `google_fonts` package resolves faces from
   # fonts.googleapis.com at runtime, which is blocked on the networks this app
