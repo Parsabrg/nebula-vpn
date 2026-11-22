@@ -159,4 +159,39 @@ void main() {
     );
     expect(WarpSettings.fromJsonString('{}').engine, WarpEngine.aether);
   });
+
+  test('gateways to knock on: recent ones, each once, then the default', () {
+    final WarpIdentity identity = parseWarpIdentity(
+      _identityToml,
+      lastConnection:
+          'recent = ["162.159.198.35:8095", "162.159.198.35:443", '
+          '"162.159.199.81:4500"]',
+    )!;
+    expect(warpGatewayCandidates(identity), <String>[
+      '162.159.198.35:443',
+      '162.159.199.81:443',
+      '162.159.198.1:443',
+    ]);
+  });
+
+  test('the newest gateway that answers is dialled', () async {
+    final WarpIdentity identity = parseWarpIdentity(
+      _identityToml,
+      lastConnection: _lastConnection,
+    )!;
+    final List<String> candidates = warpGatewayCandidates(identity);
+    Future<bool> onlySecond(String gateway, Duration _) async =>
+        gateway == '162.159.199.81:443';
+    final String? answering = await firstAnsweringGateway(
+      candidates,
+      knock: onlySecond,
+    );
+    expect(answering, '162.159.199.81:443');
+    expect(
+      warpGatewayFor(WarpSettings.defaults, identity.preferring(answering!)),
+      '162.159.199.81:443',
+    );
+    Future<bool> none(String _, Duration _) async => false;
+    expect(await firstAnsweringGateway(candidates, knock: none), isNull);
+  });
 }

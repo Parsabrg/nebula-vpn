@@ -746,12 +746,23 @@ mixin _Connecting on _DevicesCore {
           await ref.read(echServerRefreshProvider)(echConfigListFor(result));
           // WARP inside Xray needs the identity Aether registered; the
           // first connect, before there is one, is Aether's.
-          final WarpIdentity? warpIdentity =
+          WarpIdentity? warpIdentity =
               result.transport == kWarpTransport &&
                   !warpThroughAether &&
                   usesXrayWarp(settings.warp)
               ? await readWarpIdentity(settings.warp)
               : null;
+          // Of Aether's recent gateways, the newest that still answers; a
+          // pinned endpoint is the person's choice and is dialled as is.
+          if (warpIdentity != null && settings.warp.endpoint == null) {
+            final String? answering = await firstAnsweringGateway(
+              warpGatewayCandidates(warpIdentity),
+            );
+            _mark('warp: gateway ${answering ?? 'none answered'}');
+            if (answering != null) {
+              warpIdentity = warpIdentity.preferring(answering);
+            }
+          }
           String config = renderXrayClientConfigJson(
             result,
             settings: settings,

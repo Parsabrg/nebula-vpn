@@ -43,6 +43,17 @@ class WarpIdentity {
 
   /// Gateways Aether last connected through, newest first.
   final List<String> recentGateways;
+
+  /// The same identity with [gateway] tried first.
+  WarpIdentity preferring(String gateway) => WarpIdentity(
+    privateKeyPem: privateKeyPem,
+    ipv4: ipv4,
+    ipv6: ipv6,
+    recentGateways: <String>[
+      gateway,
+      ...recentGateways.where((String g) => g != gateway),
+    ],
+  );
 }
 
 /// Whether this connect runs WARP inside Xray. Only plain WARP over MASQUE:
@@ -124,6 +135,60 @@ String warpGatewayFor(WarpSettings settings, WarpIdentity identity) {
           ? defaultWarpGateway
           : identity.recentGateways.first);
   return '${chosen.substring(0, chosen.lastIndexOf(':'))}:443';
+}
+
+/// The gateways worth knocking on before a connect, newest first, each
+/// once, on port 443: Aether's recent ones, then Cloudflare's first.
+List<String> warpGatewayCandidates(WarpIdentity identity, {int limit = 4}) {
+  final List<String> hosts = <String>[];
+  for (final String gateway in <String>[
+    ...identity.recentGateways,
+    defaultWarpGateway,
+  ]) {
+    final String host = gateway.substring(0, gateway.lastIndexOf(':'));
+    if (!hosts.contains(host)) {
+      hosts.add(host);
+    }
+  }
+  return <String>[for (final String h in hosts.take(limit)) '$h:443'];
+}
+
+/// Opens a TCP connection to [gateway] ("ip:port"); true if it answered.
+typedef GatewayKnock = Future<bool> Function(String gateway, Duration timeout);
+
+Future<bool> knockTcp(String gateway, Duration timeout) async {
+  final int colon = gateway.lastIndexOf(':');
+  try {
+    final Socket socket = await Socket.connect(
+      gateway.substring(0, colon).replaceAll(RegExp(r'[\[\]]'), ''),
+      int.parse(gateway.substring(colon + 1)),
+      timeout: timeout,
+    );
+    socket.destroy();
+    return true;
+  } on Object {
+    return false;
+  }
+}
+
+/// The newest of [candidates] that answers a TCP connect within [timeout],
+/// all knocked on at once; null if none does. A gateway that has gone away
+/// costs [timeout] here, instead of a connect that carries nothing and a
+/// retry through Aether's scan.
+Future<String?> firstAnsweringGateway(
+  List<String> candidates, {
+  Duration timeout = const Duration(milliseconds: 1500),
+  GatewayKnock knock = knockTcp,
+}) async {
+  final List<bool> answered = await Future.wait(<Future<bool>>[
+    for (final String gateway in candidates) knock(gateway, timeout),
+  ]);
+  for (int i = 0; i < candidates.length; i++) {
+    if (answered[i]) {
+      return candidates[i];
+    }
+  }
+  return null;
 }
 
 /// The Xray outbound that carries WARP.
