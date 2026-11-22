@@ -5,6 +5,7 @@ import '../../core/account/account_repository.dart';
 import '../../core/network/error_copy.dart';
 import '../../core/platform/sensitive_clipboard.dart';
 import '../../core/theme/color_tokens.dart';
+import '../../core/widgets/qr_code_view.dart';
 import '../../l10n/app_localizations.dart';
 
 /// A subscription link for apps such as Streisand, V2Box or Hiddify: how an
@@ -71,6 +72,10 @@ class _SubscriptionDialogState extends State<_SubscriptionDialog> {
           if (link != null) ...<Widget>[
             const SizedBox(height: 12),
             SelectableText(link, style: TextStyle(color: palette.textPrimary)),
+            const SizedBox(height: 12),
+            // Scanned with the other app's camera straight off this screen,
+            // where copying would mean sending the link to the iPhone.
+            Center(child: QrCodeView(data: link)),
           ],
           if (_error case final String error) ...<Widget>[
             const SizedBox(height: 12),
