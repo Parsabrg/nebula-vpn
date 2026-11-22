@@ -35,6 +35,11 @@ jobs:
           channel: stable
       - name: Install the Android NDK
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;28.2.13676358" > /dev/null
+      - name: Set up Go (Hysteria2 is built from source)
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.26.11'
+          cache: false
       - name: Vendor the patched flutter_v2ray_client
         working-directory: apps/mobile
         run: |

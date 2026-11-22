@@ -8,8 +8,9 @@ python third_party_src/vendor_plugin.py
 ```
 
 The result lands in `../third_party/` and is gitignored: it is ~145MB of
-upstream code and release binaries, all of it reproducible from the patch and
-the digests pinned in the script.
+upstream code and release binaries, all of it reproducible from the patch, the
+digests pinned in the script, and the commits it builds from (Hysteria2 and
+hev-socks5-tunnel, for API 26; Hysteria2's own Android releases need API 29).
 
 `flutter pub get` will fail until you run it, because `pubspec_overrides.yaml`
 points at a directory that does not exist yet. That is deliberate -- failing is
