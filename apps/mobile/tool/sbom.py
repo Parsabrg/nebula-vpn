@@ -89,7 +89,7 @@ def android_engines() -> list[dict[str, Any]]:
     assert spec and spec.loader
     plugin = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(plugin)
-    hysteria = plugin.HYSTERIA_RELEASE.replace("app%2F", "")
+    hysteria = plugin.HYSTERIA_TAG.split("/")[-1]
     components = [
         _component(
             "library",
@@ -112,16 +112,18 @@ def android_engines() -> list[dict[str, Any]]:
             aar_url,
         )
     )
-    for abi, (asset, digest) in plugin.BINARIES.items():
+    # Built from source for each ABI (vendor_plugin.build_hysteria): the
+    # component is the pinned commit, not a downloaded file.
+    for abi in plugin.ANDROID_ABIS:
         components.append(
             _component(
                 "application",
                 f"hysteria ({abi})",
                 hysteria,
-                f"pkg:github/apernet/hysteria@app/{hysteria}?arch={abi}",
+                f"pkg:github/apernet/hysteria@{plugin.HYSTERIA_COMMIT}?arch={abi}",
                 "app-android",
-                digest,
-                f"https://github.com/apernet/hysteria/releases/download/app/{hysteria}/{asset}",
+                None,
+                f"{plugin.HYSTERIA_REPO}/tree/{plugin.HYSTERIA_COMMIT}",
             )
         )
     gradle = (MOBILE / "android" / "app" / "build.gradle.kts").read_text(encoding="utf-8")

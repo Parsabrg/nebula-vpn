@@ -28,6 +28,11 @@ jobs:
         with:
           flutter-version: "3.50.1"
           channel: stable
+      - name: Set up Go (Hysteria2 is built from source)
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.26.11'
+          cache: false
       - name: Vendor the pinned Android tunnel dependency
         working-directory: apps/mobile
         shell: pwsh

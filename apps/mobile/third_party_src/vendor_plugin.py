@@ -16,9 +16,10 @@ Why vendored rather than forked: the upstream plugin is unmodified apart from
 the patch here, and a fork would mean carrying a 53MB `.aar` in this
 repository to change a few hundred lines.
 
-Why the binaries are fetched rather than committed: four ABIs at ~22MB each is
-90MB of release artifacts that are already published, immutable, and pinned by
-digest below. Anything that does not match its digest is refused.
+Why the native parts are fetched or built rather than committed: four ABIs at
+~22MB each is 90MB. Release files are pinned by digest below, and anything that
+does not match is refused; Hysteria2 and hev-socks5-tunnel are built from
+pinned commits (Hysteria2 needs Go 1.26 and the Android NDK).
 """
 
 import hashlib
@@ -35,28 +36,23 @@ from pathlib import Path
 
 PLUGIN = "flutter_v2ray_client"
 VERSION = "3.4.1"
-HYSTERIA_RELEASE = "app%2Fv2.14.0"
+# Hysteria2, built here from a pinned commit of its 2.14.0 release with the
+# Android NDK for API 26, the app's minimum. The release's own Android
+# binaries are built for API 29: on Android 8 and 9 they fail to start
+# ("cannot locate symbol android_get_device_api_level"), so every Hysteria2
+# connect there failed. The flags are the release's own (hyperbole.py).
+HYSTERIA_REPO = "https://github.com/apernet/hysteria"
+HYSTERIA_TAG = "app/v2.14.0"
+HYSTERIA_COMMIT = "c2b181e0b0e72b077e4b0b7297735af14d1f9929"
+HYSTERIA_GO = (1, 26)
+ANDROID_API = 26
 
-# sha256 of each official release asset, verified against what this app was
-# built and tested with. A mismatch means the artifact is not the one this
-# patch was written against -- refuse rather than ship an unknown binary.
-BINARIES = {
-    "arm64-v8a": (
-        "hysteria-android-arm64",
-        "7d3c67ed4e2e537d72006b06d17019db5ee0edbda566141b14cf575eeeecd9eb",
-    ),
-    "armeabi-v7a": (
-        "hysteria-android-armv7",
-        "610e9730285621837c3cbd3486f40cd51a3b53cd06c46ca948db8a5dfe4bdddf",
-    ),
-    "x86_64": (
-        "hysteria-android-amd64",
-        "714497a2668b8552344de49ae489e345a82447b4708e7fde277c9fc0be33039c",
-    ),
-    "x86": (
-        "hysteria-android-386",
-        "4bcdd3199cb9f8e504f1b15cc0652d79b1d56130f496bf64aeec38df5a28c9d4",
-    ),
+# Per ABI: Go's GOARCH (and GOARM), the NDK compiler's target, the app's arch name.
+ANDROID_ABIS = {
+    "arm64-v8a": ({"GOARCH": "arm64"}, "aarch64-linux-android", "arm64"),
+    "armeabi-v7a": ({"GOARCH": "arm", "GOARM": "7"}, "armv7a-linux-androideabi", "armv7"),
+    "x86_64": ({"GOARCH": "amd64"}, "x86_64-linux-android", "amd64"),
+    "x86": ({"GOARCH": "386"}, "i686-linux-android", "386"),
 }
 
 # The Xray engine itself. The plugin ships one (26.6.1 with 3.4.1); this is
@@ -148,29 +144,6 @@ def pub_cache_source() -> Path:
     )
 
 
-def fetch(abi: str, asset: str, digest: str, into: Path) -> None:
-    into.mkdir(parents=True, exist_ok=True)
-    destination = into / "libhysteria.so"
-    if destination.exists():
-        if hashlib.sha256(destination.read_bytes()).hexdigest() == digest:
-            print(f"  {abi:<12} already present")
-            return
-        destination.unlink()
-
-    url = (
-        "https://github.com/apernet/hysteria/releases/download/"
-        f"{HYSTERIA_RELEASE}/{asset}"
-    )
-    print(f"  {abi:<12} downloading {asset}")
-    payload = download(url)
-    actual = hashlib.sha256(payload).hexdigest()
-    if actual != digest:
-        raise SystemExit(
-            f"{asset} digest mismatch\n  expected {digest}\n  got      {actual}"
-        )
-    destination.write_bytes(payload)
-
-
 def fetch_engine(into: Path) -> None:
     url, digest = XRAY_AAR
     print(f"  downloading {url.rsplit('/', 3)[-2]} libv2ray.aar")
@@ -193,7 +166,7 @@ def fetch_cottendns(jni_libs: Path) -> None:
             f"CottenDNS zip digest mismatch\n  expected {digest}\n  got      {actual}"
         )
     with zipfile.ZipFile(io.BytesIO(payload)) as archive:
-        for abi in BINARIES:
+        for abi in ANDROID_ABIS:
             name = f"jniLibs/{abi}/libcottendns_client.so"
             (jni_libs / abi / "libcottendns_client.so").write_bytes(archive.read(name))
             print(f"  {abi:<12} extracted")
@@ -265,11 +238,68 @@ def build_hev(jni_libs: Path) -> None:
              f"APP_CFLAGS=-O3 -DPKGNAME={package} -DCLSNAME={cls}", "-j8"],
             cwd=source, check=True, capture_output=True,
         )
-        for abi in BINARIES:
+        for abi in ANDROID_ABIS:
             built = source / "libs" / abi / "libhev-socks5-tunnel.so"
             shutil.copyfile(built, jni_libs / abi / "libhev-socks5-tunnel.so")
             # badvpn's tun2socks, which hev replaces.
             (jni_libs / abi / "libtun2socks.so").unlink(missing_ok=True)
+            print(f"  {abi:<12} built")
+
+
+def build_hysteria(jni_libs: Path) -> None:
+    """Builds libhysteria.so for each ABI from the pinned commit (see above)."""
+    go = shutil.which("go")
+    if go is None:
+        raise SystemExit(f"Go {HYSTERIA_GO[0]}.{HYSTERIA_GO[1]} or newer is needed to build Hysteria2.")
+    version = subprocess.run(
+        [go, "env", "GOVERSION"], check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    numbers = tuple(int(part) for part in version.removeprefix("go").split(".")[:2])
+    if numbers < HYSTERIA_GO:
+        raise SystemExit(
+            f"Hysteria2 needs Go {HYSTERIA_GO[0]}.{HYSTERIA_GO[1]} or newer, found {version}."
+        )
+    if os.name == "nt":
+        host = "windows-x86_64"
+    else:
+        host = "darwin-x86_64" if sys.platform == "darwin" else "linux-x86_64"
+    compilers = android_ndk() / "toolchains" / "llvm" / "prebuilt" / host / "bin"
+    suffix = ".cmd" if os.name == "nt" else ""
+    package = "github.com/apernet/hysteria/app/v2/cmd"
+    with tempfile.TemporaryDirectory() as work:
+        source = Path(work) / "hysteria"
+        subprocess.run(
+            ["git", "-c", "advice.detachedHead=false", "clone", "--quiet", "--depth", "1",
+             "--branch", HYSTERIA_TAG, HYSTERIA_REPO, str(source)],
+            check=True,
+        )
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=source, check=True,
+            capture_output=True, text=True,
+        ).stdout.strip()
+        if head != HYSTERIA_COMMIT:
+            raise SystemExit(f"Hysteria2 {HYSTERIA_TAG} is {head}, expected {HYSTERIA_COMMIT}")
+        for abi, (goarch, target, arch) in ANDROID_ABIS.items():
+            out = jni_libs / abi / "libhysteria.so"
+            out.parent.mkdir(parents=True, exist_ok=True)
+            env = {
+                **os.environ, **goarch, "GOOS": "android", "CGO_ENABLED": "1",
+                "CC": str(compilers / f"{target}{ANDROID_API}-clang{suffix}"),
+            }
+            ldflags = " ".join([
+                "-s", "-w", "-buildid=",
+                # As the release: github.com/wlynxg/anet reaches into package net.
+                "-checklinkname=0",
+                f"-X {package}.appVersion={HYSTERIA_TAG.split('/')[-1]}",
+                f"-X {package}.appType=release",
+                f"-X {package}.appCommit={HYSTERIA_COMMIT}",
+                f"-X {package}.appPlatform=android",
+                f"-X {package}.appArch={arch}",
+            ])
+            subprocess.run(
+                [go, "build", "-trimpath", "-ldflags", ldflags, "-o", str(out), "./app"],
+                cwd=source, env=env, check=True,
+            )
             print(f"  {abi:<12} built")
 
 
@@ -306,9 +336,8 @@ def main() -> None:
     # copy from before the Aether hunks built fine and lacked them).
     (TARGET / ".patch-sha256").write_text(patch_digest() + "\n", encoding="ascii")
 
-    print("fetching Hysteria2 binaries (pinned by digest)")
-    for abi, (asset, digest) in BINARIES.items():
-        fetch(abi, asset, digest, TARGET / "android/src/main/jniLibs" / abi)
+    print(f"building Hysteria2 {HYSTERIA_TAG} for API {ANDROID_API} (pinned by commit)")
+    build_hysteria(TARGET / "android/src/main/jniLibs")
 
     print(f"building hev-socks5-tunnel {HEV_TAG} (pinned by commit)")
     build_hev(TARGET / "android/src/main/jniLibs")
