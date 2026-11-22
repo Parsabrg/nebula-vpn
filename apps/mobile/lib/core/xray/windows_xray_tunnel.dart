@@ -589,9 +589,14 @@ class WindowsXrayRuntime {
       // Shadowsocks under servers. Reading only vnext, every Shadowsocks-2022
       // connect on Windows ended in "could not resolve the VPN server
       // address" before it dialled anything.
-      final List<dynamic> servers =
-          (settings['vnext'] ?? settings['servers']) as List<dynamic>;
-      return (servers.first as Map<String, dynamic>)['address'] as String?;
+      final Object? servers = settings['vnext'] ?? settings['servers'];
+      // MASQUE (WARP inside Xray) names its endpoint in the settings.
+      if (servers == null) {
+        return settings['address'] as String?;
+      }
+      return ((servers as List<dynamic>).first
+              as Map<String, dynamic>)['address']
+          as String?;
     } on Object {
       return null;
     }

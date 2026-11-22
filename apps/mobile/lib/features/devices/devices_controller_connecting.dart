@@ -606,6 +606,7 @@ mixin _Connecting on _DevicesCore {
     required String protocolProfileCode,
     bool trySaved = true,
     List<CdnDial>? cdnDials,
+    bool warpThroughAether = false,
   }) async {
     state = state.copyWith(isSubmitting: true, actionErrorMessage: () => null);
     try {
@@ -716,6 +717,10 @@ mixin _Connecting on _DevicesCore {
       final bool proxyMode =
           settings.connectionMode == ConnectionMode.localProxy;
       LocalProxy? runningProxy;
+      // Aether checks that data flows before it reports ready; Xray's own
+      // WARP client does not, so then the health check does it as for a
+      // server.
+      bool aetherCarriesWarp = result.transport == kWarpTransport;
       try {
         await _stopLeftoverTunnel();
         // A local proxy needs no VPN consent, but it does need its port:
@@ -739,13 +744,34 @@ mixin _Connecting on _DevicesCore {
               : await ref.read(localProxyFactoryProvider)();
           _tunnelProxy = proxyMode ? null : localProxy;
           await ref.read(echServerRefreshProvider)(echConfigListFor(result));
+          // WARP inside Xray needs the identity Aether registered; the
+          // first connect, before there is one, is Aether's.
+          WarpIdentity? warpIdentity =
+              result.transport == kWarpTransport &&
+                  !warpThroughAether &&
+                  usesXrayWarp(settings.warp)
+              ? await readWarpIdentity(settings.warp)
+              : null;
+          // Of Aether's recent gateways, the newest that still answers; a
+          // pinned endpoint is the person's choice and is dialled as is.
+          if (warpIdentity != null && settings.warp.endpoint == null) {
+            final String? answering = await firstAnsweringGateway(
+              warpGatewayCandidates(warpIdentity),
+            );
+            _mark('warp: gateway ${answering ?? 'none answered'}');
+            if (answering != null) {
+              warpIdentity = warpIdentity.preferring(answering);
+            }
+          }
           String config = renderXrayClientConfigJson(
             result,
             settings: settings,
             localProxy: localProxy,
             apiHosts: ref.read(apiHostsProvider),
             cdnDial: dial,
+            warpIdentity: warpIdentity,
           );
+          aetherCarriesWarp = aetherCarriesWarp && warpIdentity == null;
           if (protocolProfileCode == kDnsTunnelProfileCode) {
             config = await _throughDnsTunnel(config);
           }
@@ -806,7 +832,7 @@ mixin _Connecting on _DevicesCore {
           !await _tunnelCarriesTraffic(
             attempt,
             slow: protocolProfileCode == kDnsTunnelProfileCode,
-            engineCheckedData: result.transport == kWarpTransport,
+            engineCheckedData: aetherCarriesWarp,
           ) &&
           !_cancelled(attempt)) {
         // Xray's tunnel is up the moment the engine starts, whether or not
@@ -822,6 +848,23 @@ mixin _Connecting on _DevicesCore {
         // route). Shown as Off in between, every first connect after a
         // server change flashed Off for a second.
         await disconnect(deviceId, keepConnecting: true);
+        // WARP inside Xray dials the gateway Aether last used; one that has
+        // since been blocked carries nothing. The same WARP once more through
+        // Aether, which looks for a gateway that answers and records it for
+        // the next Xray connect.
+        if (!aetherCarriesWarp &&
+            result.transport == kWarpTransport &&
+            !_cancelled(attempt)) {
+          _mark('warp: xray carried nothing, aether looks for a gateway');
+          await _connectXray(
+            attempt: attempt,
+            deviceId: deviceId,
+            serverCode: serverCode,
+            protocolProfileCode: protocolProfileCode,
+            warpThroughAether: true,
+          );
+          return;
+        }
         // The same credential through Cloudflare, dialled the next way: each
         // of Iran's firewalls lets a different shape through.
         if (dials.length > 1 && !_cancelled(attempt)) {

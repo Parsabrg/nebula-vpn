@@ -109,6 +109,10 @@ class MainActivity : FlutterActivity() {
                     "updateDirectory" -> result.success(
                         java.io.File(cacheDir, "updates").also { it.mkdirs() }.absolutePath,
                     )
+                    // Where Aether keeps its WARP identities (V2rayCoreManager).
+                    "aetherDirectory" -> result.success(
+                        java.io.File(filesDir, "aether").absolutePath,
+                    )
                     "installApk" -> installApk(call.argument("path"), result)
                     "installedApps" -> installedApps(result)
                     "onWifi" -> result.success(DnsTunnelNative.onWifi(this))

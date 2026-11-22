@@ -39,6 +39,10 @@ enum WarpProtocol {
       this == masque || this == wgOverMasque || this == masqueInMasque;
 }
 
+/// What carries WARP: the Aether process, or Xray-core's own MASQUE client
+/// with the identity Aether registered (warp_xray.dart).
+enum WarpEngine { aether, xray }
+
 enum WarpTransport {
   /// TCP 443: survives networks that drop QUIC.
   http2,
@@ -251,6 +255,7 @@ class WarpSettings {
     this.throughWarp = false,
     this.leaveOutsideIran = false,
     this.identity = 0,
+    this.engine = WarpEngine.aether,
   });
 
   final WarpProtocol protocol;
@@ -291,6 +296,9 @@ class WarpSettings {
   /// connection registers new ones under new file names.
   final int identity;
 
+  /// Aether, or Xray (Android, plain WARP over MASQUE): usesXrayWarp.
+  final WarpEngine engine;
+
   static const WarpSettings defaults = WarpSettings();
 
   WarpSettings copyWith({
@@ -308,6 +316,7 @@ class WarpSettings {
     bool? throughWarp,
     bool? leaveOutsideIran,
     int? identity,
+    WarpEngine? engine,
   }) => WarpSettings(
     protocol: protocol ?? this.protocol,
     transport: transport ?? this.transport,
@@ -323,6 +332,7 @@ class WarpSettings {
     throughWarp: throughWarp ?? this.throughWarp,
     leaveOutsideIran: leaveOutsideIran ?? this.leaveOutsideIran,
     identity: identity ?? this.identity,
+    engine: engine ?? this.engine,
   );
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -340,6 +350,7 @@ class WarpSettings {
     'throughWarp': throughWarp,
     'leaveOutsideIran': leaveOutsideIran,
     'identity': identity,
+    'engine': engine.name,
   };
 
   /// Never throws: a value from another build or edited by hand falls back
@@ -401,6 +412,7 @@ class WarpSettings {
       throughWarp: decoded['throughWarp'] == true,
       leaveOutsideIran: decoded['leaveOutsideIran'] == true,
       identity: identity is int && identity >= 0 ? identity : 0,
+      engine: pick(WarpEngine.values, decoded['engine'], defaults.engine),
     );
   }
 
