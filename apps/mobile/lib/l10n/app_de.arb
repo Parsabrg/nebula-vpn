@@ -532,6 +532,7 @@
   "@reduceTransparency": {"description": "Liquid glass only: draw panels solid."},
   "reduceTransparencyMeta": "Feste Flächen, leichter lesbar",
   "@reduceTransparencyMeta": {"description": "Under Reduce transparency."},
+  "reduceTransparencyAutomatic": "An, weil dieses Gerät durchsichtige Flächen langsam zeichnet",
   "accentBlue": "Blau",
   "@accentBlue": {"description": "An accent colour's name (swatch label)."},
   "accentViolet": "Violett",

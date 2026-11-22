@@ -19,9 +19,17 @@ Color nebulaTint(NebulaPalette p, Color c, double percent) => nebulaMix(
       : p.canvas,
 );
 
-/// The look's container: nothing on Minimal, a translucent blurred panel on
-/// Liquid glass (solid with Reduce transparency), a solid card on Soft and
+/// The look's container: nothing on Minimal, a translucent panel on Liquid
+/// glass (solid with Reduce transparency), a solid card on Soft and
 /// Expressive.
+///
+/// On Liquid glass only a panel with [blur] blurs what is behind it: one that
+/// content scrolls under, like the tab bar. Elsewhere a panel sits over the
+/// backdrop's smooth glows, which a blur leaves looking the same, while each
+/// blur costs a full pass every frame: an older phone (Mali-T830) drew
+/// Settings at 5 frames a second with every panel blurred, 30 with only the
+/// tab bar's. A device that is still too slow gets solid panels
+/// (glass_performance_guard.dart).
 class NebulaPanel extends StatelessWidget {
   const NebulaPanel({
     required this.child,
@@ -29,9 +37,14 @@ class NebulaPanel extends StatelessWidget {
     this.radius,
     this.padding,
     this.color,
+    this.blur = false,
   });
 
   final Widget child;
+
+  /// Blur what is behind it (Liquid glass only): for a panel content passes
+  /// under.
+  final bool blur;
   final double? radius;
   final EdgeInsetsGeometry? padding;
 
@@ -87,6 +100,18 @@ class NebulaPanel extends StatelessWidget {
         );
         if (p.solidPanels) {
           return DecoratedBox(decoration: decoration, child: inner);
+        }
+        if (!blur) {
+          return CustomPaint(
+            painter: _OuterShadow(
+              shadow: decoration.boxShadow!.first,
+              corners: corners,
+            ),
+            child: DecoratedBox(
+              decoration: decoration.copyWith(boxShadow: <BoxShadow>[]),
+              child: inner,
+            ),
+          );
         }
         // The blur is the expensive part, so only here, clipped to the
         // panel; Reduce transparency (above) has none at all. The shadow is

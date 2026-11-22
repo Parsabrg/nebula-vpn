@@ -667,6 +667,8 @@
   "@reduceTransparency": {"description": "Liquid glass only: draw panels solid."},
   "reduceTransparencyMeta": "Solid panels, easier to read",
   "@reduceTransparencyMeta": {"description": "Under Reduce transparency."},
+  "reduceTransparencyAutomatic": "On because this device draws see-through panels slowly",
+  "@reduceTransparencyAutomatic": {"description": "Reduce transparency subtitle when the app turned it on because Liquid glass drew too slowly on this device."},
   "accentBlue": "Blue",
   "@accentBlue": {"description": "An accent colour's name (swatch label)."},
   "accentViolet": "Violet",

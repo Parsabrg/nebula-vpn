@@ -532,6 +532,7 @@
   "@reduceTransparency": {"description": "Liquid glass only: draw panels solid."},
   "reduceTransparencyMeta": "Düz paneller, daha kolay okunur",
   "@reduceTransparencyMeta": {"description": "Under Reduce transparency."},
+  "reduceTransparencyAutomatic": "Açık, çünkü bu cihaz saydam panelleri yavaş çiziyor",
   "accentBlue": "Mavi",
   "@accentBlue": {"description": "An accent colour's name (swatch label)."},
   "accentViolet": "Mor",

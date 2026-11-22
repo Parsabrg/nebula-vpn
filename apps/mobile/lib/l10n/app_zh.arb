@@ -532,6 +532,7 @@
   "@reduceTransparency": {"description": "Liquid glass only: draw panels solid."},
   "reduceTransparencyMeta": "实色面板，更易阅读",
   "@reduceTransparencyMeta": {"description": "Under Reduce transparency."},
+  "reduceTransparencyAutomatic": "已开启，因为此设备绘制透明面板较慢",
   "accentBlue": "蓝色",
   "@accentBlue": {"description": "An accent colour's name (swatch label)."},
   "accentViolet": "紫色",

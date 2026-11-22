@@ -108,7 +108,9 @@ class NebulaTabBar extends StatelessWidget {
           top: false,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            // Pages scroll under the tab bar: the one panel that blurs.
             child: NebulaPanel(
+              blur: true,
               radius: 32,
               child: SizedBox(
                 height: 64,
