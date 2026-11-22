@@ -66,7 +66,9 @@ class AppearanceScreen extends ConsumerWidget {
             children: <Widget>[
               NebulaSwitchRow(
                 title: text.reduceTransparency,
-                subtitle: text.reduceTransparencyMeta,
+                subtitle: ref.watch(solidPanelsAutomaticProvider)
+                    ? text.reduceTransparencyAutomatic
+                    : text.reduceTransparencyMeta,
                 value: choice.reduceTransparency,
                 onChanged: (bool on) =>
                     appearance.setReduceTransparency(enabled: on),

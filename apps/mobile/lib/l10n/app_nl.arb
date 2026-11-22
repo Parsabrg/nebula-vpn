@@ -530,6 +530,7 @@
   "@reduceTransparency": {"description": "Liquid glass only: draw panels solid."},
   "reduceTransparencyMeta": "Dichte panelen, beter leesbaar",
   "@reduceTransparencyMeta": {"description": "Under Reduce transparency."},
+  "reduceTransparencyAutomatic": "Aan omdat dit apparaat doorzichtige panelen traag tekent",
   "accentBlue": "Blauw",
   "@accentBlue": {"description": "An accent colour's name (swatch label)."},
   "accentViolet": "Violet",

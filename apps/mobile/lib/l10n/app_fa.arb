@@ -534,6 +534,7 @@
   "@reduceTransparency": {"description": "Liquid glass only: draw panels solid."},
   "reduceTransparencyMeta": "پنل‌های مات، خواناتر",
   "@reduceTransparencyMeta": {"description": "Under Reduce transparency."},
+  "reduceTransparencyAutomatic": "روشن است چون این دستگاه پنل‌های شفاف را کند نمایش می‌دهد",
   "accentBlue": "آبی",
   "@accentBlue": {"description": "An accent colour's name (swatch label)."},
   "accentViolet": "بنفش",

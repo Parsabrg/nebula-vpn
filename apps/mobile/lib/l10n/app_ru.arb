@@ -530,6 +530,7 @@
   "@reduceTransparency": {"description": "Liquid glass only: draw panels solid."},
   "reduceTransparencyMeta": "Сплошные панели, легче читать",
   "@reduceTransparencyMeta": {"description": "Under Reduce transparency."},
+  "reduceTransparencyAutomatic": "Включено: это устройство медленно рисует прозрачные панели",
   "accentBlue": "Синий",
   "@accentBlue": {"description": "An accent colour's name (swatch label)."},
   "accentViolet": "Фиолетовый",

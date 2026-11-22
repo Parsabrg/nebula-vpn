@@ -530,6 +530,7 @@
   "@reduceTransparency": {"description": "Liquid glass only: draw panels solid."},
   "reduceTransparencyMeta": "لوحات مصمتة، أسهل في القراءة",
   "@reduceTransparencyMeta": {"description": "Under Reduce transparency."},
+  "reduceTransparencyAutomatic": "مفعّل لأن هذا الجهاز يعرض اللوحات الشفافة ببطء",
   "accentBlue": "أزرق",
   "@accentBlue": {"description": "An accent colour's name (swatch label)."},
   "accentViolet": "بنفسجي",
