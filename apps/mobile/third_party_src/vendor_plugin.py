@@ -336,6 +336,12 @@ def main() -> None:
     # copy from before the Aether hunks built fine and lacked them).
     (TARGET / ".patch-sha256").write_text(patch_digest() + "\n", encoding="ascii")
 
+    # Apple builds need the patched Dart side only; the Android engines
+    # below need the NDK, which macOS runners do not carry.
+    if "--source-only" in sys.argv[1:]:
+        print("done (source only: no Android engines).")
+        return
+
     print(f"building Hysteria2 {HYSTERIA_TAG} for API {ANDROID_API} (pinned by commit)")
     build_hysteria(TARGET / "android/src/main/jniLibs")
 
