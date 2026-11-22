@@ -130,6 +130,11 @@ class LinuxXrayRuntime {
       // Xray's outbound dials it, and its resolvers leave around the tunnel.
       final Map<String, dynamic>? dnsTunnel =
           source.remove('nebulaDnsTunnel') as Map<String, dynamic>?;
+      if (dnsTunnel != null && !proxyOnly) {
+        dnsTunnel['resolvers'] = dnsTunnelRoutableResolvers(
+          dnsTunnel['resolvers'] as String? ?? '',
+        );
+      }
       final List<String> bypass = dnsTunnel == null
           ? const <String>[]
           : dnsTunnelResolverIpv4s(dnsTunnel['resolvers'] as String? ?? '');

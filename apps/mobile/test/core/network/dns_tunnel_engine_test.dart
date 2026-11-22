@@ -139,4 +139,13 @@ void main() {
     ].join('\n');
     expect(dnsTunnelResolverIpv4s(many), hasLength(64));
   });
+
+  test('a desktop full tunnel keeps only resolvers it can route around', () {
+    expect(
+      dnsTunnelRoutableResolvers(
+        '1.1.1.1:53\n[2001:db8::1]:53\n2001:db8::2\n2.144.2.44\nbogus',
+      ),
+      '1.1.1.1:53\n2.144.2.44',
+    );
+  });
 }

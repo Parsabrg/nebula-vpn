@@ -151,6 +151,35 @@ def test_oversized_body_is_rejected(client: TestClient) -> None:
     assert response.status_code == 413
 
 
+def test_reused_idempotency_key_with_a_different_payload_is_rejected(
+    client: TestClient,
+) -> None:
+    key, target = str(uuid4()), str(uuid4())
+    first = client.post(
+        "/v1/operations/provision-device",
+        json=_provision_body(idempotency_key=key, target_id=target),
+    )
+    assert first.status_code == 200
+
+    other_key = base64.b64encode(bytes(range(2, 34))).decode()
+    second = client.post(
+        "/v1/operations/provision-device",
+        json=_provision_body(idempotency_key=key, target_id=target, public_key=other_key),
+    )
+    assert second.status_code == 409
+
+
+def test_oversized_body_without_a_content_length_is_rejected(client: TestClient) -> None:
+    # A chunked body declares no length: the limit applies while it is read.
+    chunks = iter([b"{" + b" " * 8192, b" " * 8192, b" " * 8192 + b"}"])
+    response = client.post(
+        "/v1/operations/provision-device",
+        content=chunks,
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == 413
+
+
 def test_agent_still_exposes_only_the_allowlisted_operation_surface(
     client: TestClient,
 ) -> None:

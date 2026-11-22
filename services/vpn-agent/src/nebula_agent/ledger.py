@@ -23,6 +23,8 @@ class LedgerEntry:
     target_id: str
     applied_generation: int
     response_json: str
+    # sha256 of the request without its key; "" in entries from before it.
+    request_fingerprint: str = ""
 
 
 def _parse_entry(line: str) -> LedgerEntry | None:
@@ -35,7 +37,7 @@ def _parse_entry(line: str) -> LedgerEntry | None:
     if not isinstance(payload, dict):
         return None
     expected = {field.name for field in fields(LedgerEntry)}
-    if set(payload) != expected:
+    if set(payload) not in (expected, expected - {"request_fingerprint"}):
         return None
     # The exact field-set match above is what makes this construction safe:
     # LedgerEntry is an unvalidated dataclass, so with the right keys present
@@ -93,6 +95,7 @@ class OperationLedger:
         target_id: UUID,
         applied_generation: int,
         response_json: str,
+        request_fingerprint: str = "",
     ) -> None:
         entry = LedgerEntry(
             idempotency_key=str(idempotency_key),
@@ -100,6 +103,7 @@ class OperationLedger:
             target_id=str(target_id),
             applied_generation=applied_generation,
             response_json=response_json,
+            request_fingerprint=request_fingerprint,
         )
         if entry.idempotency_key not in self._entries:
             self._order.append(entry.idempotency_key)

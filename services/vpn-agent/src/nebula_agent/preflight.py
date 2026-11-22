@@ -25,6 +25,7 @@ import sys
 from dataclasses import dataclass
 
 from nebula_agent.driver_factory import build_xray_driver
+from nebula_agent.drivers._exec import reap
 from nebula_agent.drivers.xray import _HYSTERIA_UNIT, _SYSTEMCTL_BINARY, _XRAY_UNIT
 from nebula_agent.settings import Settings, get_settings
 
@@ -129,8 +130,12 @@ async def _restart_count(unit: str) -> int | None:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
         )
-        stdout, _ = await process.communicate()
-    except (OSError, ValueError):
+        try:
+            stdout, _ = await asyncio.wait_for(process.communicate(), timeout=10)
+        except (TimeoutError, asyncio.CancelledError):
+            await reap(process)
+            raise
+    except (OSError, ValueError, TimeoutError):
         return None
     if process.returncode != 0:
         return None
