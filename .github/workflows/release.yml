@@ -275,4 +275,6 @@ jobs:
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
             || gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
                  --title "Nebula VPN ${{ needs.prepare.outputs.version }}" --notes "$notes"
-          gh release upload "$GITHUB_REF_NAME" files/* --clobber
+          # The release files only: the Dart symbols arrive as folders of
+          # their own and stay a workflow artifact.
+          gh release upload "$GITHUB_REF_NAME" files/nebula-vpn-* --clobber
