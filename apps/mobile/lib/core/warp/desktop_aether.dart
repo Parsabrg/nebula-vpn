@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 
 import '../platform/owned_process.dart';
+import 'warp_settings.dart';
 
 /// Cloudflare WARP (Aether) on Windows and Linux, run as the person, as on
 /// Android.
@@ -159,7 +160,7 @@ Future<void> registerAether(
 }
 
 /// Starts Aether and returns it once it serves SOCKS5, which it does only
-/// after its scan and data check (21-25 s on the owner's line); its port
+/// after its scan and data check (typically 20-25 s); its port
 /// accepts connections before that, so the port is no sign. [upstream] is
 /// the bridge, in a full-device tunnel.
 Future<Process> startAether(
@@ -219,7 +220,7 @@ Future<Process> startAether(
         .listen(onLine, onDone: onDone, onError: (Object _) {});
   }
   final bool ok = await serving.future.timeout(
-    const Duration(seconds: 150),
+    aetherReadyWithin(args),
     onTimeout: () => false,
   );
   if (!ok) {
@@ -306,7 +307,7 @@ Future<int> startAetherHidden(
     throw StateError('Cloudflare WARP did not start.');
   }
   final Map<File, int> read = <File, int>{out: 0, err: 0};
-  final DateTime deadline = DateTime.now().add(const Duration(seconds: 150));
+  final DateTime deadline = DateTime.now().add(aetherReadyWithin(args));
   while (DateTime.now().isBefore(deadline)) {
     for (final File file in read.keys.toList()) {
       try {

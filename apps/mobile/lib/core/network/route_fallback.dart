@@ -31,7 +31,7 @@ const String kRepeatable = 'nebula.repeatable';
 /// timeout waiting for a *response* is not, because the server may have acted
 /// on it -- except for a GET, which changes nothing. That exception matters:
 /// a throttled address does not refuse, it carries a few requests and then
-/// stalls (measured from Iran on 2026-10-06, direct and through Cloudflare),
+/// stalls,
 /// so a stalled GET is how the app learns to move.
 ///
 /// The address that worked is remembered, so a phone on a blocked network
@@ -57,9 +57,9 @@ class RouteFallbackInterceptor extends Interceptor {
 
   /// How long a GET waits on the address in use before the same request also
   /// goes down the next one. A throttled address does not fail, it stalls,
-  /// and a stall only ends at the receive timeout -- measured on mobile data
-  /// on 2026-10-17, the CDN route answered one request and held the next for
-  /// 40 s, so a page waited 10 s per request. Racing them, the first answer
+  /// and a stall only ends at the receive timeout -- on mobile data the CDN
+  /// route has answered one request and held the next for 40 s, so a page
+  /// waited 10 s per request. Racing them, the first answer
   /// wins and its address is the one used next.
   final Duration hedgeAfter;
 
@@ -303,7 +303,7 @@ class RouteFallbackInterceptor extends Interceptor {
   /// A refusal written by something in front of the API rather than by it:
   /// the API answers every error as JSON with a `detail`. A disabled Vercel
   /// front answered "402 Payment required" in plain text, which the app read
-  /// as the account's data limit and stopped there (2026-10-29), while the
+  /// as the account's data limit and stopped there, while the
   /// API itself answered on every other route. A 4xx from a front never
   /// reached the API, so even a POST may move; a 5xx (a CDN's origin
   /// timeout) may have, so only a repeatable request does.

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../theme/color_tokens.dart';
 import '../../theme/look.dart';
@@ -87,7 +87,12 @@ class NebulaPage extends StatelessWidget {
                       ),
                     ),
                     Padding(
-                      padding: EdgeInsets.fromLTRB(minimal ? 0 : 4, 4, 0, 4),
+                      padding: EdgeInsetsDirectional.fromSTEB(
+                        minimal ? 0 : 4,
+                        4,
+                        0,
+                        4,
+                      ),
                       child: heading,
                     ),
                   ] else

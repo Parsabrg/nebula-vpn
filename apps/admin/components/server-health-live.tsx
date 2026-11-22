@@ -27,7 +27,7 @@ const REFRESH_MS = 30_000;
  * The servers' own answers, fetched after the page is on screen.
  *
  * Asking every agent takes as long as the slowest one, and an agent across a
- * slow international link once took six seconds (2026-11-03): with the page
+ * slow international link once took six seconds: with the page
  * waiting for it, clicks elsewhere seemed to do nothing. The page shows at
  * once; these fill in when they arrive, and again every 30 seconds.
  */

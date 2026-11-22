@@ -82,7 +82,7 @@ mixin _SpeedTests on _DevicesCore {
     // A few at a time: a subscription's group can hold a hundred links, and
     // each test starts an engine of its own on the phone. Eight, not more:
     // each test downloads 128 KB, and sixteen at once on a slow line timed
-    // out tests of working protocols (2026-11-11).
+    // out tests of working protocols.
     int running = 0;
     final List<Completer<void>> waiting = <Completer<void>>[];
     Future<void> slot() async {
@@ -158,7 +158,7 @@ mixin _SpeedTests on _DevicesCore {
     await Future.wait(measuring);
     // Then the download, one protocol at a time so they do not share the
     // line, as v2rayN's latency-and-speed test: a throttled route answers
-    // the delay test and stalls a transfer (Windows, 2026-10-30).
+    // the delay test and stalls a transfer.
     for (final MapEntry<AvailableProfile, XrayClientResult> entry
         in answered.entries) {
       if (!ref.mounted) {
@@ -202,7 +202,7 @@ mixin _SpeedTests on _DevicesCore {
     if (delay.outcome == DelayOutcome.failed && !isOwnLinkCode(tested.code)) {
       // Once more, as the server gives the credential now. A saved one
       // can name an address the server has since given up: after its
-      // IPv4 was swapped (2026-10-07), Hysteria2 -- dialled by address --
+      // IPv4 was swapped, Hysteria2 -- dialled by address --
       // tested -1 while connecting, which asks afresh, worked. And UDP
       // comes and goes on Iranian networks: Hysteria2 and WireGuard
       // tested -1 and a minute later measured, while TCP never failed.
@@ -301,7 +301,7 @@ mixin _SpeedTests on _DevicesCore {
     AdvancedSettings settings,
   ) async {
     try {
-      return _measure(await _probeConfig(credential, settings));
+      return await _measure(await _probeConfig(credential, settings));
     } catch (_) {
       return const ProtocolDelay.failed();
     }

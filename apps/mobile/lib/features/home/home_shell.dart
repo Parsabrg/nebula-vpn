@@ -1,8 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/auth/auth_notifier.dart';
 import '../../core/auth/auth_state.dart';
@@ -103,7 +104,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     ];
     // A tab tap lands on that tab's main page, however deep it was left:
     // several screens into Connection details, tapping Connect did nothing
-    // (owner, 2026-11-15), because those screens are pushed straight onto
+    //, because those screens are pushed straight onto
     // the tab's navigator, which the router's own reset leaves alone.
     void goBranch(int index) {
       popHomeBranch(ref, index);
@@ -115,7 +116,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       context,
       ref,
       location: roots[navigationShell.currentIndex],
-      withSettings: desktop,
+      // Settings is a tab wherever it would otherwise be hard to find: on a
+      // narrow desktop window (phone layout, no sidebar) and in free mode,
+      // where it sat at the bottom of the Free page, out of sight.
+      withSettings: desktop || free || Platform.isWindows || Platform.isLinux,
       goBranch: goBranch,
     );
     if (desktop) {

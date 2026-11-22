@@ -39,13 +39,12 @@ Map<String, dynamic> _config(
   AdvancedSettings settings = AdvancedSettings.defaults,
 }) {
   return jsonDecode(
-        renderXrayClientConfigJson(
-          client,
-          settings: settings,
-          localProxy: _localProxy,
-        ),
-      )
-      as Map<String, dynamic>;
+    renderXrayClientConfigJson(
+      client,
+      settings: settings,
+      localProxy: _localProxy,
+    ),
+  ) as Map<String, dynamic>;
 }
 
 /// Typed accessors, so the assertions below read the config rather than
@@ -112,9 +111,9 @@ void main() {
           await SharedPreferences.getInstance();
 
       expect(
-        SharedPreferencesAdvancedSettingsStore(
-          preferences,
-        ).read().localProxyPort,
+        SharedPreferencesAdvancedSettingsStore(preferences)
+            .read()
+            .localProxyPort,
         AdvancedSettings.defaultLocalProxyPort,
       );
     });
@@ -160,7 +159,8 @@ void main() {
       expect(mux['enabled'], isTrue);
       expect(mux['concurrency'], -1);
       expect(mux['xudpConcurrency'], 16);
-      expect(mux['xudpProxyUDP443'], 'reject');
+      // QUIC carried, as v2rayNG does.
+      expect(mux['xudpProxyUDP443'], 'allow');
     });
 
     test('the shipped resolvers still depend on the profile', () {
@@ -520,10 +520,11 @@ void main() {
       expect(_list(config, 'outbounds'), hasLength(1));
       // streamSettings is always there -- it carries the transport and the
       // TLS name. What must be absent is the sockopt redirect into a
-      // fragmenting outbound that does not exist.
+      // fragmenting outbound that does not exist; sockopt itself carries
+      // only the dead-peer timeout.
       expect(
-        _section(_outbound(config), 'streamSettings'),
-        isNot(contains('sockopt')),
+        _section(_section(_outbound(config), 'streamSettings'), 'sockopt'),
+        <String, dynamic>{'tcpUserTimeout': deadPeerTimeoutMs},
       );
       expect(jsonEncode(config), isNot(contains('fragment')));
     });
@@ -778,9 +779,8 @@ void main() {
       final SharedPreferences preferences =
           await SharedPreferences.getInstance();
 
-      await SharedPreferencesAdvancedSettingsStore(
-        preferences,
-      ).write(sanctions);
+      await SharedPreferencesAdvancedSettingsStore(preferences)
+          .write(sanctions);
 
       expect(
         SharedPreferencesAdvancedSettingsStore(preferences).read().routingMode,

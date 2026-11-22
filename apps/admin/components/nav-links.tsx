@@ -28,7 +28,7 @@ export function isCurrent(pathname: string, href: string): boolean {
 }
 
 /** The menu, with the current section marked: nothing showing where you
- * were was one of the sweep's findings (2026-11-01). Requests carries the
+ * were was one of the sweep's findings. Requests carries the
  * number waiting, so it shows from any page. */
 export function NavLinks({
   pendingRequests = 0,

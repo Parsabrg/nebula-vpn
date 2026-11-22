@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nebula_mobile/core/servers/server_latency.dart';
 import 'package:nebula_mobile/core/servers/server_repository.dart';
 import 'package:nebula_mobile/core/storage/selection_store.dart';
@@ -95,9 +95,9 @@ Future<void> _pump(
 
   // The screen does not load on its own: it is pushed from a connect screen
   // that has already loaded, and refetching on push would flash the list.
-  await ProviderScope.containerOf(
-    tester.element(find.byType(ServersScreen)),
-  ).read(devicesControllerProvider.notifier).load();
+  await ProviderScope.containerOf(tester.element(find.byType(ServersScreen)))
+      .read(devicesControllerProvider.notifier)
+      .load();
   await tester.pumpAndSettle();
 }
 

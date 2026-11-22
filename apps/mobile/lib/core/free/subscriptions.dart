@@ -405,7 +405,7 @@ class SubscriptionFetcher {
 /// The subscriptions and their last good lists. Secure storage: a list's
 /// links carry the credentials that admit to their servers.
 /// Every free-mode user starts with this subscription: links collected from
-/// public lists and verified through Xray by the owner's free_sub project
+/// public lists and verified through Xray by the free_sub project
 /// (github.com/Parsabrg/free_sub), so somebody with nothing of their own
 /// still has something to connect with. Added once; removing it is final.
 const String defaultSubscriptionUrl =

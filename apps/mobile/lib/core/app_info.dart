@@ -26,9 +26,8 @@ Future<String> readDeviceName() async {
   String? name;
   try {
     name = Platform.isAndroid
-        ? await const MethodChannel(
-            'org.nebulavpn/wireguard_tunnel',
-          ).invokeMethod<String>('deviceModel')
+        ? await const MethodChannel('org.nebulavpn/wireguard_tunnel')
+              .invokeMethod<String>('deviceModel')
         : Platform.isLinux
         ? '${Platform.localHostname} (Linux)'
         : Platform.localHostname;

@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
+import '../../core/platform/sensitive_clipboard.dart';
 import '../../core/servers/server_repository.dart';
 import '../../core/storage/storage_providers.dart';
 import '../../core/theme/color_tokens.dart';
@@ -31,8 +31,7 @@ class ConfigurationScreen extends ConsumerWidget {
     final DevicesState state = ref.watch(devicesControllerProvider);
     final NebulaPalette palette = context.palette;
     // WARP's connection is Cloudflare's, with nothing of ours to copy or
-    // release: it listed 127.0.0.1 : 0 and empty fields (owner, Linux,
-    // 2026-11-15).
+    // release: it would list 127.0.0.1 : 0 and empty fields.
     final XrayClientResult? client =
         state.xrayClient?.transport == kWarpTransport ? null : state.xrayClient;
 
@@ -68,7 +67,7 @@ class ConfigurationScreen extends ConsumerWidget {
         const SizedBox(height: 16),
         // Only when it is true: the screen is also reached from Connection
         // details while the tunnel is up, where it said "not tunnelling"
-        // about a working connection (owner, 2026-11-15).
+        // about a working connection.
         if (!state.tunnelEstablished)
           NebulaNotice(
             text: text.peerOnlyNotice,
@@ -116,7 +115,7 @@ class ConfigurationScreen extends ConsumerWidget {
     BuildContext context,
     XrayClientResult client,
   ) async {
-    await Clipboard.setData(ClipboardData(text: clientSummary(client)));
+    await copySensitive(clientSummary(client));
     if (!context.mounted) {
       return;
     }

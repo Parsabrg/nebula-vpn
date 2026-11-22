@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../format/case.dart';
 import '../../theme/color_tokens.dart';
@@ -22,7 +22,7 @@ class NebulaSectionLabel extends StatelessWidget {
     final NebulaPalette p = context.palette;
     final bool minimal = p.look == NebulaLook.minimal;
     return Padding(
-      padding: EdgeInsets.fromLTRB(
+      padding: EdgeInsetsDirectional.fromSTEB(
         minimal ? 0 : (p.look == NebulaLook.expressive ? 12 : 8),
         first ? 8 : (minimal ? 28 : 24),
         minimal ? 0 : 8,
@@ -441,8 +441,13 @@ class NebulaSwitch extends StatelessWidget {
       curve: Curves.easeOut,
       width: 52,
       height: 32,
-      padding: EdgeInsets.only(left: value ? 0 : 6, right: value ? 4 : 0),
-      alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+      padding: EdgeInsetsDirectional.only(
+        start: value ? 0 : 6,
+        end: value ? 4 : 0,
+      ),
+      alignment: value
+          ? AlignmentDirectional.centerEnd
+          : AlignmentDirectional.centerStart,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         color: value ? p.blue : Colors.transparent,

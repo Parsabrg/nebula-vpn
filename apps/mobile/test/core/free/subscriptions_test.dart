@@ -69,9 +69,10 @@ void main() {
           .replaceAll('+', '-')
           .replaceAll('/', '_')
           .replaceAll('=', '');
-      final String wrapped = RegExp(
-        '.{1,40}',
-      ).allMatches(encoded).map((Match m) => m[0]).join('\n');
+      final String wrapped = RegExp('.{1,40}')
+          .allMatches(encoded)
+          .map((Match m) => m[0])
+          .join('\n');
       for (final String body in <String>[encoded, urlSafe, wrapped]) {
         expect(decodeSubscription(body), <String>[_a, _b]);
       }
@@ -261,8 +262,7 @@ void main() {
     test('the fetcher follows a redirect itself', () async {
       final _Publisher target = await _Publisher.start();
       addTearDown(target.close);
-      target.body =
-          'vless://00000000-0000-4000-8000-000000000000@a.example:443?security=tls&type=ws&sni=a.example#A';
+      target.body = 'vless://00000000-0000-4000-8000-000000000000@a.example:443?security=tls&type=ws&sni=a.example#A';
       final HttpServer hop = await HttpServer.bind(
         InternetAddress.loopbackIPv4,
         0,

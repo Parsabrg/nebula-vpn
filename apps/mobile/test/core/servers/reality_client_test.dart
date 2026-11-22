@@ -53,18 +53,12 @@ void main() {
             protocolProfileCode: 'vless-reality-vision',
           );
 
-      final Map<String, dynamic> config =
-          jsonDecode(
-                renderXrayClientConfigJson(
-                  client,
-                  localProxy: const LocalProxy(
-                    port: 1,
-                    username: 'u',
-                    password: 'p',
-                  ),
-                ),
-              )
-              as Map<String, dynamic>;
+      final Map<String, dynamic> config = jsonDecode(
+        renderXrayClientConfigJson(
+          client,
+          localProxy: const LocalProxy(port: 1, username: 'u', password: 'p'),
+        ),
+      ) as Map<String, dynamic>;
       final Map<String, dynamic> proxy = (config['outbounds'] as List<dynamic>)
           .cast<Map<String, dynamic>>()
           .firstWhere((Map<String, dynamic> o) => o['tag'] == 'proxy');

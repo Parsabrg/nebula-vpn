@@ -5,7 +5,7 @@ non-secret environment variables plus Docker secret files or an external secret
 manager. Variables ending in `_FILE` point to mounted files and must not contain the
 secret value itself.
 
-## Required owner-supplied values
+## Required operator-supplied values
 
 | Setting                        | Purpose                                 |                        Secret |
 | ------------------------------ | --------------------------------------- | ----------------------------: |

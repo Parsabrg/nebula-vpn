@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Explains *why* a screen has nothing to show, instead of a bare spinner
 /// or (worse) fabricated placeholder data. Mirrors `apps/admin`'s Phase 1.5

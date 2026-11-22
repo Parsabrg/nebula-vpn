@@ -34,6 +34,7 @@ import '../../core/storage/wireguard_peer_store.dart';
 import '../../core/storage/xray_credential_store.dart';
 import '../../core/tunnel/tunnel_health.dart';
 import '../../core/tunnel/tunnel_traffic.dart';
+import '../../core/wireguard/native_tunnel_channel.dart';
 import '../../core/wireguard/tunnel_controller.dart';
 import '../../core/wireguard/wireguard_config.dart';
 import '../../core/wireguard/wireguard_keys.dart';
@@ -82,7 +83,7 @@ typedef TrafficMark = ({int rx, int tx, DateTime at});
 /// least 4 KB sent since anything was last received, 15 s ago or more. How a
 /// route that throttles bigger transfers looks between the minute checks --
 /// direct to Germany from Iran answered small requests and then stalled
-/// pages and video (2026-11-11).
+/// pages and video.
 bool trafficStalled(TunnelTraffic reading, TrafficMark? last, DateTime now) {
   if (last == null || reading.rxBytes > last.rx) {
     return false;
@@ -107,7 +108,7 @@ const String _delayProbeUrl = 'https://www.gstatic.com/generate_204';
 
 /// What the per-protocol test fetches: 128 KB, read to the end. A delay to
 /// the tiny URL above read as working on routes that answer small requests
-/// and stall anything bigger (owner, 2026-11-10); the delay shown is still
+/// and stall anything bigger; the delay shown is still
 /// the time to the first answer.
 const String _protocolTestUrl =
     'https://speed.cloudflare.com/__down?bytes=$dataProbeBytes';
@@ -194,6 +195,15 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
   /// Consecutive requests that did not come back through an Xray or
   /// Hysteria2 tunnel. See _checkTraffic.
   int _trafficFailedReadings = 0;
+
+  /// When the tunnel stopped answering, with a network present. The
+  /// tunnel is ended once this is [deadTunnelWindowProvider] old. See
+  /// _checkTraffic.
+  DateTime? _failingSince;
+
+  /// While Automatic is choosing a protocol: only then does a connect wait
+  /// for real data to move before it counts (see _tunnelCarriesTraffic).
+  bool _choosingAutomatically = false;
 
   /// The local proxy of the tunnel this app last started, which the traffic
   /// check asks through. Null for one picked back up after a restart.
@@ -301,7 +311,7 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
     }
     // A protocol picked by hand that failed last time is not tried again
     // unasked: a dead server held every launch at Connecting for over a
-    // minute (2026-10-17). Automatic still runs; it moves on by itself.
+    // minute. Automatic still runs; it moves on by itself.
     final String serverCode = state.selectedServerCode!;
     final String profileCode = state.selectedProfileCode!;
     if (profileCode != automaticProfileCode) {
@@ -528,13 +538,19 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
       );
       _recordWriting = writing;
       await writing;
-    } catch (_) {}
+    } catch (error) {
+      // Not fatal, but a stale record is what a later launch adopts
+      // (review Q-04): said in the log, by type only.
+      _mark('connection record not saved: ${error.runtimeType}');
+    }
   }
 
   Future<void> _forgetConnection() async {
     try {
       await _records.clear();
-    } catch (_) {}
+    } catch (error) {
+      _mark('connection record not cleared: ${error.runtimeType}');
+    }
   }
 
   /// The DNS tunnel's details, then (Android, weekly, on Wi-Fi) its
@@ -554,7 +570,9 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
       if (details != null && ref.mounted) {
         await ref.read(dnsTunnelResolversProvider).refreshIfDue(details);
       }
-    } catch (_) {}
+    } catch (error) {
+      _mark('DNS tunnel refresh failed: ${error.runtimeType}');
+    }
   }
 
   Future<void> load() async {
@@ -738,6 +756,7 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
     int attempt, {
     bool viaProxy = true,
     bool slow = false,
+    bool engineCheckedData = false,
   });
   Future<String> _probeConfig(
     XrayClientResult credential,
@@ -772,7 +791,7 @@ final trafficCheckIntervalProvider = Provider<Duration>(
 
 /// Whether a [dataProbeBytes] download completes through the tunnel; see
 /// DevicesController._tunnelAnswers. Cloudflare's speed endpoint answered
-/// from both an Iranian and a German exit (2026-10-30).
+/// from both an Iranian and a German exit.
 const int dataProbeBytes = 131072;
 
 /// What the YouTube half of the data check must receive when it gets the page.
@@ -782,7 +801,7 @@ const int _pageProbeBytes = 32768;
 /// the YouTube home page, at once. Cloudflare alone was not enough: direct to
 /// Germany from Iran it kept downloading while YouTube failed to play and
 /// Google, Telegram and GitHub stalled, and the screen said Protected
-/// (2026-11-11). A redirect from YouTube (a consent page) still counts as an
+///. A redirect from YouTube (a consent page) still counts as an
 /// answer, so a working tunnel is never turned off over one.
 final tunnelMovesDataProvider =
     Provider<Future<bool> Function(LocalProxy? through)>(
@@ -864,6 +883,32 @@ final stillSignedInProvider = Provider<bool Function()>(
 
 /// How soon the traffic watch asks again: once after a connect, and after
 /// an unanswered reading. See DevicesController._checkTrafficSoon.
+/// How long a tunnel may go unanswered, with a network present, before it
+/// counts as dead and is ended. A minute: a Wi-Fi switch, a hand-over to
+/// mobile data or a blip on the line all recover well inside it, and Xray
+/// redials by itself -- it used to be three requests five seconds apart,
+/// which ended connections v2rayNG rode out.
+/// Replaced in tests. The DNS tunnel gets three times as long: slow by
+/// nature, each of its requests may take 30 s.
+final deadTunnelWindowProvider = Provider<Duration>(
+  (Ref ref) => const Duration(minutes: 1),
+);
+
+/// Whether the device has a network to tunnel over at all. Android
+/// answers; elsewhere null, which never pauses the watch. Replaced in tests.
+final deviceHasNetworkProvider = Provider<Future<bool?> Function()>(
+  (Ref ref) => () async {
+    if (!Platform.isAndroid) {
+      return null;
+    }
+    try {
+      return await const NativeTunnelChannel().hasNetwork();
+    } on Object {
+      return null;
+    }
+  },
+);
+
 final trafficRecheckDelayProvider = Provider<Duration>(
   (Ref ref) => const Duration(seconds: 5),
 );
@@ -958,8 +1003,12 @@ final deviceOnlineProvider = Provider<Future<bool> Function()>(
         'https://connectivitycheck.gstatic.com/generate_204',
         // Not Google: on a filtered day Google alone timed out while the
         // network worked, and the app told a connected phone it was offline
-        // (2026-10-18).
+        //.
         'https://checkip.amazonaws.com/',
+        // Both can go unanswered from Iran while the network works, and a
+        // connect that failed for another reason was then reported as
+        // "You're offline". Cloudflare answers there.
+        'https://www.cloudflare.com/cdn-cgi/trace',
       ]),
 );
 

@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/routing/route_paths.dart';
 import '../../core/widgets/nebula/nebula_controls.dart';
@@ -154,6 +154,6 @@ class _RequestSubmitted extends StatelessWidget {
 
 /// Checked here because the server answers every request the same way, so
 /// it cannot say "that address is mistyped": a typo was accepted, and the
-/// person waited for an email that could never come (2026-10-29).
+/// person waited for an email that could never come.
 bool looksLikeEmail(String? value) =>
     RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value?.trim() ?? '');

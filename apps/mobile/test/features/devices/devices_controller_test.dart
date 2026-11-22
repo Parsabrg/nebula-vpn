@@ -179,6 +179,8 @@ _harness({
   Duration? trafficInterval,
   Duration? trafficRecheck,
   Future<bool> Function(LocalProxy?)? tunnelMovesData,
+  Duration? deadWindow,
+  Future<bool?> Function()? hasNetwork,
   bool stillSignedIn = false,
   bool trafficMeaningful = true,
   bool Function()? appInFront,
@@ -270,6 +272,14 @@ _harness({
       // Out of the way unless a test is about it.
       trafficRecheckDelayProvider.overrideWithValue(
         trafficRecheck ?? const Duration(hours: 1),
+      ),
+      // Short, so the tests that wait it out do not take a minute each.
+      deadTunnelWindowProvider.overrideWithValue(
+        deadWindow ?? const Duration(milliseconds: 40),
+      ),
+      // The platform cannot tell unless a test says otherwise.
+      deviceHasNetworkProvider.overrideWithValue(
+        hasNetwork ?? () async => null,
       ),
       // Signed out unless a test says otherwise: a 401 ends the tunnel.
       stillSignedInProvider.overrideWithValue(() => stillSignedIn),
@@ -696,9 +706,9 @@ void main() {
       await notifier.pingProtocols(_deviceId);
 
       expect(harness.repository.revokeXrayClientCalls, 0);
-      final InMemoryXrayCredentialStore saved =
-          harness.container.read(xrayCredentialStoreProvider)
-              as InMemoryXrayCredentialStore;
+      final InMemoryXrayCredentialStore saved = harness.container.read(
+        xrayCredentialStoreProvider,
+      ) as InMemoryXrayCredentialStore;
       expect(saved.entries, hasLength(3));
     });
 
@@ -852,7 +862,7 @@ void main() {
   test('the controller survives being built again', () async {
     // Changing server rebuilds it on the same object; its dependencies were
     // set once only, and the second build threw. The app drew a grey screen
-    // after re-pairing (2026-10-29).
+    // after re-pairing.
     final harness = _harness();
     addTearDown(harness.container.dispose);
     harness.container.read(devicesControllerProvider);
@@ -1002,8 +1012,8 @@ void main() {
     });
 
     test('a handshake that carries nothing is undone too', () async {
-      // Seen on the phone: the server's handshakes got in, the phone's
-      // traffic did not, and the screen said Protected for minutes.
+      // The server's handshakes get in, the device's traffic does not,
+      // and the screen must not say Protected.
       final harness = _harness(
         tunnelCarries: (_, {bool slow = false}) async => false,
       );
@@ -1028,29 +1038,32 @@ void main() {
       expect(state.actionErrorMessage, contains('blocking'));
     });
 
-    test('a tunnel that answers but moves no data is undone', () async {
-      // XHTTP through the CDN: two tiny requests answered, 0 B downloaded,
-      // and "Protected" on the screen (owner, 2026-11-10).
-      final harness = _harness(tunnelMovesData: (_) async => false);
-      addTearDown(harness.container.dispose);
-      harness.repository.servers = <AvailableServer>[_wireGuardOnlyServer];
-      await harness.container.read(devicesControllerProvider.notifier).load();
-      final DevicesController notifier = harness.container.read(
-        devicesControllerProvider.notifier,
-      );
-      notifier.selectServer('ams-1');
-      notifier.selectProfile('wg-default');
-      harness.repository.requestPeerResult = _peerResult();
-      harness.tunnel.handshake = true;
+    test(
+      'a picked protocol is up once it answers, before data moves',
+      () async {
+        // As in v2rayNG: the 128 KB check runs in the background for a protocol
+        // the person picked; only Automatic waits for it.
+        final harness = _harness(tunnelMovesData: (_) async => false);
+        addTearDown(harness.container.dispose);
+        harness.repository.servers = <AvailableServer>[_wireGuardOnlyServer];
+        await harness.container.read(devicesControllerProvider.notifier).load();
+        final DevicesController notifier = harness.container.read(
+          devicesControllerProvider.notifier,
+        );
+        notifier.selectServer('ams-1');
+        notifier.selectProfile('wg-default');
+        harness.repository.requestPeerResult = _peerResult();
+        harness.tunnel.handshake = true;
 
-      await notifier.connect(_deviceId);
+        await notifier.connect(_deviceId);
 
-      final DevicesState state = harness.container.read(
-        devicesControllerProvider,
-      );
-      expect(state.tunnelEstablished, isFalse);
-      expect(harness.tunnel.disconnectCalls, 1);
-    });
+        final DevicesState state = harness.container.read(
+          devicesControllerProvider,
+        );
+        expect(state.tunnelEstablished, isTrue);
+        expect(harness.tunnel.disconnectCalls, 0);
+      },
+    );
 
     test(
       'a server under maintenance is not connected to, and says why',
@@ -1166,31 +1179,28 @@ void main() {
       },
     );
 
-    test(
-      'records the peer but not a tunnel when the platform tunnel fails to start',
-      () async {
-        final harness = _harness();
-        addTearDown(harness.container.dispose);
-        harness.repository.servers = <AvailableServer>[_wireGuardOnlyServer];
-        await harness.container.read(devicesControllerProvider.notifier).load();
-        final DevicesController notifier = harness.container.read(
-          devicesControllerProvider.notifier,
-        );
-        notifier.selectServer('ams-1');
-        notifier.selectProfile('wg-default');
-        harness.repository.requestPeerResult = _peerResult();
-        harness.tunnel.connectError = StateError('wireguard.exe failed');
+    test('records the peer but not a tunnel when the platform tunnel fails to start', () async {
+      final harness = _harness();
+      addTearDown(harness.container.dispose);
+      harness.repository.servers = <AvailableServer>[_wireGuardOnlyServer];
+      await harness.container.read(devicesControllerProvider.notifier).load();
+      final DevicesController notifier = harness.container.read(
+        devicesControllerProvider.notifier,
+      );
+      notifier.selectServer('ams-1');
+      notifier.selectProfile('wg-default');
+      harness.repository.requestPeerResult = _peerResult();
+      harness.tunnel.connectError = StateError('wireguard.exe failed');
 
-        await notifier.connect(_deviceId);
+      await notifier.connect(_deviceId);
 
-        final DevicesState state = harness.container.read(
-          devicesControllerProvider,
-        );
-        expect(state.isConnected, isTrue);
-        expect(state.tunnelEstablished, isFalse);
-        expect(state.actionErrorMessage, isNotNull);
-      },
-    );
+      final DevicesState state = harness.container.read(
+        devicesControllerProvider,
+      );
+      expect(state.isConnected, isTrue);
+      expect(state.tunnelEstablished, isFalse);
+      expect(state.actionErrorMessage, isNotNull);
+    });
 
     test(
       'reuses an existing stored key instead of generating a new one',
@@ -1390,9 +1400,9 @@ void main() {
       );
 
       test('a sign-in that cannot be renewed leaves the tunnel up', () async {
-        // Seen on the phone: the token refresh failed on a flaky network, the
-        // 401 that followed was taken for a refusal, and a working tunnel
-        // was dropped again and again.
+        // A token refresh that fails on a flaky network, followed by a 401,
+        // must not be taken for a refusal: that dropped a working tunnel
+        // again and again.
         final harness = _harness();
         addTearDown(harness.container.dispose);
         final DevicesController notifier = await saved(harness);
@@ -1434,7 +1444,7 @@ void main() {
           );
           harness.repository.requestXrayClientResult = rotated;
           // The screen stays on Connecting from the tap to the end: it
-          // flashed Off between the two tries (recorded, 2026-11-14).
+          // flashed Off between the two tries.
           final List<bool> submitting = <bool>[];
           harness.container.listen<DevicesState>(
             devicesControllerProvider,
@@ -1612,46 +1622,43 @@ void main() {
       });
     });
 
-    test(
-      'once the server answers again, a saved-credential connection is replaced',
-      () async {
-        // A tunnel raised with the phone offline did not recover when the
-        // network came back (measured on a phone); one raised online did. So
-        // the moment the server can be reached, the saved-credential connection
-        // is swapped for one the server has just issued.
-        final harness = _harness();
-        addTearDown(harness.container.dispose);
-        final DevicesController notifier = await setUpXraySelection(harness);
-        // Saved by an earlier run whose tunnel ended without Disconnect -- a
-        // drop, a reboot. Disconnect revokes, and so forgets it too.
-        await harness.container
-            .read(xrayCredentialStoreProvider)
-            .write(
-              serverCode: 'ams-2',
-              profileCode: 'vless-xhttp-tls',
-              credential: _xrayClientResult(),
-            );
-        harness.repository.requestXrayClientResult = _xrayClientResult();
-        harness.repository.requestXrayClientError =
-            const NebulaConnectivityException('connection refused');
-        await notifier.connect(_deviceId);
-        expect(
-          harness.container.read(devicesControllerProvider).fromSavedCredential,
-          isTrue,
-        );
-        final int callsBefore = harness.repository.requestXrayClientCalls;
+    test('once the server answers again, a saved-credential connection is replaced', () async {
+      // A tunnel raised with the phone offline did not recover when the
+      // network came back (measured on a phone); one raised online did. So
+      // the moment the server can be reached, the saved-credential connection
+      // is swapped for one the server has just issued.
+      final harness = _harness();
+      addTearDown(harness.container.dispose);
+      final DevicesController notifier = await setUpXraySelection(harness);
+      // Saved by an earlier run whose tunnel ended without Disconnect -- a
+      // drop, a reboot. Disconnect revokes, and so forgets it too.
+      await harness.container
+          .read(xrayCredentialStoreProvider)
+          .write(
+            serverCode: 'ams-2',
+            profileCode: 'vless-xhttp-tls',
+            credential: _xrayClientResult(),
+          );
+      harness.repository.requestXrayClientResult = _xrayClientResult();
+      harness.repository.requestXrayClientError =
+          const NebulaConnectivityException('connection refused');
+      await notifier.connect(_deviceId);
+      expect(
+        harness.container.read(devicesControllerProvider).fromSavedCredential,
+        isTrue,
+      );
+      final int callsBefore = harness.repository.requestXrayClientCalls;
 
-        harness.repository.requestXrayClientError = null;
-        await notifier.refreshAfterOffline(_deviceId);
+      harness.repository.requestXrayClientError = null;
+      await notifier.refreshAfterOffline(_deviceId);
 
-        final DevicesState state = harness.container.read(
-          devicesControllerProvider,
-        );
-        expect(harness.repository.requestXrayClientCalls, callsBefore + 1);
-        expect(state.tunnelEstablished, isTrue);
-        expect(state.fromSavedCredential, isFalse);
-      },
-    );
+      final DevicesState state = harness.container.read(
+        devicesControllerProvider,
+      );
+      expect(harness.repository.requestXrayClientCalls, callsBefore + 1);
+      expect(state.tunnelEstablished, isTrue);
+      expect(state.fromSavedCredential, isFalse);
+    });
 
     test('a connection the server issued is left alone', () async {
       final harness = _harness();
@@ -1830,7 +1837,7 @@ void main() {
 
     test('off screen, a failed connect is not called offline', () async {
       // Android may hold back a backgrounded app's own requests; an online
-      // phone was told it was offline (2026-10-29).
+      // phone was told it was offline.
       final harness = _harness(
         tunnelCarries: (_, {bool slow = false}) async => false,
         online: () async => false,
@@ -1915,7 +1922,7 @@ void main() {
       });
 
       // The direct profiles pass a quick check but a browser's traffic over
-      // them was cut on a home line in Iran; Automatic leaves them out.
+      // them is cut on Iranian home lines; Automatic leaves them out.
       test('skips the direct, hand-picked-only profiles', () async {
         final harness = _harness(
           tunnelCarries: (_, {bool slow = false}) async => true,
@@ -2255,33 +2262,30 @@ void main() {
       );
     });
 
-    test(
-      'routes a non-vless, non-wireguard protocol (Hysteria2) through the Xray path too',
-      () async {
-        final harness = _harness();
-        addTearDown(harness.container.dispose);
-        harness.repository.servers = <AvailableServer>[_hysteriaOnlyServer];
-        await harness.container.read(devicesControllerProvider.notifier).load();
-        final DevicesController notifier = harness.container.read(
-          devicesControllerProvider.notifier,
-        );
-        notifier.selectServer('ams-3');
-        notifier.selectProfile('hysteria2');
-        harness.repository.requestXrayClientResult = _hysteriaClientResult();
+    test('routes a non-vless, non-wireguard protocol (Hysteria2) through the Xray path too', () async {
+      final harness = _harness();
+      addTearDown(harness.container.dispose);
+      harness.repository.servers = <AvailableServer>[_hysteriaOnlyServer];
+      await harness.container.read(devicesControllerProvider.notifier).load();
+      final DevicesController notifier = harness.container.read(
+        devicesControllerProvider.notifier,
+      );
+      notifier.selectServer('ams-3');
+      notifier.selectProfile('hysteria2');
+      harness.repository.requestXrayClientResult = _hysteriaClientResult();
 
-        await notifier.connect(_deviceId);
+      await notifier.connect(_deviceId);
 
-        final DevicesState state = harness.container.read(
-          devicesControllerProvider,
-        );
-        expect(harness.repository.requestXrayClientCalls, 1);
-        expect(harness.repository.lastXrayRequestedProfileCode, 'hysteria2');
-        expect(state.activeProtocolCode, 'hysteria2');
-        expect(state.activeProfileCode, 'hysteria2');
-        expect(state.tunnelEstablished, isTrue);
-        expect(harness.tunnel.connectCalls, 0);
-      },
-    );
+      final DevicesState state = harness.container.read(
+        devicesControllerProvider,
+      );
+      expect(harness.repository.requestXrayClientCalls, 1);
+      expect(harness.repository.lastXrayRequestedProfileCode, 'hysteria2');
+      expect(state.activeProtocolCode, 'hysteria2');
+      expect(state.activeProfileCode, 'hysteria2');
+      expect(state.tunnelEstablished, isTrue);
+      expect(harness.tunnel.connectCalls, 0);
+    });
 
     test(
       'records the client but not a tunnel when VPN permission is denied',
@@ -2304,25 +2308,22 @@ void main() {
       },
     );
 
-    test(
-      'records the client but not a tunnel when the platform tunnel fails to start',
-      () async {
-        final harness = _harness();
-        addTearDown(harness.container.dispose);
-        final DevicesController notifier = await setUpXraySelection(harness);
-        harness.repository.requestXrayClientResult = _xrayClientResult();
-        harness.xrayTunnel.connectError = StateError('v2ray start failed');
+    test('records the client but not a tunnel when the platform tunnel fails to start', () async {
+      final harness = _harness();
+      addTearDown(harness.container.dispose);
+      final DevicesController notifier = await setUpXraySelection(harness);
+      harness.repository.requestXrayClientResult = _xrayClientResult();
+      harness.xrayTunnel.connectError = StateError('v2ray start failed');
 
-        await notifier.connect(_deviceId);
+      await notifier.connect(_deviceId);
 
-        final DevicesState state = harness.container.read(
-          devicesControllerProvider,
-        );
-        expect(state.isConnected, isTrue);
-        expect(state.tunnelEstablished, isFalse);
-        expect(state.actionErrorMessage, isNotNull);
-      },
-    );
+      final DevicesState state = harness.container.read(
+        devicesControllerProvider,
+      );
+      expect(state.isConnected, isTrue);
+      expect(state.tunnelEstablished, isFalse);
+      expect(state.actionErrorMessage, isNotNull);
+    });
 
     test(
       'a failed request surfaces an error and leaves the client unset',
@@ -2720,7 +2721,7 @@ void _selectionMemoryTests() {
 
     test('a routing change while connected reconnects to apply it', () async {
       // Changing "sanctioned services only" used to wait for the next
-      // connection, which on the phone looked like the switch doing nothing.
+      // connection, which looked like the switch doing nothing.
       final harness = _harness();
       addTearDown(harness.container.dispose);
       harness.repository.servers = <AvailableServer>[_xrayOnlyServer];
@@ -3114,8 +3115,8 @@ void _connectOnLaunchTests() {
 
 /// "Protected" is only ever shown over a tunnel Android actually lists.
 ///
-/// Found on the phone: reopening the app while a tunnel was still up and
-/// pressing Connect left the screen saying Protected, with no VPN at all.
+/// Reopening the app while a tunnel was still up and pressing Connect used
+/// to leave the screen saying Protected, with no VPN at all.
 void _tunnelHonestyTests() {
   const Duration interval = Duration(milliseconds: 5);
 
@@ -3400,13 +3401,13 @@ void _tunnelHonestyTests() {
     },
   );
 
-  test('a route that answers but stalls a download is caught', () async {
-    // The small request goes through; the 128 KB one does not. Only the soon
-    // readings move data, so the once-a-minute watch is an hour here.
+  test('a route that answers but is slow stays connected', () async {
+    // Slow is not dead: the watch asks for
+    // an answer, not for speed, which only the connect checks.
     bool moves = true;
     final harness = _harness(
       watchInterval: interval,
-      trafficInterval: const Duration(hours: 1),
+      trafficInterval: interval,
       trafficRecheck: interval,
       tunnelCarries: (_, {bool slow = false}) async => true,
       tunnelMovesData: (_) async => moves,
@@ -3420,12 +3421,83 @@ void _tunnelHonestyTests() {
     await notifier.connect(_deviceId);
     moves = false;
 
-    await _untilOff(harness.container, interval);
-    expect(
-      harness.container.read(devicesControllerProvider).tunnelEstablished,
-      isFalse,
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    final DevicesState state = harness.container.read(
+      devicesControllerProvider,
     );
-    expect(harness.xrayTunnel.connectCalls, 1);
+    expect(state.tunnelEstablished, isTrue);
+    expect(state.stall, isNull);
+  });
+
+  test(
+    'a tunnel that stops answering reads Reconnecting, then recovers',
+    () async {
+      bool carries = true;
+      final harness = _harness(
+        watchInterval: interval,
+        trafficInterval: interval,
+        trafficRecheck: interval,
+        deadWindow: const Duration(hours: 1),
+        tunnelCarries: (_, {bool slow = false}) async => carries,
+      );
+      addTearDown(harness.container.dispose);
+      final DevicesController notifier = await xraySelected(
+        harness.container,
+        harness.repository,
+      );
+      harness.xrayTunnel.sharedVpn = harness.tunnel;
+      await notifier.connect(_deviceId);
+      carries = false;
+
+      await Future<void>.delayed(interval * 10);
+      DevicesState state = harness.container.read(devicesControllerProvider);
+      expect(state.tunnelEstablished, isTrue);
+      expect(state.stall, TunnelStall.recovering);
+
+      carries = true;
+      await Future<void>.delayed(interval * 10);
+      state = harness.container.read(devicesControllerProvider);
+      expect(state.tunnelEstablished, isTrue);
+      expect(state.stall, isNull);
+      expect(harness.xrayTunnel.connectCalls, 1);
+    },
+  );
+
+  test('with no network at all, a tunnel is not ended', () async {
+    // Wi-Fi and mobile data both gone: not the protocol's fault. It waits,
+    // and the minute starts again once a network is back.
+    bool? network = false;
+    bool carries = true;
+    final harness = _harness(
+      watchInterval: interval,
+      trafficInterval: interval,
+      trafficRecheck: interval,
+      tunnelCarries: (_, {bool slow = false}) async => carries,
+      hasNetwork: () async => network,
+    );
+    addTearDown(harness.container.dispose);
+    final DevicesController notifier = await xraySelected(
+      harness.container,
+      harness.repository,
+    );
+    harness.xrayTunnel.sharedVpn = harness.tunnel;
+    await notifier.connect(_deviceId);
+    carries = false;
+
+    // Well past the 40 ms window.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    DevicesState state = harness.container.read(devicesControllerProvider);
+    expect(state.tunnelEstablished, isTrue);
+    expect(state.stall, TunnelStall.noNetwork);
+
+    network = true;
+    await _untilOff(harness.container, interval);
+    state = harness.container.read(devicesControllerProvider);
+    expect(state.tunnelEstablished, isFalse);
+    expect(
+      state.actionErrorMessage,
+      harness.container.read(appTextProvider).errorTunnelStopped,
+    );
   });
 
   test('a tunnel that stays dead ends Off with the reason', () async {
@@ -3487,12 +3559,14 @@ void _tunnelHonestyTests() {
 
   test('opening the app checks the tunnel at once', () async {
     // Off screen nothing is asked, so a tunnel that died meanwhile is found
-    // when the app is opened, not three one-a-minute checks later.
+    // when the app is opened -- and ended after the same window as always.
     bool carries = true;
+    bool inFront = false;
     final List<void Function()> onResume = <void Function()>[];
     final harness = _harness(
-      trafficMeaningful: false,
+      appInFront: () => inFront,
       onResume: onResume,
+      trafficRecheck: interval,
       tunnelCarries: (_, {bool slow = false}) async => carries,
     );
     addTearDown(harness.container.dispose);
@@ -3504,17 +3578,11 @@ void _tunnelHonestyTests() {
     await notifier.connect(_deviceId);
     carries = false;
 
+    inFront = true;
     for (final void Function() resumed in List<void Function()>.of(onResume)) {
       resumed();
     }
-    for (int waited = 0; waited < 100; waited++) {
-      if (!harness.container
-          .read(devicesControllerProvider)
-          .tunnelEstablished) {
-        break;
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    }
+    await _untilOff(harness.container, interval);
 
     expect(
       harness.container.read(devicesControllerProvider).tunnelEstablished,
@@ -4449,8 +4517,7 @@ void _accessTests() {
 
   test('a spent allowance stops the tunnel and says why', () async {
     // What the server does to a spent account leaves the tunnel carrying
-    // nothing and the screen saying Protected. Measured on the phone: twenty
-    // minutes of it.
+    // nothing and the screen saying Protected, for as long as it lasts.
     await expectEnded(
       _accounts(
         account: _account(quotaBytes: 30 * 1024 * 1024, remainingBytes: 0),
@@ -4481,7 +4548,7 @@ void _accessTests() {
 
   test('a revoked credential on a server still offered is replaced', () async {
     // A saved copy of a credential the server had revoked raised a working
-    // tunnel, and "access ended" followed (phone, 2026-10-30): the account
+    // tunnel, and "access ended" followed: the account
     // still had the server. Asked afresh, the server lists it again.
     final FakeAccountRepository accounts = _accounts(
       devices: <AccountDevice>[_thisDevice(serverCodes: <String>[])],
@@ -4993,9 +5060,8 @@ void _hostileNetworkTests() {
       final setup = await setUp(network: _HostileNetwork()..udpBlocked = true);
 
       await setup.notifier.pingProtocols(_deviceId);
-      final Map<String, ProtocolDelay> delays = stateOf(
-        setup.container,
-      ).protocolDelays;
+      final Map<String, ProtocolDelay> delays = stateOf(setup.container)
+          .protocolDelays;
       expect(delays['hysteria2']?.outcome, DelayOutcome.failed);
       expect(delays['vless-tcp-tls']?.outcome, DelayOutcome.measured);
       expect(delays['vless-ws-tls']?.outcome, DelayOutcome.measured);
@@ -5085,9 +5151,8 @@ void _hostileNetworkTests() {
 
       await setup.notifier.pingProtocols(_deviceId);
 
-      final Map<String, ProtocolDelay> delays = stateOf(
-        setup.container,
-      ).protocolDelays;
+      final Map<String, ProtocolDelay> delays = stateOf(setup.container)
+          .protocolDelays;
       for (final String code in <String>[
         'hysteria2',
         'vless-tcp-tls',

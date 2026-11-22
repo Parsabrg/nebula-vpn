@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/split_tunnel/installed_apps.dart';
 import '../../core/split_tunnel/split_tunnel_controller.dart';

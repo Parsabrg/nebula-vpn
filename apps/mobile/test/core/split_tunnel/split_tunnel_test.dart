@@ -82,9 +82,8 @@ void main() {
       // The bug this prevents: remove every exclusion, restart, and find
       // them all back because "empty" was stored as "nothing was chosen".
       final InMemorySplitTunnelStore store = InMemorySplitTunnelStore();
-      final SplitTunnelController controller = _container(
-        store,
-      ).read(splitTunnelControllerProvider.notifier);
+      final SplitTunnelController controller = _container(store)
+          .read(splitTunnelControllerProvider.notifier);
       await controller.setExcluded('com.bank.app', excluded: true);
 
       await controller.clear();
@@ -151,9 +150,8 @@ void main() {
     test('the inserted key is on a line of its own', () {
       // Run onto the end of `DNS = ...` it is not a key at all, and the
       // parser either rejects the file or ignores the line.
-      final List<String> lines = _config(
-        excluded: <String>['com.bank.app'],
-      ).split('\n');
+      final List<String> lines = _config(excluded: <String>['com.bank.app'])
+          .split('\n');
 
       expect(lines, contains('ExcludedApplications = com.bank.app'));
     });

@@ -25,7 +25,7 @@ ports of the server it came from.
 
 ## Turning it on for an existing server
 
-This changes the ports and the panel's address, so the owner decides, one
+This changes the ports and the panel's address, so the operator decides, one
 server at a time. Check that nothing else listens on 443 first:
 
 ```sh

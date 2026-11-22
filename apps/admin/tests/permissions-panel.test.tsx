@@ -55,7 +55,7 @@ describe("grant all", () => {
 
   it("grants every profile the user lacks, in one request", async () => {
     // One request is one change against the admin limit, which twelve
-    // separate grants per user exhausted (2026-10-29).
+    // separate grants per user exhausted.
     grantPermissions.mockResolvedValue({
       ok: true,
       data: [granted(hysteria), granted(wireguard)],

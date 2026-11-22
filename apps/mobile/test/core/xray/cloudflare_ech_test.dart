@@ -13,9 +13,9 @@ const LocalProxy _proxy = LocalProxy(
 );
 
 Map<String, dynamic> _tlsFor(XrayClientResult client) {
-  final Map<String, dynamic> config =
-      jsonDecode(renderXrayClientConfigJson(client, localProxy: _proxy))
-          as Map<String, dynamic>;
+  final Map<String, dynamic> config = jsonDecode(
+    renderXrayClientConfigJson(client, localProxy: _proxy),
+  ) as Map<String, dynamic>;
   final Map<String, dynamic> outbound = (config['outbounds'] as List<dynamic>)
       .cast<Map<String, dynamic>>()
       .firstWhere((Map<String, dynamic> o) => o['tag'] == 'proxy');

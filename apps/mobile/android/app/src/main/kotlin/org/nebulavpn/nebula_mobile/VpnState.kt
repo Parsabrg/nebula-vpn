@@ -1,5 +1,6 @@
 package org.nebulavpn.nebula_mobile
 
+import android.app.ActivityManager
 import android.app.AppOpsManager
 import android.content.Context
 import android.net.ConnectivityManager
@@ -40,7 +41,8 @@ object VpnState {
 
     /**
      * Whose VPN is up: "own", "other", "none", or null where Android does not
-     * say -- 8 and 9 have no owner on a network.
+     * say -- before 11 there is no owner on a network (getOwnerUid is API
+     * 30; called on Android 10, it crashes).
      *
      * Every network, not `activeNetwork`: that one answers for the calling app,
      * and the Xray tunnel excludes this app from itself, so from in here a
@@ -61,7 +63,7 @@ object VpnState {
                 continue
             }
             anyVpn = true
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
                 capabilities.ownerUid == context.applicationInfo.uid
             ) {
                 return "own"
@@ -69,8 +71,45 @@ object VpnState {
         }
         return when {
             !anyVpn -> "none"
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> "other"
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> "other"
+            // 8-10 name no owner. A VPN up while this app's own VPN service
+            // runs is this app's: answered "unknown", the app opened from
+            // the notification showed Off over its own running tunnel
+            //.
+            ownVpnServiceRunning(context) -> "own"
             else -> null
+        }
+    }
+
+    /** Whether one of this app's VPN services (Xray's or WireGuard's) runs. */
+    @Suppress("DEPRECATION") // Still answers for the app's own services.
+    private fun ownVpnServiceRunning(context: Context): Boolean {
+        val activities = context.getSystemService(ActivityManager::class.java) ?: return false
+        return try {
+            activities.getRunningServices(Int.MAX_VALUE).any {
+                it.service.packageName == context.packageName &&
+                    // V2rayVPNService and GoBackend$VpnService: the case differs.
+                    it.service.className.endsWith("VpnService", ignoreCase = true)
+            }
+        } catch (error: SecurityException) {
+            false
+        }
+    }
+
+    /**
+     * Whether there is a network to tunnel over at all: any network but a
+     * VPN that offers the internet. Not Android's "validated": that check
+     * reaches Google, which networks in Iran often block, and they carry
+     * tunnels all the same. Null where Android does not say.
+     */
+    @Suppress("DEPRECATION") // A one-off question, as in owner().
+    fun hasNetwork(context: Context): Boolean? {
+        val connectivity = context.getSystemService(ConnectivityManager::class.java) ?: return null
+        return connectivity.allNetworks.any { network ->
+            val capabilities = connectivity.getNetworkCapabilities(network)
+            capabilities != null &&
+                !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN) &&
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
         }
     }
 }

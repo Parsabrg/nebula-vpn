@@ -66,11 +66,11 @@ List<AvailableProfile> rankByQuality(
           qualityScore(histories[profile.code], delays[profile.code], now) +
           // XHTTP first among protocols that work: through Cloudflare from
           // Iran it set up a connection in about 0.6 s where WebSocket took
-          // 1.1 s, and downloaded 4.4 MB/s against 3.0 (a phone, 2026-10-14).
+          // 1.1 s, and downloaded 4.4 MB/s against 3.0.
           // Only while nothing says it is failing here: with the bonus kept
           // after a drop or a failed test, a stalled Cloudflare route
           // outranked a direct protocol that had just passed the test, and
-          // Automatic kept picking it (2026-10-29).
+          // Automatic kept picking it.
           (profile.code.contains('xhttp') &&
                   !_failingNow(
                     histories[profile.code],

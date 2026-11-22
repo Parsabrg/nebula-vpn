@@ -90,7 +90,7 @@ Future<bool> _processIsRunning(int pid) async {
 
 /// Stops the speed and protocol-test engines a Windows app left running:
 /// quit during a protocol test, 59 xray.exe and a resolver scan stayed up
-/// with nobody to stop them (2026-11-13). Each runs from a nebula-probe- or
+/// with nobody to stop them. Each runs from a nebula-probe- or
 /// nebula-dnsscan- folder, which no tunnel uses. Run when the app starts --
 /// only one runs at a time, so none of them is its own -- and when it exits.
 Future<void> stopStaleProbes() async {

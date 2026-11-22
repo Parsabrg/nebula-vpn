@@ -123,7 +123,7 @@ Allowed operational metadata is limited to actor/subject IDs, event type, coarse
 network information when necessary for abuse defense, request/operation IDs,
 timestamps, outcomes, error classes, server health, and aggregate peer handshakes.
 Default retention is 365 days for administrator audit events and 90 days for auth
-and email operational events, subject to legal and owner review.
+and email operational events, subject to legal and operator review.
 
 ## Agent hardening
 
@@ -149,7 +149,7 @@ and email operational events, subject to legal and owner review.
 - Generate SBOMs and scan Python, npm, Dart, and container dependencies.
 - Run Gitleaks and GitHub secret scanning; block known secret patterns pre-merge.
 - Sign or attest release images after the base workflow is stable.
-- Deployment remains manual until the owner supplies credentials and explicitly
+- Deployment remains manual until the operator supplies credentials and explicitly
   authorizes production deployment.
 
 ## Residual risks accepted for Phase 1

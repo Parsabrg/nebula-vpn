@@ -54,7 +54,7 @@ class RelayListResponse(BaseModel):
     items: list[RelayItem]
     # Where a relay's server reports in (POST {report_url}/v1/relays/{code}/up):
     # the CDN's name when there is one -- from Iran it answered when the
-    # server's own name did not (2026-11-11) -- else the API's.
+    # server's own name did not -- else the API's.
     report_url: str
 
 

@@ -16,7 +16,7 @@ gives (the app then learns the deployment's other routes from `/v1/routes`).
 A build with a deployment's addresses compiled in is a private build for
 that deployment only, never a published release.
 
-0.1.31 is the one exception, and the last: it still carries the owner
+0.1.31 is the one exception, and the last: it still carries the operator
 deployment's address and keeps it as the phone's pairing on first launch
 (`pairing_providers.dart`), so the generic 0.1.32 that follows does not send
 every existing user back to the pairing screen. Build it without the
@@ -38,7 +38,7 @@ checks pass.
 Tag the merged release commit and push the tag:
 
 ```sh
-git -c gpg.format=ssh -c user.signingkey=apps/mobile/android/app/nebula-release-sign   tag -s vX -m vX <merge commit> && git push origin vX
+git -c gpg.format=ssh -c user.signingkey=$HOME/.nebula-release/nebula-release-sign   tag -s vX -m vX <merge commit> && git push origin vX
 ```
 
 The tag is signed with the release key: `install.sh --update` refuses a tag
@@ -91,7 +91,7 @@ for f in nebula-vpn-vX-*; do gh attestation verify "$f" -R Parsabrg/nebula-vpn |
 debug signature; the files are already aligned:
 
 ```sh
-KS=../../android/app/nebula-release.jks
+KS=~/.nebula-release/nebula-release.jks
 for abi in arm64 arm x64 universal; do
   apksigner sign --ks "$KS" --ks-key-alias nebula \
     --out nebula-vpn-vX-android-$abi.apk nebula-vpn-vX-android-$abi-tosign.apk
@@ -107,7 +107,7 @@ Every SHA-256 printed must be the one in release-signing-key.md.
 ```sh
 sha256sum nebula-vpn-vX-* > SHA256SUMS.txt
 sha256sum -c SHA256SUMS.txt
-ssh-keygen -Y sign -f ../../android/app/nebula-release-sign -n nebula-release SHA256SUMS.txt
+ssh-keygen -Y sign -f ~/.nebula-release/nebula-release-sign -n nebula-release SHA256SUMS.txt
 ssh-keygen -Y verify -f ../../../../docs/release-signers -I releases@nebula-vpn \
   -n nebula-release -s SHA256SUMS.txt.sig < SHA256SUMS.txt
 ```
@@ -134,14 +134,36 @@ gh release edit vX --draft=false --prerelease -R Parsabrg/nebula-vpn
 Large uploads can drop through the Cloudflare route; upload the files one
 at a time and repeat a failed one (`--clobber`).
 
-Release notes say what changed for a person using the app, and how it was
-tested. No links to the deployment, no tokens, no keys.
+Release notes follow this shape, and nothing else:
+
+```markdown
+## What's new
+- One line per change a person using the app would notice.
+
+## Fixes
+- One line per bug fixed, said as the behaviour now ("Hysteria2 connects on
+  Windows again"), not as the history of finding it.
+
+## Downloads
+Which file to pick: `-arm64` for most Android phones, `-arm` for older 32-bit
+ones, `-universal` when unsure; the Windows installer or portable zip; the
+Linux .deb, AppImage or tar.gz.
+
+## Verifying a download
+`SHA256SUMS.txt` lists every file and is signed (`SHA256SUMS.txt.sig`, key in
+`docs/release-signers`). Windows and Linux files carry GitHub build
+attestations: `gh attestation verify <file> -R Parsabrg/nebula-vpn`.
+```
+
+Written in the project's voice: no test diary, no whose phone or which day,
+no links to the deployment, no tokens, no keys. How a release was tested
+belongs in the pull requests and CI, not in the notes.
 
 ## 5. Promote
 
 Test the pre-release on a real phone and on Windows before it becomes the
-default download (0.1.5 was published untested and pulled). Then the owner
-promotes it:
+default download (0.1.5 was published untested and pulled). Then promote
+it:
 
 ```sh
 gh release edit vX --prerelease=false --latest

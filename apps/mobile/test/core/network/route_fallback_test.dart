@@ -195,7 +195,7 @@ void main() {
   test('a front that refuses in its own words is a dead route', () async {
     // A disabled Vercel front answered every request with this 402, and the
     // app showed "Data limit reached" while the API worked on every other
-    // route (2026-10-29).
+    // route.
     final (Dio dio, _Network network, _) = await _client(
       <String>{'backup.test'},
       refusals: <String, (int, String, String)>{'direct.test': disabledFront},

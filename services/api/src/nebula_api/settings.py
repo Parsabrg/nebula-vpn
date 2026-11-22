@@ -275,7 +275,7 @@ class Settings(BaseSettings):
     def _empty_path_is_unset(cls, value: object) -> object:
         # Compose cannot leave a variable out, only pass it empty. Empty means
         # "issue it into state_dir", which a fresh install needs: the secrets
-        # directory is mounted read-only (2026-10-26, first install on a new host).
+        # directory is mounted read-only.
         return None if value == "" else value
 
     @field_validator("xray_client_dns")

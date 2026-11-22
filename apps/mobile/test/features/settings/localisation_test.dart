@@ -10,10 +10,10 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nebula_mobile/core/settings/locale_controller.dart';
 import 'package:nebula_mobile/core/storage/locale_store.dart';
 import 'package:nebula_mobile/core/storage/storage_providers.dart';

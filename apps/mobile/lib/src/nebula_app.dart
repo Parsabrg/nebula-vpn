@@ -1,6 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:cupertino_ui/cupertino_ui.dart'
+    show GlobalCupertinoLocalizations;
+import 'package:flutter_localizations/flutter_localizations.dart'
+    show GlobalWidgetsLocalizations;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../core/routing/app_router.dart';
 import '../core/settings/locale_controller.dart';
@@ -37,9 +40,10 @@ class NebulaApp extends ConsumerWidget {
       supportedLocales: AppText.supportedLocales,
       // English for a device language the app does not ship. Flutter's own
       // fallback is the first supported locale, which is Arabic.
-      localeListResolutionCallback:
-          (List<Locale>? preferred, Iterable<Locale> supported) =>
-              resolveAppLocale(preferred, supported),
+      localeListResolutionCallback: (
+        List<Locale>? preferred,
+        Iterable<Locale> supported,
+      ) => resolveAppLocale(preferred, supported),
       // The Material and Widgets delegates are what give each language its
       // own date formats and text selection handles, and Persian and Arabic
       // -- the one that shows immediately -- a right-to-left layout.

@@ -221,7 +221,7 @@ class TestRedeeming:
 
     def test_a_wireguard_node_is_stored_with_its_range(self) -> None:
         # Without it the control plane could give no device a WireGuard
-        # address on a joined server (Tehran, 2026-10-31).
+        # address on a joined server.
         from ipaddress import IPv4Address, IPv4Network
 
         from nebula_api.auth.opaque_tokens import issue_opaque_token

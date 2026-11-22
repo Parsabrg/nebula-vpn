@@ -36,7 +36,7 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 - The DNS tunnel's server side (plan 10): `install.sh` sets up a pinned CottenDNS behind
   the port-53 router when given `NEBULA_COTTENDNS_DOMAIN`, forwarding only to the VLESS
   Encryption inbound with AES-256-GCM; the agent renders its config; signed-in apps read
-  the name, key and server from `GET /v1/dns-tunnel/`. Off until the owner adds the
+  the name, key and server from `GET /v1/dns-tunnel/`. Off until the operator adds the
   router rule and DNS records (`docs/runbooks/dns-tunnel.md`). The app side follows.
 - An offline server bundle for each release (`nebula-vpn-vX-server-linux-amd64.tar.gz`):
   the source, every image, the pinned Xray, Hysteria2 and dnsproxy, and the agent's
@@ -64,14 +64,14 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 - Relays: a joined server can forward chosen ports to another server, and the app
   lists it as a server of its own ("Germany via Tehran") with the device's existing
   credential on the exit. Forwarded by the kernel, never logged; listed as under
-  maintenance while the relay cannot reach the exit. Off until the owner sets it up
+  maintenance while the relay cannot reach the exit. Off until the operator sets it up
   (`docs/runbooks/relay.md`).
 - New installs also answer on port 443: the panel, API and XHTTP on TCP 443 (nginx picks
   the site by name, so rate limits and the admin allowlist still see real addresses),
   Hysteria2 on UDP 443. The old ports stay open and listed after the 443 ones. Existing
-  servers keep their ports until the owner turns it on (`docs/runbooks/port-443.md`).
+  servers keep their ports until the operator turns it on (`docs/runbooks/port-443.md`).
 - VLESS + REALITY (Vision on raw TCP, and XHTTP): no domain or certificate needed; a
-  probe without the key sees another site's TLS. Off until the owner turns it on with
+  probe without the key sees another site's TLS. Off until the operator turns it on with
   `install.sh --configure` (`docs/runbooks/vless-reality.md`). The apps read it from the
   server as they already read REALITY links.
 - Backup routes per account: with `NEBULA_API_ROUTES_PER_ACCOUNT=k` each account is told
@@ -79,7 +79,7 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   one leaked account does not give away every route. Unset, everyone gets all, as before.
 - Hysteria2 port hopping: new installs also answer Hysteria2 on UDP 20000-50000,
   and the apps move between those ports every 30 s, so one blocked port does not end
-  the connection. Existing servers are unchanged until their owner turns it on
+  the connection. Existing servers are unchanged until the operator turns it on
   (`docs/runbooks/hysteria-port-hopping.md`).
 
 ## 0.1.34 — 2026-11-03

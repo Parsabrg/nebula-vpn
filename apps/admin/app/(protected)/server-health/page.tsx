@@ -81,7 +81,7 @@ function Bytes({ value }: { value: string }) {
 }
 
 // One card per server rather than five wide tables of the same servers, and
-// a sentence where a table of zeros said nothing (2026-10-29: "too crowded").
+// a sentence where a table of zeros said nothing.
 export default async function ServerHealthPage({
   searchParams,
 }: {

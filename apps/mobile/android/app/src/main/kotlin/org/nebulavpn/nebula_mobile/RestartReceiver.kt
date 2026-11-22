@@ -36,7 +36,7 @@ class RestartReceiver : BroadcastReceiver() {
         // This app's own VPN is no reason to stay down: right after an update
         // Android can still list the old process's interface for a moment,
         // and asking only for "none" left the phone unprotected after one
-        // (seen 2026-10-14). Another app's VPN, or one Android cannot name,
+        //. Another app's VPN, or one Android cannot name,
         // still is.
         val owner = VpnState.owner(context)
         val vpnAllowed = VpnState.consentHeld(context) && (owner == "none" || owner == "own")

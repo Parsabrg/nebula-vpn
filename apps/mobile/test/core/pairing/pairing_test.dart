@@ -260,20 +260,16 @@ void main() {
       );
     }, skip: _Pki.missing);
 
-    test(
-      'an installed server, when one is named',
-      () async {
-        // NEBULA_PAIRING_LINK=<the link `nebulactl pair` prints>
-        final String link = Platform.environment['NEBULA_PAIRING_LINK']!;
+    test('an installed server, when one is named', () async {
+      // NEBULA_PAIRING_LINK=<the link `nebulactl pair` prints>
+      final String link = Platform.environment['NEBULA_PAIRING_LINK']!;
 
-        final Pairing pairing = await PairingClient().pair(
-          PairingLink.parse(link),
-        );
+      final Pairing pairing = await PairingClient().pair(
+        PairingLink.parse(link),
+      );
 
-        expect(pairing.deploymentId, PairingLink.parse(link).deploymentId);
-      },
-      skip: Platform.environment['NEBULA_PAIRING_LINK'] == null,
-    );
+      expect(pairing.deploymentId, PairingLink.parse(link).deploymentId);
+    }, skip: Platform.environment['NEBULA_PAIRING_LINK'] == null);
   });
 }
 

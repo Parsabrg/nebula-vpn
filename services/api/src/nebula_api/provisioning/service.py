@@ -613,7 +613,7 @@ class ProvisioningService:
                     # Per server, as above: the second server's request
                     # reused the first's client, provisioned it on the second
                     # server's agent and left it filed under the first, so
-                    # the app was told its access had ended (2026-10-30).
+                    # the app was told its access had ended.
                     XrayClient.vpn_server_id == server.id,
                     XrayClient.state.in_(_LIVE_PEER_STATES),
                 )

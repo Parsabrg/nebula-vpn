@@ -107,7 +107,7 @@ String renderDnsTunnelConfig(
     'LOG_TO_FILE = false',
     'LOG_LEVEL = "INFO"',
     // A resolver test: one try per size and a short timeout (defaults 3
-    // tries, 2 s; 4 resolvers took 80 s, MCI 2026-11-06).
+    // tries, 2 s, which made four resolvers take 80 s on mobile data).
     if (scanParallelism != null) ...<String>[
       'MTU_TEST_RETRIES_RESOLVERS = 1',
       'MTU_TEST_TIMEOUT_RESOLVERS = 1.5',

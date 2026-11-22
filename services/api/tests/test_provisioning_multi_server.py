@@ -4,7 +4,7 @@ With a second server, a request to it found the device's live client on the
 first server (the lookup and the live-uniqueness indexes named the device and
 profile, not the server), reused it, provisioned it on the second server's
 agent and left it filed under the first. The app then read "Your access to
-this server has ended" (phone, 2026-10-30).
+this server has ended".
 """
 
 import asyncio

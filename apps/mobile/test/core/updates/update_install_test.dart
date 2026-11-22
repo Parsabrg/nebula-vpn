@@ -46,9 +46,8 @@ final AvailableUpdate _update = AvailableUpdate(
 );
 
 Map<String, List<int>> _signedRelease() => <String, List<int>>{
-  'SHA256SUMS.txt': File(
-    'test/core/updates/fixtures/SHA256SUMS-0.1.34.txt',
-  ).readAsBytesSync(),
+  'SHA256SUMS.txt': File('test/core/updates/fixtures/SHA256SUMS-0.1.34.txt')
+      .readAsBytesSync(),
   'SHA256SUMS.txt.sig': File(
     'test/core/updates/fixtures/SHA256SUMS-0.1.34.txt.sig',
   ).readAsBytesSync(),

@@ -29,8 +29,8 @@ mixin _HealthChecks on _DevicesCore {
       (_) => unawaited(_checkTraffic()),
     );
     // A route that is throttled rather than blocked lets the connect's own
-    // request through and stalls seconds later (Cloudflare from Iran,
-    // 2026-10-29): asked again soon, not a minute on.
+    // request through and stalls seconds later (Cloudflare from Iran):
+    // asked again soon, not a minute on.
     _checkTrafficSoon();
     _watchStall();
     _stopResumeWatch = ref.read(appResumedProvider)(() {
@@ -53,6 +53,7 @@ mixin _HealthChecks on _DevicesCore {
     _trafficSoon = null;
     _trafficWatch = null;
     _trafficFailedReadings = 0;
+    _failingSince = null;
     _stallReadings?.cancel();
     _stallReadings = null;
     _stallPoll?.cancel();
@@ -80,7 +81,7 @@ mixin _HealthChecks on _DevicesCore {
       if (trafficStalled(reading, last, now) &&
           now.difference(_lastStallCheck) >= const Duration(seconds: 15)) {
         _lastStallCheck = now;
-        unawaited(_checkTraffic(data: true));
+        unawaited(_checkTraffic());
       }
     }
 
@@ -136,6 +137,7 @@ mixin _HealthChecks on _DevicesCore {
       tunnelEstablishedAt: () => null,
       sanctionsOnly: false,
       throughWarp: () => null,
+      traits: ConnectionTraits.none,
       localProxy: () => null,
       actionErrorMessage: () => reason,
     );
@@ -203,13 +205,15 @@ mixin _HealthChecks on _DevicesCore {
   /// Whether an Xray or Hysteria2 tunnel still carries a request.
   ///
   /// The process check in [_checkEngine] cannot see this: the engine runs on
-  /// when its server is blocked partway through a session, and nothing it
-  /// logs says so. WireGuard has its handshake for this; here one small
-  /// request is sent each interval, the one a connect is checked with. Three
-  /// in a row unanswered -- about as long as WireGuard is given -- and the
-  /// tunnel is taken down and tried again once, where the connect says which
-  /// it was: offline, the server gone, or the protocol blocked.
-  Future<void> _checkTraffic({bool data = false}) async {
+  /// when its server is blocked partway through a session. One small request
+  /// is sent each interval, and every few seconds once one goes unanswered.
+  ///
+  /// Dead means unanswered for [deadTunnelWindowProvider] with a network present --
+  /// then it is ended with the reason, never moved elsewhere. A network
+  /// change or a blip recovers inside that (Xray redials by itself), and
+  /// while there is no network at all nothing counts. Slow is not dead: these
+  /// readings ask for an answer, not for speed, which the connect checks.
+  Future<void> _checkTraffic() async {
     // A local proxy carries only what is sent to it.
     if (_checkingTraffic ||
         state.xrayClient == null ||
@@ -221,23 +225,43 @@ mixin _HealthChecks on _DevicesCore {
     }
     _checkingTraffic = true;
     try {
-      final bool carries = await _tunnelAnswers(data: data);
+      final bool carries = await _tunnelAnswers();
       if (!ref.mounted || _trafficWatch == null) {
         return;
       }
       if (carries) {
         _trafficFailedReadings = 0;
+        _failingSince = null;
+        if (state.stall != null) {
+          state = state.copyWith(stall: () => null);
+        }
         return;
       }
       _trafficFailedReadings++;
-      if (_trafficFailedReadings < _deadAfter ||
-          state.isSubmitting ||
-          !state.tunnelEstablished) {
-        // Confirmed or cleared within seconds: three one-a-minute readings
-        // kept a stalled tunnel reading "Protected" for three minutes.
-        if (_trafficFailedReadings < _deadAfter) {
-          _checkTrafficSoon();
+      if (state.isSubmitting || !state.tunnelEstablished) {
+        return;
+      }
+      final bool? network = await ref.read(deviceHasNetworkProvider)();
+      if (!ref.mounted || _trafficWatch == null || !state.tunnelEstablished) {
+        return;
+      }
+      final DateTime now = DateTime.now();
+      if (network == false) {
+        // Nothing to blame on the protocol; the minute starts again once a
+        // network is back.
+        _failingSince = null;
+        state = state.copyWith(stall: () => TunnelStall.noNetwork);
+        _checkTrafficSoon();
+        return;
+      }
+      _failingSince ??= now;
+      if (now.difference(_failingSince!) < _deadWindow) {
+        // One unanswered request is often just that; the screen says so
+        // from the second.
+        if (_trafficFailedReadings >= 2) {
+          state = state.copyWith(stall: () => TunnelStall.recovering);
         }
+        _checkTrafficSoon();
         return;
       }
       await _endDeadTunnel();
@@ -250,7 +274,7 @@ mixin _HealthChecks on _DevicesCore {
     _trafficSoon?.cancel();
     _trafficSoon = Timer(
       ref.read(trafficRecheckDelayProvider),
-      () => unawaited(_checkTraffic(data: true)),
+      () => unawaited(_checkTraffic()),
     );
   }
 
@@ -258,19 +282,10 @@ mixin _HealthChecks on _DevicesCore {
   /// DNS question over its UDP side -- the way every app's DNS goes, and
   /// which the request alone never touches (the proxy looks its name up
   /// itself, over TCP).
-  Future<bool> _tunnelAnswers({bool data = false}) async {
-    // The soon readings also move real data: a throttled route answers one
-    // small request and stalls a transfer, and read "Protected" for minutes
-    // with 170 KB moved (Windows, 2026-10-30). Not every minute: that would
-    // be 180 MB a day on a phone's data plan.
-    // Not over the DNS tunnel: it is slow by nature (10 KB/s on MCI,
-    // 2026-11-06), so 128 KB in 12 s would end every working one.
-    if (data &&
-        state.activeProfileCode != kDnsTunnelProfileCode &&
-        (!await ref.read(tunnelMovesDataProvider)(_tunnelProxy) ||
-            !ref.mounted)) {
-      return false;
-    }
+  ///
+  /// No download here: a slow tunnel that answers is working. Speed is
+  /// checked once, at connect.
+  Future<bool> _tunnelAnswers() async {
     final LocalProxy? proxy = _tunnelProxy;
     if (!await ref.read(tunnelCarriesTrafficProvider)(
           proxy,
@@ -332,58 +347,25 @@ mixin _HealthChecks on _DevicesCore {
 
   /// The DNS tunnel: slow by nature, so a reading that times out says
   /// little. Each waits [slowTrafficProbe] and five in a row -- about three
-  /// minutes -- end it; it is still ended when it is dead (owner, 2026-11-12:
-  /// slow but working must stay, dead must go).
+  /// minutes -- end it: slow but working stays, dead goes.
   bool get _slowTunnel => state.activeProfileCode == kDnsTunnelProfileCode;
-  int get _deadAfter => _slowTunnel ? 5 : 3;
+  Duration get _deadWindow =>
+      ref.read(deadTunnelWindowProvider) * (_slowTunnel ? 3 : 1);
 
   /// Checks the tunnel the moment the app is opened again.
   ///
   /// Off screen on Android, [_checkTraffic] asks nothing (see
   /// trafficCheckMeaningfulProvider), so a tunnel that died meanwhile still
-  /// read "Connected" when the app was opened -- and went on reading it
-  /// through three more one-a-minute checks. Here it is asked at once, three
-  /// times a couple of seconds apart, and taken down and tried again if none
-  /// of them is answered.
-  Future<void> _checkTrafficOnResume() async {
-    bool unchanged() =>
-        ref.mounted &&
-        _trafficWatch != null &&
-        !state.isSubmitting &&
-        state.tunnelEstablished;
-    if (_checkingTraffic ||
-        state.xrayClient == null ||
-        state.localProxy != null ||
-        !unchanged()) {
-      return;
-    }
-    _checkingTraffic = true;
-    try {
-      for (int tried = 0; tried < _deadAfter; tried++) {
-        if (tried > 0) {
-          await Future<void>.delayed(const Duration(seconds: 2));
-        }
-        if (!unchanged()) {
-          return;
-        }
-        if (await _tunnelAnswers()) {
-          _trafficFailedReadings = 0;
-          return;
-        }
-      }
-      if (unchanged()) {
-        await _endDeadTunnel();
-      }
-    } finally {
-      _checkingTraffic = false;
-    }
-  }
+  /// read "Connected" when the app was opened. Asked at once on return; an
+  /// unanswered tunnel reads "Reconnecting" within seconds and is ended
+  /// after the same [deadTunnelWindowProvider] as always.
+  Future<void> _checkTrafficOnResume() => _checkTraffic();
 
   /// Takes down a tunnel that carries nothing, and tries once to bring it
   /// back.
   /// The connection stopped carrying traffic: it is turned off, and the
   /// person decides what next. Never reconnected or moved to another server,
-  /// protocol or route on their behalf (owner, 2026-11-11).
+  /// protocol or route on their behalf.
   Future<void> _endDeadTunnel() async {
     final String? deadServer = state.connectedServerCode;
     final String? deadProfile = state.activeProfileCode;
@@ -457,6 +439,7 @@ mixin _HealthChecks on _DevicesCore {
       tunnelEstablishedAt: () => null,
       sanctionsOnly: false,
       throughWarp: () => null,
+      traits: ConnectionTraits.none,
       localProxy: () => null,
     );
     final String? deviceId = _connectedDeviceId ?? _storedDeviceId();
@@ -520,6 +503,7 @@ mixin _HealthChecks on _DevicesCore {
     int attempt, {
     bool viaProxy = true,
     bool slow = false,
+    bool engineCheckedData = false,
   }) async {
     final Future<bool> Function(LocalProxy?, {bool slow}) carries = ref.read(
       tunnelCarriesTrafficProvider,
@@ -533,7 +517,7 @@ mixin _HealthChecks on _DevicesCore {
       // Both requests at once, on two connections: a throttled route carries
       // one and stalls the other, and asked one after the other they cost
       // two round trips before "Protected" (3.2 s where the tunnel was up in
-      // 47 ms, 2026-11-03).
+      // 47 ms).
       final Future<bool> first = probe();
       final Future<bool> second = probe();
       final bool answered = await first;
@@ -542,9 +526,18 @@ mixin _HealthChecks on _DevicesCore {
         'in ${took.elapsedMilliseconds} ms',
       );
       // Not over the DNS tunnel: its first request takes 7-9 s while the
-      // session warms up, so one timeout says nothing (2 of 3 reconnects
-      // failed on 0.1.35, 2026-11-11).
-      if (!answered && !slow && took.elapsed >= _probeGaveUp) {
+      // session warms up, so one timeout says nothing.
+      // Nor over WARP: Aether confirms data end to end before it serves at
+      // all, and on a filtering evening the first request on a fresh tunnel
+      // was dropped while the next went through (its own check failed once
+      // and passed on retry, twice in one connect). Giving up there tore a
+      // working tunnel down, and the restart found every saved gateway
+      // "dead" -- Cloudflare still held the old session -- and scanned
+      // again: 78 s to connect.
+      if (!answered &&
+          !slow &&
+          !engineCheckedData &&
+          took.elapsed >= _probeGaveUp) {
         // It waited out its whole deadline: nothing is there. Trying twice
         // more only adds the same wait again (a dead server sat at
         // Connecting for 79 s). A quick failure -- the engine still coming
@@ -553,11 +546,11 @@ mixin _HealthChecks on _DevicesCore {
       }
       if (answered) {
         // And once more: a throttled address carries the first request and
-        // stalls everything after it (measured from Iran, 2026-10-06), so
+        // stalls everything after it, so
         // one answer does not say the tunnel stays up. And quickly: raw
         // TCP+TLS to a throttled address answered this in 4.8-7.2 s while a
         // 5 MB download got nothing, where working tunnels took 0.6-2.2 s
-        // (on the phone, 2026-10-17) -- "Protected" over a tunnel that slow
+        // -- "Protected" over a tunnel that slow
         // is the screen saying connected while nothing loads.
         final bool confirmed = await second.timeout(
           slow ? _probeTimeout : _confirmWithin,
@@ -570,11 +563,24 @@ mixin _HealthChecks on _DevicesCore {
         }
         // And real data: a route can answer two tiny requests and stall
         // anything bigger -- XHTTP through the CDN read "Protected" with
-        // 0 B downloaded (owner, 2026-11-10) until the watch gave up ~50 s
-        // later. Found here, the connect moves on to the next route instead.
-        final bool moves = await ref.read(tunnelMovesDataProvider)(
+        // 0 B downloaded. Automatic waits for it, to
+        // move on to the next protocol instead. A protocol the person
+        // picked does not: it is up once two requests answered, as in
+        // v2rayNG -- the 128 KB took 7 s on a slow moment and every connect
+        // waited for it.
+        final Future<bool> moving = ref.read(tunnelMovesDataProvider)(
           viaProxy ? _tunnelProxy : null,
         );
+        if (!_choosingAutomatically) {
+          unawaited(
+            moving.then(
+              (bool moves) =>
+                  _mark('traffic data: ${moves ? 'moved' : 'stalled'}'),
+            ),
+          );
+          return true;
+        }
+        final bool moves = await moving;
         _mark('traffic data: ${moves ? 'moved' : 'stalled'}');
         return moves;
       }

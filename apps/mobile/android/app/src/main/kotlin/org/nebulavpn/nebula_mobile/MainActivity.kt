@@ -1,6 +1,9 @@
 package org.nebulavpn.nebula_mobile
 
 import android.content.ActivityNotFoundException
+import android.content.ClipData
+import android.content.ClipDescription
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
@@ -12,6 +15,7 @@ import android.net.TrafficStats
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
+import android.os.PersistableBundle
 import android.provider.Settings
 import com.wireguard.android.backend.Backend
 import com.wireguard.android.backend.GoBackend
@@ -81,6 +85,11 @@ class MainActivity : FlutterActivity() {
                     "requestPermission" -> requestPermission(result)
                     "hasPermission" -> result.success(VpnState.consentHeld(this))
                     "vpnOwner" -> result.success(VpnState.owner(this))
+                    "hasNetwork" -> result.success(VpnState.hasNetwork(this))
+                    "copySensitive" -> {
+                        copySensitive(call.argument<String>("text") ?: "")
+                        result.success(null)
+                    }
                     "takeDisconnectRequest" -> {
                         result.success(disconnectRequested)
                         disconnectRequested = false
@@ -179,8 +188,31 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    /**
+     * A credential on the clipboard, marked sensitive: Android 13 and later
+     * keep it out of the clipboard preview and keyboard suggestions
+     * (review S-07). Cleared after a minute from Dart.
+     */
+    private fun copySensitive(text: String) {
+        val clipboard = getSystemService(ClipboardManager::class.java) ?: return
+        val clip = ClipData.newPlainText("Nebula", text)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            clip.description.extras = PersistableBundle().apply {
+                putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)
+            }
+        }
+        clipboard.setPrimaryClip(clip)
+    }
+
     private fun noteDisconnectRequest(intent: Intent?): Boolean {
         if (intent?.action != disconnectAction) {
+            return false
+        }
+        // This activity is exported: any app can send the action. Only the
+        // notification's button carries the token from this app's private
+        // files (V2rayCoreManager.disconnectToken) -- review S-01.
+        if (!GuardedInputs.disconnectTokenMatches(filesDir, intent.getStringExtra("NEBULA_DISCONNECT_TOKEN"))) {
+            intent.action = Intent.ACTION_MAIN
             return false
         }
         disconnectRequested = true
@@ -214,9 +246,8 @@ class MainActivity : FlutterActivity() {
      * list, hash) to the system installer, which asks the person to confirm.
      * Only files in this app's update folder. */
     private fun installApk(path: String?, result: MethodChannel.Result) {
-        val folder = java.io.File(cacheDir, "updates").canonicalFile
-        val file = path?.let { java.io.File(it).canonicalFile }
-        if (file == null || file.parentFile != folder || !file.isFile || !file.name.endsWith(".apk")) {
+        val file = GuardedInputs.installableUpdate(cacheDir, path)
+        if (file == null) {
             result.success(false)
             return
         }

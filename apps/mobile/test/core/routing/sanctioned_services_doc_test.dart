@@ -13,12 +13,13 @@ void main() {
       // The doc is what other Xray clients are set up from. If the two
       // drift, the app and that client quietly disagree about which services
       // work, and nothing else would notice.
-      final String doc = File(
-        '../../docs/sanctioned-services.md',
-      ).readAsStringSync();
-      final List<String> inDoc = RegExp(
-        r'"(domain:[^"]+)"',
-      ).allMatches(doc).map((RegExpMatch m) => m.group(1)!).toSet().toList();
+      final String doc = File('../../docs/sanctioned-services.md')
+          .readAsStringSync();
+      final List<String> inDoc = RegExp(r'"(domain:[^"]+)"')
+          .allMatches(doc)
+          .map((RegExpMatch m) => m.group(1)!)
+          .toSet()
+          .toList();
 
       expect(inDoc.toSet(), sanctionedDomains.toSet());
       // By line rather than by searching for "\n...\n", so a checkout with

@@ -49,7 +49,7 @@ export function formatLocalDate(date: Date): string {
  * which they agree on; once mounted it switches to the browser's zone.
  * Formatting with the browser's zone during render made the server's text
  * and the browser's differ: React error #418 on every page with a time, and
- * some times left in UTC beside others in local time (2026-11-01 sweep).
+ * some times left in UTC beside others in local time.
  */
 export function LocalTime({
   value,

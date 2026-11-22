@@ -23,7 +23,7 @@ kernel does it, with no VPN software in the path) and never logs them.
   fail2ban stays SSH-only, and the Xray site (8445) has no `limit_req`.
 
 Turning a server into a relay changes what it runs and opens ports on it, so
-it needs the owner's OK; the owner chooses the ports.
+it needs the operator's OK; the operator chooses the ports.
 
 ## From the admin panel
 

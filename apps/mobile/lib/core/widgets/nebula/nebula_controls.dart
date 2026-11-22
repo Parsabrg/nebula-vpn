@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../theme/color_tokens.dart';
 import '../../theme/look.dart';
@@ -101,7 +101,7 @@ class NebulaButton extends StatelessWidget {
         children: <Widget>[
           if (busy)
             Padding(
-              padding: const EdgeInsets.only(right: 10),
+              padding: const EdgeInsetsDirectional.only(end: 10),
               child: SizedBox.square(
                 dimension: 18,
                 child: CircularProgressIndicator(

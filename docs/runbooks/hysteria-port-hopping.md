@@ -14,7 +14,7 @@ block on one port then does not end the connection.
 
 ## Turning it on for an existing server
 
-This changes what the server listens on, so the owner decides.
+This changes what the server listens on, so the operator decides.
 
 ```sh
 echo 'NEBULA_XRAY_HYSTERIA_HOP_PORTS=20000-50000' | sudo tee -a /etc/nebula/agent.env

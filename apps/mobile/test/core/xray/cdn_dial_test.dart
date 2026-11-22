@@ -61,31 +61,28 @@ void main() {
     expect(_hosts(c), isEmpty);
   });
 
-  test(
-    'F&F: no ECH, split hello, unsafe + semi-python, WebSocket ALPN, clean address',
-    () {
-      final Map<String, dynamic> c = _render(_client(), CdnDial.ff);
-      final Map<String, dynamic> tls = _tls(c);
-      expect(tls.containsKey('echConfigList'), isFalse);
-      expect(tls['fingerprint'], 'unsafe');
-      expect(tls['cipherSuites'], kSemiPythonCipherSuites);
-      expect(tls['alpn'], <String>['http/1.1']);
-      expect(tls['serverName'], 'cdn.example.org');
-      final List<dynamic> tcp =
-          (_proxyStream(c)['finalmask'] as Map<String, dynamic>)['tcp']
-              as List<dynamic>;
-      expect(
-        ((tcp.first as Map<String, dynamic>)['settings']
-            as Map<String, dynamic>)['lengths'],
-        <String>['0', '104', '1'],
-      );
-      expect(_hosts(c)['cdn.example.org'], kFfCleanIp);
-      expect(
-        _proxyStream(c)['sockopt'],
-        containsPair('domainStrategy', 'UseIPv4'),
-      );
-    },
-  );
+  test('F&F: no ECH, split hello, unsafe + semi-python, WebSocket ALPN, clean address', () {
+    final Map<String, dynamic> c = _render(_client(), CdnDial.ff);
+    final Map<String, dynamic> tls = _tls(c);
+    expect(tls.containsKey('echConfigList'), isFalse);
+    expect(tls['fingerprint'], 'unsafe');
+    expect(tls['cipherSuites'], kSemiPythonCipherSuites);
+    expect(tls['alpn'], <String>['http/1.1']);
+    expect(tls['serverName'], 'cdn.example.org');
+    final List<dynamic> tcp =
+        (_proxyStream(c)['finalmask'] as Map<String, dynamic>)['tcp']
+            as List<dynamic>;
+    expect(
+      ((tcp.first as Map<String, dynamic>)['settings']
+          as Map<String, dynamic>)['lengths'],
+      <String>['0', '104', '1'],
+    );
+    expect(_hosts(c)['cdn.example.org'], kFfCleanIp);
+    expect(
+      _proxyStream(c)['sockopt'],
+      containsPair('domainStrategy', 'UseIPv4'),
+    );
+  });
 
   test('plain: Chrome, the transport ALPN, no ECH, no split', () {
     final Map<String, dynamic> c = _render(
