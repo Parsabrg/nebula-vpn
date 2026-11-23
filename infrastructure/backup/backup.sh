@@ -55,6 +55,12 @@ docker run --rm --user 0 --entrypoint tar -v "$volume:/state:ro" "${api_image:-n
 for f in compose.env agent.env install.conf backup.env; do
   [ -f "/etc/nebula/$f" ] && cp -a "/etc/nebula/$f" "$staging_dir/config/"
 done
+# The resolver's settings (filters, upstreams), changed in AdGuard Home after
+# the install; a restore puts them back where the installer looks.
+if [ -f /etc/nebula/adguard/conf/AdGuardHome.yaml ]; then
+  install -d -m 0700 "$staging_dir/config/adguard/conf"
+  cp -a /etc/nebula/adguard/conf/AdGuardHome.yaml "$staging_dir/config/adguard/conf/"
+fi
 
 archive_file="$work_dir/nebula-backup-$timestamp.tar.gz"
 tar -czf "$archive_file" -C "$staging_dir" .

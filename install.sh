@@ -678,6 +678,12 @@ Create these DNS records at your DNS provider (proxy/CDN off, "DNS only"):
   A  $NEBULA_DOMAIN     $PUBLIC_IP
 EOF
   [ -n "$JOIN_URL" ] || echo "  A  *.$NEBULA_DOMAIN   $PUBLIC_IP"
+  # Only a new certificate needs every name; a server that has one (a rerun,
+  # a restore, names behind a CDN) goes on and says what is missing.
+  if [ -f "$CERT/fullchain.pem" ] && [ ! -t 0 ]; then
+    warn "not every name points here; keeping the certificate this server already has"
+    break
+  fi
   [ -t 0 ] || die "DNS is not ready"
   read -rp "Press Enter once they are saved (it can take a few minutes), or type skip: " answer
   [ "$answer" = skip ] && break
