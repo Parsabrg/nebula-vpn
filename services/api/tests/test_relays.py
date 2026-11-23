@@ -409,3 +409,117 @@ def test_relay_ports_never_overlap_what_is_taken_or_reserved() -> None:
         False,
         False,
     ]
+
+
+class _FakeRedis:
+    def __init__(self) -> None:
+        self.data: dict[str, str] = {}
+
+    async def mget(self, keys: list[str]) -> list[object]:
+        return [self.data.get(key) for key in keys]
+
+    async def set(self, name: str, value: str, ex: int) -> object:
+        self.data[name] = value
+        return True
+
+
+def test_server_ports_keep_what_each_server_reported() -> None:
+    import asyncio
+
+    from nebula_api.relays import ServerPorts
+
+    ports = ServerPorts(_FakeRedis())
+    asyncio.run(ports.record({"tehran": (frozenset({22, 443}), ("20000-50000",))}))
+    assert asyncio.run(ports.taken("tehran")) == ({22, 443}, ("20000-50000",))
+    assert asyncio.run(ports.taken("unknown")) is None
+
+
+class _Route:
+    def __init__(self, code: str, via: str, ports: dict[str, int]) -> None:
+        self.code = code
+        self.exit_server_id = f"exit-{code}"
+        self.via_server_id = via
+        self.ports = ports
+
+
+class _Server:
+    def __init__(self, code: str) -> None:
+        self.code = code
+
+
+class _FillSession:
+    """Answers fill_relay_ports' queries in order."""
+
+    def __init__(self, routes: list[_Route], offered: list[list[str]]) -> None:
+        self.answers: list[list[object]] = [list(routes), *offered]
+        self.committed = False
+
+    async def scalars(self, _statement: object) -> object:
+        rows = self.answers.pop(0)
+
+        class _Rows(list):  # type: ignore[type-arg]
+            def all(self) -> list[object]:
+                return list(self)
+
+        return _Rows(rows)
+
+    async def get(self, _model: object, key: str) -> _Server:
+        return _Server(key)
+
+    async def commit(self) -> None:
+        self.committed = True
+
+
+def test_relays_get_free_ports_for_what_their_exit_offers() -> None:
+    import asyncio
+    from collections.abc import AsyncIterator
+    from contextlib import asynccontextmanager
+    from typing import Any, cast
+
+    from nebula_api.relays import ServerPorts, fill_relay_ports
+
+    # Germany's relay has 2053 already; the Netherlands' is new. The relay
+    # server listens on 2052 and hops on 2080-2090.
+    germany = _Route("de-via-tehran", "tehran", {"vless-tcp-tls": 2053})
+    netherlands = _Route("nl-via-tehran", "tehran", {})
+    session = _FillSession(
+        [germany, netherlands],
+        [
+            ["vless-tcp-tls", "vless-tcp-tls-adblock", "wireguard-native"],  # nothing new
+            ["hysteria2", "vless-enc-dns", "vless-ws-tls"],
+        ],
+    )
+
+    @asynccontextmanager
+    async def scope() -> AsyncIterator[Any]:
+        yield session
+
+    redis = _FakeRedis()
+    ports = ServerPorts(redis)
+    asyncio.run(ports.record({"tehran": (frozenset({2052}), ("2080-2090",))}))
+    given = asyncio.run(fill_relay_ports(cast(Any, lambda: scope()), ports))
+    assert netherlands.ports == {"hysteria2": 2095, "vless-ws-tls": 2096}
+    assert germany.ports == {"vless-tcp-tls": 2053}
+    assert given == ["nl-via-tehran:hysteria2=2095", "nl-via-tehran:vless-ws-tls=2096"]
+    assert session.committed
+
+
+def test_a_relay_server_that_has_not_reported_is_left_for_later() -> None:
+    import asyncio
+    from collections.abc import AsyncIterator
+    from contextlib import asynccontextmanager
+    from typing import Any, cast
+
+    from nebula_api.relays import ServerPorts, fill_relay_ports
+
+    route = _Route("nl-via-tehran", "tehran", {})
+    session = _FillSession([route], [["hysteria2"]])
+
+    @asynccontextmanager
+    async def scope() -> AsyncIterator[Any]:
+        yield session
+
+    assert (
+        asyncio.run(fill_relay_ports(cast(Any, lambda: scope()), ServerPorts(_FakeRedis()))) == []
+    )
+    assert route.ports == {}
