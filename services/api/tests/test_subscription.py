@@ -88,7 +88,7 @@ def test_shadowsocks_and_hysteria() -> None:
         _credential(transport="hysteria", obfs_password="ob", port_hop="20000-30000"),  # noqa: S106
         "hy",
     )
-    assert hy is not None and hy.startswith(f"hysteria2://{_ID}@de.example.org:443/?")
+    assert hy is not None and hy.startswith(f"hysteria2://{_ID}:{_ID}@de.example.org:443/?")
     assert "obfs=salamander" in hy and "obfs-password=ob" in hy and "mport=20000-30000" in hy
 
 
