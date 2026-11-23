@@ -26,6 +26,10 @@
 #   sudo ./install.sh --update [v0.1.34]
 # (a joined server does this by itself once a day: nebula-update.timer)
 #
+# Removing Nebula from this server (certificates, engines, backups and
+# anything not Nebula's are kept; on the first server a backup is taken first):
+#   sudo ./install.sh --uninstall
+#
 # Changing which protocols this server offers, or their ports (firewall,
 # nginx, WireGuard and the control plane follow):
 #   sudo ./install.sh --configure
@@ -237,6 +241,66 @@ if [ "${1:-}" = --update ]; then
   echo "Release notes: $REPO/CHANGELOG.md"
   g -c advice.detachedHead=false checkout -q "refs/tags/$tag"
   exec "$REPO/install.sh"
+fi
+if [ "${1:-}" = --uninstall ]; then
+  # Takes Nebula off this server, so it can be installed again from nothing
+  # or given back. Kept: TLS certificates, the engines in /usr/local/bin (a
+  # personal Xray may use them too), backups in /var/backups/nebula, this
+  # checkout, and everything that is not Nebula's.
+  control=""; [ -f $ETC/compose.env ] && control=1
+  want=remove; [ -n "$control" ] && want=delete-database
+  if [ "${NEBULA_UNINSTALL:-}" != "$want" ]; then
+    [ -t 0 ] || die "set NEBULA_UNINSTALL=$want to remove Nebula without a terminal"
+    [ -n "$control" ] && warn "this server holds the database: every account, device and setting goes (a backup is taken first)"
+    read -rp "Type $want to remove Nebula from this server: " a
+    [ "$a" = "$want" ] || die "nothing removed"
+  fi
+  if [ -n "$control" ]; then
+    step "Backing up first"
+    systemctl start nebula-backup.service || die "the backup failed: nothing removed"
+    ls -t /var/backups/nebula/nebula-backup-*.age 2>/dev/null | head -1
+    step "Removing the control plane"
+    docker compose -p nebula-production --env-file $ETC/compose.env \
+      -f "$REPO/infrastructure/compose/production.yaml" down -v --remove-orphans || true
+  fi
+  step "Removing Nebula's services"
+  for unit in /etc/systemd/system/nebula-*; do
+    [ -e "$unit" ] || continue
+    systemctl disable --now "$(basename "$unit")" >/dev/null 2>&1 || true
+    rm -rf "$unit"
+  done
+  systemctl disable --now wg-quick@wg0 >/dev/null 2>&1 || true
+  systemctl daemon-reload
+  rm -f /etc/wireguard/wg0.conf /etc/sysctl.d/99-nebula-forward.conf /etc/polkit-1/rules.d/49-nebula-xray-agent.rules
+  rm -rf $ETC /var/lib/nebula /opt/nebula-vpn-agent /opt/nebula-awscli
+  rm -f /etc/nginx/sites-enabled/nebula /etc/nginx/sites-available/nebula /etc/nginx/sites-available/nebula-acme \
+    /etc/nginx/conf.d/xray-8445.conf /etc/nginx/snippets/nebula-*
+  if command -v nginx >/dev/null; then nginx -t >/dev/null 2>&1 && systemctl reload nginx 2>/dev/null || true; fi
+  step "Firewall"
+  # Rules marked nebula, then the blocks the installer added to before.rules:
+  # each "# nebula-..." block, WireGuard's (wg0 is Nebula's) and those for the
+  # nebula-xray user.
+  if command -v ufw >/dev/null; then
+    while n=$(ufw status numbered | grep -E '# nebula' | head -1 | sed -E 's/^\[ *([0-9]+)\].*/\1/'); [ -n "$n" ]; do
+      ufw --force delete "$n" >/dev/null || break
+    done
+    for f in /etc/ufw/before.rules /etc/ufw/before6.rules; do
+      [ -f "$f" ] || continue
+      cp "$f" "$f.before-nebula-uninstall"
+      awk '
+        /^# nebula-/ { pending = 1; next }
+        pending && $0 == "*nat" { innat = 1; pending = 0; next }
+        { pending = 0 }
+        innat { if ($0 == "COMMIT") innat = 0; next }
+        /-[io] wg0 |uid-owner nebula-xray/ { next }
+        { print }' "$f.before-nebula-uninstall" > "$f"
+    done
+    ufw reload >/dev/null || warn "ufw did not reload; the old rules are in /etc/ufw/*.before-nebula-uninstall"
+  fi
+  for u in nebula-agent nebula-xray nebula-cottendns; do userdel "$u" >/dev/null 2>&1 || true; done
+  groupdel nebula-secrets >/dev/null 2>&1 || true
+  ok "Nebula removed. To install again: sudo ./install.sh (or --join, or --restore <backup>)"
+  exit 0
 fi
 RESTORE_DIR=""
 if [ "${1:-}" = --restore ]; then

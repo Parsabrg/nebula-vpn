@@ -123,7 +123,13 @@ async def mint_enrollment_token(
         require_step_up=True,
     )
     try:
-        minted = await service.mint(label=payload.label, admin_id=principal.admin_id)
+        minted = await service.mint(
+            label=payload.label, admin_id=principal.admin_id, rebuild=payload.rebuild
+        )
+    except LookupError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="No server has this name"
+        ) from error
     except LabelInUse as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="A server already has this name"

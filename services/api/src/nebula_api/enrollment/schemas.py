@@ -85,6 +85,9 @@ class MintEnrollmentTokenRequest(BaseModel):
 
     # The new server's code and name: letters, digits and dashes, as the CLI.
     label: str = Field(min_length=1, max_length=64, pattern=r"^[a-z0-9][a-z0-9-]*$")
+    # A key for the existing server of this name, reinstalled from nothing:
+    # it keeps its users, relays, name and protocols.
+    rebuild: bool = False
 
 
 class MintEnrollmentTokenResponse(BaseModel):

@@ -434,3 +434,71 @@ def test_hosts_must_be_names_or_addresses() -> None:
         assert _HOST.match(good), good
     for bad in ("node.example.org\nX", "a b", "-bad.example.org", "x" * 300, ""):
         assert not _HOST.match(bad), bad
+
+
+class _RebuildSession(FakeSession):
+    """One existing server, "netherlands"; token rows as FakeSession."""
+
+    def __init__(self, server: Any, rows: list[NodeEnrollmentToken] | None = None) -> None:
+        super().__init__(rows)
+        self.server = server
+
+    async def scalar(self, statement: object) -> Any:
+        text = str(statement)
+        if "FROM vpn_servers" in text:
+            params = str(statement.compile().params.values())  # type: ignore[attr-defined]
+            if "SELECT vpn_servers.id" in text and "public_host" in text:
+                return None  # no other server has these addresses
+            if "netherlands" in params or str(self.server.id).replace("-", "") in params.replace("-", ""):
+                return self.server if "SELECT vpn_servers.id" not in text else self.server.id
+            return None
+        return await super().scalar(statement)
+
+    async def scalars(self, statement: object) -> Any:
+        if "server_protocol_capabilities" in str(statement):
+            return _Rows([])
+        return await super().scalars(statement)
+
+
+class TestRebuilding:
+    def _server(self) -> Any:
+        from nebula_api.models.topology import VPNServer
+
+        return VPNServer(
+            id=uuid4(),
+            code="netherlands",
+            display_name="Netherlands",
+            public_host="old.example.com",
+            agent_host="203.0.113.5",
+            agent_port=9443,
+            state="disabled",
+        )
+
+    def test_a_rebuild_key_is_bound_to_the_existing_server(self) -> None:
+        server = self._server()
+        session = _RebuildSession(server)
+        asyncio.run(_service(session).mint(label="netherlands", rebuild=True))
+        (row,) = [r for r in session.added if isinstance(r, NodeEnrollmentToken)]
+        assert row.vpn_server_id == server.id
+
+    def test_a_rebuild_key_needs_an_existing_server(self) -> None:
+        session = _RebuildSession(self._server())
+        with pytest.raises(LookupError):
+            asyncio.run(_service(session).mint(label="nowhere", rebuild=True))
+
+    def test_redeeming_a_rebuild_key_gives_the_server_its_new_node(self) -> None:
+        from nebula_api.auth.opaque_tokens import issue_opaque_token
+
+        server = self._server()
+        token = issue_opaque_token(1)
+        row = _token_row(token, label="netherlands")
+        row.vpn_server_id = server.id
+        session = _RebuildSession(server, [row])
+        enrolled = _redeem(_service(session), token)
+        assert enrolled.server_id == server.id
+        # The same record, updated; no second server.
+        assert server.public_host == "vps2.example.com"
+        assert server.agent_host == "10.0.0.2"
+        assert server.state == "active"
+        assert server.display_name == "Netherlands"
+        assert not [a for a in session.added if type(a).__name__ == "VPNServer"]

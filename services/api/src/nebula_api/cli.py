@@ -306,6 +306,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=30,
         help="how long the token stays redeemable (default: 30)",
     )
+    enroll_token.add_argument(
+        "--rebuild",
+        action="store_true",
+        help="for the existing server of this name, reinstalled: keeps its users and relays",
+    )
 
     commands.add_parser(
         "list-enrollment-tokens",
@@ -913,12 +918,12 @@ def _enrollment_service(settings: Settings, engine: AsyncEngine) -> EnrollmentSe
     )
 
 
-async def run_create_enrollment_token(*, label: str, minutes: int) -> int:
+async def run_create_enrollment_token(*, label: str, minutes: int, rebuild: bool = False) -> int:
     settings = Settings()
     engine = _build_engine(settings)
     try:
         minted = await _enrollment_service(settings, engine).mint(
-            label=label, lifetime=timedelta(minutes=minutes)
+            label=label, lifetime=timedelta(minutes=minutes), rebuild=rebuild
         )
     finally:
         await engine.dispose()
@@ -1531,7 +1536,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             return asyncio.run(run_reconcile_xray())
         if arguments.command == "create-enrollment-token":
             return asyncio.run(
-                run_create_enrollment_token(label=arguments.label, minutes=arguments.minutes)
+                run_create_enrollment_token(
+                    label=arguments.label, minutes=arguments.minutes, rebuild=arguments.rebuild
+                )
             )
         if arguments.command == "list-enrollment-tokens":
             return asyncio.run(run_list_enrollment_tokens())
