@@ -40,6 +40,9 @@ class UsagePollSummary:
     relay_checked: set[str] = field(default_factory=set)
     # Servers whose resolver answered (the "dns" source).
     resolver_checked: set[str] = field(default_factory=set)
+    # What is taken on each server that reported it: its listening ports and
+    # the ranges redirected elsewhere (see relays.ServerPorts).
+    busy: dict[str, tuple[frozenset[int], tuple[str, ...]]] = field(default_factory=dict)
 
     @property
     def had_problems(self) -> bool:
@@ -77,6 +80,7 @@ async def run_usage_poll(
     relay_checked: set[str] = set()
     resolver_checked: set[str] = set()
     served: dict[object, frozenset[str]] = {}
+    busy: dict[str, tuple[frozenset[int], tuple[str, ...]]] = {}
 
     for server in servers:
         client_factory = agent_client_builder
@@ -94,6 +98,8 @@ async def run_usage_poll(
             continue
 
         polled += 1
+        if reading.listening_ports:
+            busy[server.code] = (reading.listening_ports, reading.reserved_ranges)
         if server.state == ServerState.DISABLED.value:
             if "relay" in reading.sources_read:
                 relay_checked.add(server.code)
@@ -118,6 +124,7 @@ async def run_usage_poll(
         sources_failed=sources_failed,
         relay_checked=relay_checked,
         resolver_checked=resolver_checked,
+        busy=busy,
     )
 
 

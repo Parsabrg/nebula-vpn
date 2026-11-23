@@ -65,7 +65,9 @@ class AddRelayRequest(BaseModel):
     exit_server_id: UUID
     via_server_id: UUID
     host: str = Field(min_length=1, max_length=253)
-    ports: dict[str, int] = Field(min_length=1)
+    # Empty: free ports are given for every protocol the exit offers, at the
+    # next usage poll (relays.fill_relay_ports).
+    ports: dict[str, int] = Field(default_factory=dict)
 
 
 def _service(request: Request) -> TopologyAdminService:

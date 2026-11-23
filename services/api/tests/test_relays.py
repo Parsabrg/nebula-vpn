@@ -387,3 +387,25 @@ def test_the_relay_needs_only_its_exit_in_the_list() -> None:
     items = _servers(_health(up=True))
     assert "thr" not in [item["code"] for item in items]
     assert "de-via-thr" in [item["code"] for item in items]
+
+
+def test_relay_ports_never_overlap_what_is_taken_or_reserved() -> None:
+    from nebula_api.relays import pick_relay_ports, relayed_profile
+
+    taken = {2052, 2053, 2082, 443}
+    given = pick_relay_ports(["a", "b", "c"], taken, ["2080-2090"])
+    assert given == {"a": 2095, "b": 2096, "c": 8443}
+    assert not set(given.values()) & taken
+    assert len(set(given.values())) == len(given)
+    # Past the Cloudflare ports: the plain range, still skipping what is taken.
+    many = pick_relay_ports([str(i) for i in range(14)], {10000}, ["10002-10003"])
+    assert list(many.values())[-3:] == [10001, 10004, 10005]
+    assert [
+        relayed_profile(c)
+        for c in ("hysteria2", "hysteria2-adblock", "wireguard-native", "vless-enc-dns")
+    ] == [
+        True,
+        False,
+        False,
+        False,
+    ]

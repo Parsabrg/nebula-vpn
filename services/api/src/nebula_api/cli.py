@@ -60,7 +60,7 @@ from nebula_api.provisioning.reconciliation import (
     run_xray_reconciliation,
 )
 from nebula_api.provisioning.revocation import credentials_awaiting_removal
-from nebula_api.relays import RelayHealth, load_panel_relays
+from nebula_api.relays import RelayHealth, ServerPorts, fill_relay_ports, load_panel_relays
 from nebula_api.retention import PruneSummary, RetentionPolicy, prune_history
 from nebula_api.seed_admin import SeedAdminStatus, seed_initial_admin
 from nebula_api.settings import Settings
@@ -1164,11 +1164,16 @@ async def _collect_usage_once(
         usage,
         relay_vias=frozenset(relay.via for relay in relays),
     )
-    if relays or settings.xray_client_dns:
+    if relays or settings.xray_client_dns or summary.busy:
         redis_client = Redis.from_url(settings.redis_url.get_secret_value())
         try:
             await RelayHealth(cast(Any, redis_client)).record(relays, summary.relay_checked)
             await ResolverHealth(cast(Any, redis_client)).record(summary.resolver_checked)
+            server_ports = ServerPorts(cast(Any, redis_client))
+            await server_ports.record(summary.busy)
+            # New relays, and exits that gained a protocol, get free ports.
+            for given in await fill_relay_ports(create_session_factory(engine), server_ports):
+                print(f"relay port given: {given}")
         finally:
             await redis_client.aclose()
     # Straight after the poll, on the same totals it just wrote. An
