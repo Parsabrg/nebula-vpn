@@ -1480,8 +1480,8 @@ def test_revoking_a_spent_or_unknown_token_exits_non_zero(
 def test_main_dispatches_the_enrollment_commands(monkeypatch: pytest.MonkeyPatch) -> None:
     received: dict[str, object] = {}
 
-    async def fake_create(*, label: str, minutes: int) -> int:
-        received.update(label=label, minutes=minutes)
+    async def fake_create(*, label: str, minutes: int, rebuild: bool = False) -> int:
+        received.update(label=label, minutes=minutes, rebuild=rebuild)
         return 0
 
     async def fake_revoke(*, token_id: UUID) -> int:
@@ -1494,6 +1494,9 @@ def test_main_dispatches_the_enrollment_commands(monkeypatch: pytest.MonkeyPatch
     assert main(["create-enrollment-token", "--label", "node-02", "--minutes", "5"]) == 0
     assert received["label"] == "node-02"
     assert received["minutes"] == 5
+    assert received["rebuild"] is False
+    assert main(["create-enrollment-token", "--label", "netherlands", "--rebuild"]) == 0
+    assert received["rebuild"] is True
 
     identifier = uuid4()
     assert main(["revoke-enrollment-token", "--id", str(identifier)]) == 0
