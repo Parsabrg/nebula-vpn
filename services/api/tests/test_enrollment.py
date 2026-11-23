@@ -449,7 +449,8 @@ class _RebuildSession(FakeSession):
             params = str(statement.compile().params.values())  # type: ignore[attr-defined]
             if "SELECT vpn_servers.id" in text and "public_host" in text:
                 return None  # no other server has these addresses
-            if "netherlands" in params or str(self.server.id).replace("-", "") in params.replace("-", ""):
+            server_id = str(self.server.id).replace("-", "")
+            if "netherlands" in params or server_id in params.replace("-", ""):
                 return self.server if "SELECT vpn_servers.id" not in text else self.server.id
             return None
         return await super().scalar(statement)
