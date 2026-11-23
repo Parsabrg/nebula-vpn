@@ -194,3 +194,12 @@ sudo systemctl daemon-reload && sudo systemctl enable --now nebula-relay-report.
 ```
 
 A wrong token or relay code gets 404 and records nothing.
+
+## Ports
+
+Leave the ports empty when adding a relay in the panel: at the next usage poll
+every protocol the exit offers gets a free port on the relay's server --
+never one something listens on there (its agent reports them), another
+relay's, or inside Hysteria2's hopping range. When the exit later gains a
+protocol, its relays get a port for it the same way. A port typed in the
+panel is used as given.

@@ -94,6 +94,8 @@ class CounterReading:
     sources_failed: list[str]
     collected_at: datetime
     served_profiles: frozenset[str] = frozenset()
+    listening_ports: frozenset[int] = frozenset()
+    reserved_ranges: tuple[str, ...] = ()
 
 
 async def read_counters(agent: AgentClient, *, clock: Clock) -> CounterReading:
@@ -115,6 +117,8 @@ async def read_counters(agent: AgentClient, *, clock: Clock) -> CounterReading:
         sources_failed=list(response.sources_failed),
         collected_at=collected_at,
         served_profiles=frozenset(response.served_profiles),
+        listening_ports=frozenset(response.listening_ports),
+        reserved_ranges=tuple(response.reserved_ranges),
     )
 
 

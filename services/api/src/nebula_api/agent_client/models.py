@@ -392,3 +392,6 @@ class CollectUsageResponse(BaseModel):
     sources_failed: list[str]
     # What the server serves; older agents send nothing.
     served_profiles: list[str] = []
+    # What is taken on the server (relays get only free ports); older agents send nothing.
+    listening_ports: list[int] = []
+    reserved_ranges: list[str] = []

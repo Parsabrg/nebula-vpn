@@ -196,6 +196,8 @@ def test_every_source_failing_still_answers_rather_than_erroring(
         "sources_read": [],
         "sources_failed": ["wireguard", "xray"],
         "served_profiles": [],
+        "listening_ports": response.json()["listening_ports"],
+        "reserved_ranges": [],
     }
 
 
@@ -314,3 +316,19 @@ def test_dns_fails_without_a_resolver(tmp_path: Path, collectors: Collectors) ->
     for client in _client(tmp_path, settings):
         body = client.post("/v1/usage/collect").json()
     assert body["sources_failed"] == ["dns"]
+
+
+def test_listening_ports_reads_listening_sockets_only(tmp_path: Path) -> None:
+    from nebula_agent.api.v1_usage import listening_ports
+
+    header = "  sl  local_address rem_address   st\n"
+    (tmp_path / "tcp").write_text(
+        header
+        + "   0: 00000000:01BB 00000000:0000 0A\n"  # 443, listening
+        + "   1: 0100007F:2B67 0100007F:C350 01\n"  # 11111, an established connection
+    )
+    (tmp_path / "udp6").write_text(
+        header
+        + "   0: 00000000000000000000000000000000:20FA 00000000000000000000000000000000:0000 07\n"
+    )
+    assert listening_ports(tmp_path) == [443, 8442]

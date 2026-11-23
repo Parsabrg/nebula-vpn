@@ -13,6 +13,7 @@ being able to notice, and filtering here would hide it.
 import asyncio
 import logging
 from collections.abc import Awaitable
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
@@ -54,9 +55,34 @@ class UsageResponse(BaseModel):
     # The protocol profiles this server serves, so the control plane offers
     # a protocol turned on here without anyone telling it (usage/poll.py).
     served_profiles: list[str] = []
+    # What is taken on this server, so the control plane gives a relay only
+    # free ports: every port something listens on (TCP or UDP), and the
+    # ranges redirected elsewhere (Hysteria2's hopping, "20000-50000").
+    listening_ports: list[int] = []
+    reserved_ranges: list[str] = []
 
 
 RELAY_CHECK_SECONDS = 3.0
+
+# /proc/net/{tcp,udp}[6] state of a listening socket: LISTEN, and for UDP the
+# unconnected state a bound socket sits in.
+_LISTENING = (("tcp", "0A"), ("tcp6", "0A"), ("udp", "07"), ("udp6", "07"))
+
+
+def listening_ports(root: Path = Path("/proc/net")) -> list[int]:
+    """Every local port something listens on, TCP or UDP; /proc needs no privilege."""
+
+    ports: set[int] = set()
+    for name, state in _LISTENING:
+        try:
+            lines = (root / name).read_text().splitlines()[1:]
+        except OSError:
+            continue
+        for line in lines:
+            fields = line.split()
+            if len(fields) > 3 and fields[3] == state:
+                ports.add(int(fields[1].rsplit(":", 1)[1], 16))
+    return sorted(ports)
 
 
 async def _answers(target: str) -> bool:
@@ -191,4 +217,6 @@ async def collect_usage(
         sources_read=read,
         sources_failed=failed,
         served_profiles=served_profiles(settings),
+        listening_ports=listening_ports(),
+        reserved_ranges=[r for r in (settings.xray_hysteria_hop_ports,) if r],
     )
