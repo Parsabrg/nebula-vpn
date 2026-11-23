@@ -13,6 +13,8 @@
 #   NEBULA_DOMAIN, NEBULA_ADMIN_EMAIL, NEBULA_EMAIL_MODE (smtp|resend|skip),
 #   NEBULA_SMTP_HOST, NEBULA_SMTP_PORT, NEBULA_SMTP_USERNAME, NEBULA_SMTP_PASSWORD,
 #   NEBULA_RESEND_API_KEY, NEBULA_EMAIL_FROM, NEBULA_INSTALL_PROXY, NEBULA_ASSUME_YES=1
+# Protocols (docs/runbooks/protocols.md): NEBULA_PROTOCOLS, and NEBULA_REALITY_SITE
+# for the site REALITY borrows (default www.speedtest.net).
 # Optional: NEBULA_ADMIN_ALLOW (addresses that may open the admin panel;
 # default any), NEBULA_WG_CLIENT_POOL (WireGuard's range on a new install).
 #
@@ -1036,7 +1038,7 @@ if [ -n "$CONFIGURE" ]; then
           # name to an address that is not Microsoft's from its datacentres,
           # which breaks it through an Iranian relay; the home
           # line let it through.
-          site=$(agentget NEBULA_XRAY_REALITY_SERVER_NAME); site=${site:-www.speedtest.net}
+          site=${NEBULA_REALITY_SITE:-$(agentget NEBULA_XRAY_REALITY_SERVER_NAME)}; site=${site:-www.speedtest.net}
           a=""; [ -n "${NEBULA_PROTOCOLS:-}" ] || read -rp "  site to borrow [$site]: " a; site=${a:-$site}
           [[ $site =~ ^[A-Za-z0-9.-]+$ ]] || die "'$site' is not a host name"
           agentset NEBULA_XRAY_REALITY_SERVER_NAME "$site"

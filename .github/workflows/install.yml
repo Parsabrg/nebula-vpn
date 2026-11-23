@@ -41,6 +41,9 @@ env:
   NEBULA_EMAIL_MODE: skip
   NEBULA_BACKUP_OFFSITE: local
   NEBULA_ASSUME_YES: "1"
+  # The site REALITY borrows must answer from the runner's network; the
+  # default (www.speedtest.net) is chosen for Iran, not for a cloud runner.
+  NEBULA_REALITY_SITE: www.microsoft.com
 
 jobs:
   shellcheck:
