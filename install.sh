@@ -298,7 +298,8 @@ if [ "${1:-}" = --uninstall ]; then
     ufw reload >/dev/null || warn "ufw did not reload; the old rules are in /etc/ufw/*.before-nebula-uninstall"
   fi
   for u in nebula-agent nebula-xray nebula-cottendns; do userdel "$u" >/dev/null 2>&1 || true; done
-  groupdel nebula-secrets >/dev/null 2>&1 || true
+  # userdel leaves a user's group while another user is in it.
+  for g in nebula-agent nebula-xray nebula-cottendns nebula-secrets; do groupdel "$g" >/dev/null 2>&1 || true; done
   ok "Nebula removed. To install again: sudo ./install.sh (or --join, or --restore <backup>)"
   exit 0
 fi
@@ -739,8 +740,8 @@ ok "certificate for ${NAMES[*]}"
 # --- VPN engines and agent ----------------------------------------------------
 
 step "VPN engines"
-id nebula-agent >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin nebula-agent
-id nebula-xray >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin nebula-xray
+id nebula-agent >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin $(getent group nebula-agent >/dev/null && echo "-g nebula-agent") nebula-agent
+id nebula-xray >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin $(getent group nebula-xray >/dev/null && echo "-g nebula-xray") nebula-xray
 usermod -aG nebula-secrets nebula-agent; usermod -aG nebula-agent nebula-xray
 install -d -o nebula-agent -g nebula-agent -m 0700 /var/lib/nebula/wireguard
 install -d -o nebula-agent -g nebula-agent -m 0750 /etc/nebula/xray
@@ -823,7 +824,7 @@ if [ -n "$COTTENDNS_DOMAIN" ]; then
     cp $WORK/cottendns-new/*LICENSE* /usr/local/share/doc/nebula-cottendns/ 2>/dev/null || true
     install -d /usr/local/lib && echo "$COTTENDNS_VERSION" > /usr/local/lib/nebula-cottendns.version
   fi
-  id nebula-cottendns >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin nebula-cottendns
+  id nebula-cottendns >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin $(getent group nebula-cottendns >/dev/null && echo "-g nebula-cottendns") nebula-cottendns
   usermod -aG nebula-secrets nebula-cottendns
   # AES-256-GCM wants 32 characters; CottenDNS keeps a key of the right length.
   [ -s $SECRETS/cottendns_key ] || (umask 077; openssl rand -hex 16 > $SECRETS/cottendns_key)
