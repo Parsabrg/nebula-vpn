@@ -8,33 +8,48 @@ import { LocalTime } from "@/components/local-time";
 /**
  * Adding a server: name it, then paste one command on it. Before this it
  * took a CLI command on this server and a hand install on the new one.
+ * A name already taken offers to rebuild that server instead: the same
+ * command on a reinstalled machine, keeping its users, relays and name.
  */
 export function AddServerForm() {
   const [joined, setJoined] = useState<JoinToken | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [copied, setCopied] = useState(false);
+  // The name of an existing server the admin may rebuild.
+  const [taken, setTaken] = useState<string | null>(null);
+  const [rebuilt, setRebuilt] = useState(false);
+
+  async function mint(label: string, rebuild: boolean) {
+    setPending(true);
+    setError(null);
+    const result = await mintJoinToken(label, rebuild);
+    setPending(false);
+    if (!result.ok) {
+      if (endedSession(result)) {
+        return;
+      }
+      if (result.code === "conflict" && !rebuild) {
+        setTaken(label);
+        return;
+      }
+      setError(result.message);
+      return;
+    }
+    setRebuilt(rebuild);
+    setJoined(result.data);
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setPending(true);
-    setError(null);
+    setTaken(null);
     const label = String(new FormData(event.currentTarget).get("label") ?? "")
       .trim()
       .toLowerCase()
       // "Amsterdam 1" means amsterdam-1; the browser refusing it did not help.
       .replace(/[^a-z0-9-]+/g, "-")
       .replace(/^-+|-+$/g, "");
-    const result = await mintJoinToken(label);
-    setPending(false);
-    if (!result.ok) {
-      if (endedSession(result)) {
-        return;
-      }
-      setError(result.message);
-      return;
-    }
-    setJoined(result.data);
+    await mint(label, false);
   }
 
   if (joined) {
@@ -59,11 +74,20 @@ export function AddServerForm() {
         >
           {copied ? "Copied" : "Copy command"}
         </button>
-        <p className="section-note">
-          It asks for the new server&apos;s domain name, installs the VPN
-          engines and joins as <strong>{joined.label}</strong>, with its
-          protocols enabled. Then assign it to users from their pages.
-        </p>
+        {rebuilt ? (
+          <p className="section-note">
+            Run it on the reinstalled machine. It joins as{" "}
+            <strong>{joined.label}</strong> again: its users, relays, name and
+            protocols stay, and their connections are set up on it again by
+            themselves within a few minutes.
+          </p>
+        ) : (
+          <p className="section-note">
+            It asks for the new server&apos;s domain name, installs the VPN
+            engines and joins as <strong>{joined.label}</strong>, with its
+            protocols enabled. Then assign it to users from their pages.
+          </p>
+        )}
       </div>
     );
   }
@@ -86,6 +110,23 @@ export function AddServerForm() {
         </p>
       </div>
       {error ? <p role="alert">{error}</p> : null}
+      {taken ? (
+        <div role="alert">
+          <p>
+            A server is already called <strong>{taken}</strong>. Reinstalled
+            that machine, or moved it to a new one? Rebuild it: it keeps its
+            users, relays and name.
+          </p>
+          <button
+            type="button"
+            className="button"
+            disabled={pending}
+            onClick={() => mint(taken, true)}
+          >
+            Rebuild {taken}
+          </button>
+        </div>
+      ) : null}
       <button
         type="submit"
         className="button button--primary"

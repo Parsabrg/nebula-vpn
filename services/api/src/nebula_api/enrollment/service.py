@@ -95,8 +95,16 @@ class EnrollmentService:
         label: str,
         lifetime: timedelta | None = None,
         admin_id: UUID | None = None,
+        rebuild: bool = False,
     ) -> MintedToken:
-        """Create a token for one node to redeem."""
+        """Create a token for one node to redeem.
+
+        [rebuild]: for the existing server named [label], reinstalled from
+        nothing: redeeming it gives that server's record the new node, so its
+        users, relays, name and protocols stay; reconciliation puts the
+        credentials back on the new node. LookupError when no server has
+        that name.
+        """
 
         # `is None`, not `or`: timedelta(0) is falsy, so `or` would silently
         # turn an explicit zero -- a token valid for no time at all, which is
@@ -114,8 +122,11 @@ class EnrollmentService:
         async with self._session_factory() as session:
             # A server already has this name: redeeming would fail on its
             # unique code after the node did its work (AUD-011).
-            if await session.scalar(select(VPNServer.id).where(VPNServer.code == label)):
+            existing = await session.scalar(select(VPNServer.id).where(VPNServer.code == label))
+            if existing is not None and not rebuild:
                 raise LabelInUse(label)
+            if existing is None and rebuild:
+                raise LookupError(label)
             row = NodeEnrollmentToken(
                 id=uuid4(),
                 label=label,
@@ -123,6 +134,8 @@ class EnrollmentService:
                 key_version=digest.key_version,
                 expires_at=expires_at,
                 created_by_admin_id=admin_id,
+                # Bound to the server it rebuilds; set at redemption otherwise.
+                vpn_server_id=existing,
             )
             session.add(row)
             # Adding a server is the most consequential thing an admin does
@@ -208,12 +221,15 @@ class EnrollmentService:
             # has, which would let one token holder stand in for it (AUD-011).
             if not (_HOST.match(public_host) and _HOST.match(agent_host)):
                 raise EnrollmentRejected()
+            rebuilt = row.vpn_server_id
             taken = await session.scalar(
                 select(VPNServer.id).where(
                     or_(
                         VPNServer.public_host.in_((public_host, agent_host)),
                         VPNServer.agent_host.in_((public_host, agent_host)),
-                    )
+                    ),
+                    # A rebuilt server may come back at its own address.
+                    *([VPNServer.id != rebuilt] if rebuilt is not None else []),
                 )
             )
             if taken is not None:
@@ -232,22 +248,39 @@ class EnrollmentService:
                 # rather than need a new token from an administrator.
                 raise EnrollmentRejected() from None
 
-            server = VPNServer(
-                id=uuid4(),
-                code=row.label,
-                display_name=row.label,
-                public_host=public_host,
-                agent_host=agent_host,
-                agent_port=agent_port,
-                state=ServerState.ACTIVE.value,
-                wireguard_client_pool=(
-                    str(wireguard_client_pool) if wireguard_client_pool else None
-                ),
-                wireguard_gateway_address=(
-                    str(wireguard_gateway_address) if wireguard_gateway_address else None
-                ),
+            pool = str(wireguard_client_pool) if wireguard_client_pool else None
+            gateway = str(wireguard_gateway_address) if wireguard_gateway_address else None
+            server = (
+                await session.scalar(
+                    select(VPNServer).where(VPNServer.id == rebuilt).with_for_update()
+                )
+                if rebuilt is not None
+                else None
             )
-            session.add(server)
+            if rebuilt is not None and server is None:
+                # The server was removed after the token was made.
+                raise EnrollmentRejected()
+            if server is not None:
+                # Its name, users, relays and protocols stay; only the node changes.
+                server.public_host = public_host
+                server.agent_host = agent_host
+                server.agent_port = agent_port
+                server.state = ServerState.ACTIVE.value
+                server.wireguard_client_pool = pool
+                server.wireguard_gateway_address = gateway
+            else:
+                server = VPNServer(
+                    id=uuid4(),
+                    code=row.label,
+                    display_name=row.label,
+                    public_host=public_host,
+                    agent_host=agent_host,
+                    agent_port=agent_port,
+                    state=ServerState.ACTIVE.value,
+                    wireguard_client_pool=pool,
+                    wireguard_gateway_address=gateway,
+                )
+                session.add(server)
             await session.flush()
             add_audit_event(
                 session,
@@ -268,12 +301,28 @@ class EnrollmentService:
             # skipped, since there is nothing to offer under that code.
             wanted = set(protocol_profiles or [])
             wanted |= {f"{code}-adblock" for code in wanted}
+            # A rebuilt server keeps its rows; a new one has none.
+            have = (
+                set(
+                    (
+                        await session.scalars(
+                            select(ServerProtocolCapability.protocol_profile_id).where(
+                                ServerProtocolCapability.vpn_server_id == server.id
+                            )
+                        )
+                    ).all()
+                )
+                if rebuilt is not None
+                else set()
+            )
             if wanted:
                 for profile in (
                     await session.scalars(
                         select(ProtocolProfile).where(ProtocolProfile.code.in_(wanted))
                     )
                 ).all():
+                    if profile.id in have:
+                        continue
                     session.add(
                         ServerProtocolCapability(
                             vpn_server_id=server.id,

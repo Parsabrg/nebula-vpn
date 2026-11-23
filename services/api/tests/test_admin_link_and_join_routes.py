@@ -61,8 +61,10 @@ class FakeEnrollment:
     def __init__(self, taken: bool = False) -> None:
         self.taken = taken
 
-    async def mint(self, *, label: str, **_: object) -> MintedToken:
-        if self.taken:
+    async def mint(self, *, label: str, rebuild: bool = False, **_: object) -> MintedToken:
+        if rebuild and not self.taken:
+            raise LookupError(label)
+        if self.taken and not rebuild:
             raise LabelInUse(label)
         return MintedToken(
             token=uuid4().hex, token_id=uuid4(), label=label, expires_at=datetime.now(UTC)
@@ -151,4 +153,18 @@ def test_a_join_token_names_this_server_and_refuses_a_taken_name() -> None:
                 "/v1/admin/nodes/enrollment-tokens", json={"label": "node-02"}, headers=HEADERS
             ).status_code
             == 409
+        )
+
+
+def test_a_rebuild_key_needs_a_server_of_that_name() -> None:
+    body = {"label": "node-02", "rebuild": True}
+    with client(enrollment=FakeEnrollment()) as c:
+        assert (
+            c.post("/v1/admin/nodes/enrollment-tokens", json=body, headers=HEADERS).status_code
+            == 404
+        )
+    with client(enrollment=FakeEnrollment(taken=True)) as c:
+        assert (
+            c.post("/v1/admin/nodes/enrollment-tokens", json=body, headers=HEADERS).status_code
+            == 200
         )

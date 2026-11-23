@@ -10,9 +10,13 @@ export interface JoinToken {
   apiUrl: string;
 }
 
-/** A one-time token for a new server to join this deployment. */
+/**
+ * A one-time token for a new server to join this deployment; [rebuild], for
+ * the existing server of that name, reinstalled.
+ */
 export async function mintJoinToken(
   label: string,
+  rebuild = false,
 ): Promise<ActionResult<JoinToken>> {
   return toActionResult(
     apiFetch<{
@@ -22,7 +26,7 @@ export async function mintJoinToken(
       api_url: string;
     }>("/v1/admin/nodes/enrollment-tokens", {
       method: "POST",
-      body: { label },
+      body: { label, rebuild },
     }).then((body) => ({
       token: body.token,
       label: body.label,

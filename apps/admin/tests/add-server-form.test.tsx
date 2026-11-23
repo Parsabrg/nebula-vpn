@@ -28,7 +28,7 @@ describe("AddServerForm", () => {
       screen.getByRole("button", { name: "Create join command" }),
     );
 
-    expect(mintJoinToken).toHaveBeenCalledWith("amsterdam-1");
+    expect(mintJoinToken).toHaveBeenCalledWith("amsterdam-1", false);
     expect(
       await screen.findByLabelText("Command for the new server"),
     ).toHaveTextContent(
@@ -51,5 +51,41 @@ describe("AddServerForm", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Confirm with your authenticator code first.",
     );
+  });
+
+  it("offers to rebuild a server whose name is taken", async () => {
+    mintJoinToken
+      .mockResolvedValueOnce({
+        ok: false,
+        code: "conflict",
+        message: "A server already has this name",
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          token: "v1.rebuild",
+          label: "netherlands",
+          expiresAt: "2026-11-24T12:00:00Z",
+          apiUrl: "https://api.example.org:8444",
+        },
+      });
+    const user = userEvent.setup();
+    render(<AddServerForm />);
+    await user.type(
+      screen.getByLabelText("Name for the new server"),
+      "netherlands",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Create join command" }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Rebuild netherlands" }),
+    );
+
+    expect(mintJoinToken).toHaveBeenLastCalledWith("netherlands", true);
+    expect(
+      await screen.findByLabelText("Command for the new server"),
+    ).toHaveTextContent("--token v1.rebuild");
+    expect(screen.getByText(/its users, relays, name/)).toBeInTheDocument();
   });
 });
