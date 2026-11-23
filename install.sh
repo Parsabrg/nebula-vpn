@@ -130,7 +130,7 @@ wireguard_routing() {
 # which is already open, so the range opens nothing else.
 hysteria_hop() {
   local wan=$1 file=$2 hop=$3 port=$4 rule
-  grep -q 'nebula-hysteria-hop' "$file" && return 0
+  grep -q "nebula-hysteria-hop: Hysteria2 answers on $hop " "$file" && return 0
   rule="# nebula-hysteria-hop: Hysteria2 answers on $hop too\n*nat\n:PREROUTING ACCEPT [0:0]\n"
   rule+="-A PREROUTING -i $wan -p udp --dport ${hop/-/:} -j REDIRECT --to-ports $port\nCOMMIT\n"
   awk -v r="$rule" 'NR == 1 { printf "%s", r } { print }' "$file" > "$file.nebula" \
@@ -824,6 +824,9 @@ fi
 # ponytail: IPv4 only, and the redirect keeps the port it was made with; a
 # Hysteria2 port moved later with --configure needs the rule edited.
 [ -z "$HOP" ] || hysteria_hop "$WAN" /etc/ufw/before.rules "$HOP" "${HYPORT:-8450}"
+# Relays forward Hysteria2 to the protocol's usual port (8450); a server
+# whose Hysteria2 is elsewhere answers there too.
+[ -z "$HYPORT" ] || [ "$HYPORT" = 8450 ] || hysteria_hop "$WAN" /etc/ufw/before.rules 8450 "$HYPORT"
 [ -z "$JOIN_URL" ] || wireguard_dns "$WAN" /etc/ufw/before.rules "${WG_ADDR%/*}"
 local_dns_redirect /etc/ufw/before.rules
 printf 'net.ipv4.ip_forward=1\n' > /etc/sysctl.d/99-nebula-forward.conf

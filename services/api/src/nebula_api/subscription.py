@@ -236,7 +236,9 @@ def share_link(c: XrayClientResponse, name: str) -> str | None:
             hysteria |= {"obfs": "salamander", "obfs-password": c.obfs_password}
         if c.port_hop:
             hysteria["mport"] = c.port_hop
-        auth = quote(str(c.uuid), safe="")
+        # user:pass, as the app sends it: a joined server's Hysteria2 takes
+        # only its userpass form, while the bare UUID worked on the first only.
+        auth = quote(f"{c.uuid}:{c.uuid}", safe=":")
         return f"hysteria2://{auth}@{host}:{c.port}/?{urlencode(hysteria)}{fragment}"
     if c.protocol == "shadowsocks":
         user = base64.urlsafe_b64encode(f"{c.method}:{c.password}".encode()).decode().rstrip("=")

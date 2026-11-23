@@ -623,7 +623,10 @@ String _hysteriaYaml(XrayClientResult result, LocalProxy localProxy) {
     )
     // The client UUID is the whole credential; the server renders it as both
     // username and password in its own userpass map.
-    ..writeln('auth: ${_yamlString('${result.uuid}:${result.uuid}')}')
+    // An imported link may already carry user:pass; it is used as given.
+    ..writeln(
+      'auth: ${_yamlString(result.uuid.contains(':') ? result.uuid : '${result.uuid}:${result.uuid}')}',
+    )
     ..writeln('tls:')
     ..writeln('  sni: ${_yamlString(result.sni)}')
     // Verification stays on: the server presents a real certificate for this
