@@ -35,6 +35,12 @@ class RelayPort(BaseModel):
     here: int = Field(ge=1, le=65_535)
     proto: Literal["tcp", "udp"]
     there: int = Field(ge=1, le=65_535)
+    # Another exit than the request's target: a relay server may forward to several.
+    target: IPv4Address | None = None
+
+    def spelling(self) -> str:
+        """443/tcp:8447, or 443/tcp:203.0.113.9:8447 for another exit."""
+        return f"{self.here}/{self.proto}:{f'{self.target}:' if self.target else ''}{self.there}"
 
     @field_validator("there")
     @classmethod
@@ -72,7 +78,7 @@ def relay_env(payload: SetRelayRequest) -> str:
         return ""
     lines = [
         f"NEBULA_RELAY_TARGET={payload.target}",
-        "NEBULA_RELAY_PORTS=" + " ".join(f"{p.here}/{p.proto}:{p.there}" for p in payload.ports),
+        "NEBULA_RELAY_PORTS=" + " ".join(p.spelling() for p in payload.ports),
     ]
     if payload.report_url and payload.report_token:
         lines += [

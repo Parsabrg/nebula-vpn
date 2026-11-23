@@ -310,7 +310,10 @@ def test_a_panel_relay_gets_what_it_should_be_in_the_answer() -> None:
             assert kwargs["via_server_id"] == via
             return object(), SetRelayRequest(
                 target="203.0.113.4",
-                ports=[RelayPortSpec(here=443, proto="udp", there=8450)],
+                ports=[
+                    RelayPortSpec(here=443, proto="udp", there=8450),
+                    RelayPortSpec(here=2083, proto="tcp", there=8448, target="198.51.100.7"),
+                ],
                 report_url=f"{kwargs['report_base']}/v1/relays/de-via-thr/up",
                 report_token=str(kwargs["report_token"]),
             )
@@ -325,7 +328,8 @@ def test_a_panel_relay_gets_what_it_should_be_in_the_answer() -> None:
     assert answer.status_code == 200
     assert answer.text.splitlines()[:2] == [
         "NEBULA_RELAY_TARGET=203.0.113.4",
-        "NEBULA_RELAY_PORTS=443/udp:8450",
+        # A second exit on the same relay server names its address.
+        "NEBULA_RELAY_PORTS=443/udp:8450 2083/tcp:198.51.100.7:8448",
     ]
     assert "NEBULA_RELAY_REPORT_TOKEN=s3cret-token" in answer.text
 

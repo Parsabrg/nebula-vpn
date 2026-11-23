@@ -268,7 +268,10 @@ async def relay_reports_up(code: str, request: Request) -> Response:
         or health is None
     ):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    await health.mark_up(relay.code)
+    # One report per relay server: every relay it forwards for is up with it.
+    for other in await relay_list(request):
+        if other.via == relay.via:
+            await health.mark_up(other.code)
     # The answer carries what the relay should be: the control plane cannot
     # always reach an agent inside Iran, but this request always comes out.
     # The relay saves it when it changed and checks it again before applying.

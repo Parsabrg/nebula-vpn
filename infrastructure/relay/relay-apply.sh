@@ -30,14 +30,18 @@ if [ -n "$PORTS" ]; then
   python3 -c 'import ipaddress,sys; ipaddress.IPv4Address(sys.argv[1])' "$TARGET" 2>/dev/null \
     || die "NEBULA_RELAY_TARGET must be the other server's IPv4 address"
   for p in $PORTS; do
-    [[ $p =~ ^([0-9]{1,5})/(tcp|udp):([0-9]{1,5})$ ]] || die "relay port '$p' must look like 443/tcp:8447"
-    here=${BASH_REMATCH[1]} proto=${BASH_REMATCH[2]} there=${BASH_REMATCH[3]}
+    # A port may name another exit than NEBULA_RELAY_TARGET: 443/tcp:203.0.113.9:8447.
+    [[ $p =~ ^([0-9]{1,5})/(tcp|udp):(([0-9.]+):)?([0-9]{1,5})$ ]] \
+      || die "relay port '$p' must look like 443/tcp:8447 or 443/tcp:203.0.113.9:8447"
+    here=${BASH_REMATCH[1]} proto=${BASH_REMATCH[2]} to=${BASH_REMATCH[4]:-$TARGET} there=${BASH_REMATCH[5]}
+    python3 -c 'import ipaddress,sys; ipaddress.IPv4Address(sys.argv[1])' "$to" 2>/dev/null \
+      || die "relay port '$p' names '$to', not an IPv4 address"
     # Never the other server's SSH, agent, panel or certificate renewal.
     case $there in 22|80|8444|9443) die "relay port $there is not a VPN port; it is never forwarded" ;; esac
     [ "$here" != "$SSH_PORT" ] && [ "$here" != 80 ] || die "relay port $here is this server's own"
     flag=$([ "$proto" = tcp ] && echo -Hltn || echo -Hlun)
     [ -z "$(ss "$flag" "sport = :$here")" ] || die "relay port $here/$proto is already in use on this server"
-    [ "$proto" = tcp ] && CHECK+="${CHECK:+,}$TARGET:$there"
+    [ "$proto" = tcp ] && CHECK+="${CHECK:+,}$to:$there"
   done
   if [ -n "$REPORT_URL$REPORT_TOKEN" ]; then
     [[ $REPORT_URL =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?/v1/relays/[a-z0-9_-]+/up$ ]] \
@@ -67,14 +71,15 @@ fi
 awk '/^# nebula-relay start/ { skip = 1 } !skip && !/--comment nebula-relay/ { print }
   /^# nebula-relay end/ { skip = 0 }' "$FILE" > "$FILE.nebula"
 if [ -n "$PORTS" ]; then
-  nat="# nebula-relay start: forwarded to $TARGET\n*nat\n:PREROUTING ACCEPT [0:0]\n:POSTROUTING ACCEPT [0:0]\n"
+  nat="# nebula-relay start: forwarded to $TARGET and any exit a port names\n*nat\n:PREROUTING ACCEPT [0:0]\n:POSTROUTING ACCEPT [0:0]\n"
   fwd=""
   for p in $PORTS; do
     here=${p%%/*}; proto=${p#*/}; proto=${proto%%:*}; there=${p##*:}
-    nat+="-A PREROUTING -i $WAN -p $proto --dport $here -m comment --comment nebula-relay -j DNAT --to-destination $TARGET:$there\n"
-    nat+="-A POSTROUTING -o $WAN -d $TARGET -p $proto --dport $there -m comment --comment nebula-relay -j MASQUERADE\n"
-    # Only these ports, only to the target, may be forwarded.
-    fwd+="-A ufw-before-forward -i $WAN -o $WAN -d $TARGET -p $proto --dport $there -m comment --comment nebula-relay -j ACCEPT\n"
+    rest=${p#*:}; to=$TARGET; [ "$rest" = "$there" ] || to=${rest%:*}
+    nat+="-A PREROUTING -i $WAN -p $proto --dport $here -m comment --comment nebula-relay -j DNAT --to-destination $to:$there\n"
+    nat+="-A POSTROUTING -o $WAN -d $to -p $proto --dport $there -m comment --comment nebula-relay -j MASQUERADE\n"
+    # Only these ports, only to their exit, may be forwarded.
+    fwd+="-A ufw-before-forward -i $WAN -o $WAN -d $to -p $proto --dport $there -m comment --comment nebula-relay -j ACCEPT\n"
   done
   nat+="COMMIT\n# nebula-relay end\n"
   awk -v nat="$nat" -v fwd="$fwd" '
