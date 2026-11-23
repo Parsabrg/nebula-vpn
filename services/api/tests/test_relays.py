@@ -451,7 +451,8 @@ class _FillSession:
     """Answers fill_relay_ports' queries in order."""
 
     def __init__(self, routes: list[_Route], offered: list[list[str]]) -> None:
-        self.answers: list[list[object]] = [list(routes), *offered]
+        self.answers: list[list[object]] = [list(routes)]
+        self.answers += [list[object](codes) for codes in offered]
         self.committed = False
 
     async def scalars(self, _statement: object) -> object:
