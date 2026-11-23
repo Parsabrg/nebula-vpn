@@ -226,7 +226,9 @@ only place it appears.
 
 By default every connect and disconnect restarts `nebula-xray`, which drops
 every connection on the server, and every Hysteria2 connect and disconnect
-restarts `nebula-hysteria` too. With `NEBULA_XRAY_LIVE_CLIENT_UPDATES=true`:
+restarts `nebula-hysteria` too. With `NEBULA_XRAY_LIVE_CLIENT_UPDATES=true`
+(which `install.sh` sets on every server it installs or joins, and on a
+rerun where it is not set yet):
 
 - **Xray:** the agent adds and removes clients through Xray's API, and restarts
   only for anything else -- or when a removed client's connection is still

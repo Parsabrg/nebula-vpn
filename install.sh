@@ -22,6 +22,7 @@
 #
 # Updating to the newest release (a v* tag; or name one), then a rerun:
 #   sudo ./install.sh --update [v0.1.34]
+# (a joined server does this by itself once a day: nebula-update.timer)
 #
 # Changing which protocols this server offers, or their ports (firewall,
 # nginx, WireGuard and the control plane follow):
@@ -224,6 +225,8 @@ if [ "${1:-}" = --update ]; then
     g -c gpg.format=ssh -c gpg.ssh.allowedSignersFile="$signers" verify-tag "$tag" >/dev/null 2>&1       || { rm -f "$signers"; die "$tag is not signed by the release key (docs/release-tag-signers); not installing it"; }
     rm -f "$signers"
   fi
+  # Already there: nothing to do (the daily update on joined servers).
+  [ "$(g rev-parse HEAD)" != "$(g rev-parse "refs/tags/$tag^{commit}")" ]     || { echo "Already on $tag"; exit 0; }
   # Never backwards: older code than the database's migrations would not start.
   g merge-base --is-ancestor HEAD "refs/tags/$tag" \
     || die "$tag is not newer than this checkout ($(g describe --tags --always)); wait for the next release"
@@ -896,6 +899,14 @@ agentset() { sed -i "/^$1=/d" $ETC/agent.env; printf '%s=%s\n' "$1" "$2" >> $ETC
 DNS_NEW=""
 [ -n "$(agentget NEBULA_XRAY_DNS_REDIRECT)" ] \
   || { agentset NEBULA_XRAY_DNS_REDIRECT 198.18.0.53=127.0.0.1:5354; DNS_NEW=1; }
+# Clients come and go through Xray's API and Hysteria2's HTTP auth, without
+# restarting either -- a restart drops everyone on the server, at every
+# connect and disconnect. The API has no authentication, so it gets a
+# loopback address of its own; on a host shared with untrusted local users,
+# refuse them 127.25.41.4 (docs/runbooks/deployment.md). A value already set
+# is kept.
+[ -n "$(agentget NEBULA_XRAY_LIVE_CLIENT_UPDATES)" ] \
+  || { agentset NEBULA_XRAY_API_HOST 127.25.41.4; agentset NEBULA_XRAY_LIVE_CLIENT_UPDATES true; }
 # The DNS tunnel forwards only to VLESS Encryption, so it needs that inbound.
 if [ -n "${COTTENDNS_DOMAIN:-}" ]; then
   if [ "$(agentget NEBULA_XRAY_VLESSENC_ENABLED)" = true ]; then
@@ -930,6 +941,32 @@ WantedBy=multi-user.target
 UNIT
 install -d -m 750 -o nebula-agent -g nebula-agent /var/lib/nebula/relay
 systemctl daemon-reload; systemctl enable --now nebula-relay-apply.path >/dev/null 2>&1
+# A joined server follows the releases by itself: once a day it installs the
+# newest signed release, if there is one (--update checks the signature and
+# never goes backwards). The first server, which holds the database, is
+# updated by hand.
+if [ ! -f $ETC/compose.env ]; then
+  cat > /etc/systemd/system/nebula-update.service <<UNIT
+[Unit]
+Description=Install the newest signed Nebula release
+After=network-online.target
+[Service]
+Type=oneshot
+Environment=NEBULA_ASSUME_YES=1
+ExecStart=/bin/bash $REPO/install.sh --update
+UNIT
+  cat > /etc/systemd/system/nebula-update.timer <<'UNIT'
+[Unit]
+Description=Look for a new Nebula release once a day
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=3h
+Persistent=true
+[Install]
+WantedBy=timers.target
+UNIT
+  systemctl daemon-reload; systemctl enable --now nebula-update.timer >/dev/null 2>&1
+fi
 # name | enable key | port key | default port | proto | profile codes
 PROTOCOLS=(
   "gRPC|NEBULA_XRAY_GRPC_ENABLED|NEBULA_XRAY_GRPC_PORT|8447|tcp|vless-grpc-tls"
