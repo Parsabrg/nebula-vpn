@@ -8,12 +8,14 @@ import asyncio
 import json
 from dataclasses import replace
 from typing import cast
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
+from redis.asyncio import Redis
 from test_devices_routes import (
     AUTH_HEADERS,
     DEVICE_ID,
@@ -387,3 +389,182 @@ def test_the_relay_needs_only_its_exit_in_the_list() -> None:
     items = _servers(_health(up=True))
     assert "thr" not in [item["code"] for item in items]
     assert "de-via-thr" in [item["code"] for item in items]
+
+
+def test_relay_ports_never_overlap_what_is_taken_or_reserved() -> None:
+    from nebula_api.relays import pick_relay_ports, relayed_profile
+
+    taken = {2052, 2053, 2082, 443}
+    given = pick_relay_ports(["a", "b", "c"], taken, ["2080-2090"])
+    assert given == {"a": 2095, "b": 2096, "c": 8443}
+    assert not set(given.values()) & taken
+    assert len(set(given.values())) == len(given)
+    # Past the Cloudflare ports: the plain range, still skipping what is taken.
+    many = pick_relay_ports([str(i) for i in range(14)], {10000}, ["10002-10003"])
+    assert list(many.values())[-3:] == [10001, 10004, 10005]
+    assert [
+        relayed_profile(c)
+        for c in ("hysteria2", "hysteria2-adblock", "wireguard-native", "vless-enc-dns")
+    ] == [
+        True,
+        False,
+        False,
+        False,
+    ]
+
+
+class _FakeRedis:
+    def __init__(self) -> None:
+        self.data: dict[str, str] = {}
+
+    async def mget(self, keys: list[str]) -> list[object]:
+        return [self.data.get(key) for key in keys]
+
+    async def set(self, name: str, value: str, ex: int) -> object:
+        self.data[name] = value
+        return True
+
+
+def test_server_ports_keep_what_each_server_reported() -> None:
+    import asyncio
+
+    from nebula_api.relays import ServerPorts
+
+    ports = ServerPorts(_FakeRedis())
+    asyncio.run(ports.record({"tehran": (frozenset({22, 443}), ("20000-50000",))}))
+    assert asyncio.run(ports.taken("tehran")) == ({22, 443}, ("20000-50000",))
+    assert asyncio.run(ports.taken("unknown")) is None
+
+
+class _Route:
+    def __init__(self, code: str, via: str, ports: dict[str, int]) -> None:
+        self.code = code
+        self.exit_server_id = f"exit-{code}"
+        self.via_server_id = via
+        self.ports = ports
+
+
+class _Server:
+    def __init__(self, code: str) -> None:
+        self.code = code
+
+
+class _FillSession:
+    """Answers fill_relay_ports' queries in order."""
+
+    def __init__(self, routes: list[_Route], offered: list[list[str]]) -> None:
+        self.answers: list[list[object]] = [list(routes)]
+        self.answers += [list[object](codes) for codes in offered]
+        self.committed = False
+
+    async def scalars(self, _statement: object) -> object:
+        rows = self.answers.pop(0)
+
+        class _Rows(list):  # type: ignore[type-arg]
+            def all(self) -> list[object]:
+                return list(self)
+
+        return _Rows(rows)
+
+    async def get(self, _model: object, key: str) -> _Server:
+        return _Server(key)
+
+    async def commit(self) -> None:
+        self.committed = True
+
+
+def test_relays_get_free_ports_for_what_their_exit_offers() -> None:
+    import asyncio
+    from collections.abc import AsyncIterator
+    from contextlib import asynccontextmanager
+    from typing import Any, cast
+
+    from nebula_api.relays import ServerPorts, fill_relay_ports
+
+    # Germany's relay has 2053 already; the Netherlands' is new. The relay
+    # server listens on 2052 and hops on 2080-2090.
+    germany = _Route("de-via-tehran", "tehran", {"vless-tcp-tls": 2053})
+    netherlands = _Route("nl-via-tehran", "tehran", {})
+    session = _FillSession(
+        [germany, netherlands],
+        [
+            ["vless-tcp-tls", "vless-tcp-tls-adblock", "wireguard-native"],  # nothing new
+            ["hysteria2", "vless-enc-dns", "vless-ws-tls"],
+        ],
+    )
+
+    @asynccontextmanager
+    async def scope() -> AsyncIterator[Any]:
+        yield session
+
+    redis = _FakeRedis()
+    ports = ServerPorts(redis)
+    asyncio.run(ports.record({"tehran": (frozenset({2052}), ("2080-2090",))}))
+    given = asyncio.run(fill_relay_ports(cast(Any, lambda: scope()), ports))
+    assert netherlands.ports == {"hysteria2": 2095, "vless-ws-tls": 2096}
+    assert germany.ports == {"vless-tcp-tls": 2053}
+    assert given == ["nl-via-tehran:hysteria2=2095", "nl-via-tehran:vless-ws-tls=2096"]
+    assert session.committed
+
+
+def test_a_relay_server_that_has_not_reported_is_left_for_later() -> None:
+    import asyncio
+    from collections.abc import AsyncIterator
+    from contextlib import asynccontextmanager
+    from typing import Any, cast
+
+    from nebula_api.relays import ServerPorts, fill_relay_ports
+
+    route = _Route("nl-via-tehran", "tehran", {})
+    session = _FillSession([route], [["hysteria2"]])
+
+    @asynccontextmanager
+    async def scope() -> AsyncIterator[Any]:
+        yield session
+
+    assert (
+        asyncio.run(fill_relay_ports(cast(Any, lambda: scope()), ServerPorts(_FakeRedis()))) == []
+    )
+    assert route.ports == {}
+
+
+def test_a_usage_pass_records_busy_ports_and_gives_relay_ports(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import nebula_api.cli as cli_module
+
+    session = AsyncMock()
+    factory = MagicMock(
+        return_value=MagicMock(
+            __aenter__=AsyncMock(return_value=session), __aexit__=AsyncMock(return_value=None)
+        )
+    )
+    summary = MagicMock(busy={"nl": ([443], [])}, relay_checked={}, resolver_checked={})
+    redis = AsyncMock()
+    recorded: list[object] = []
+
+    class Ports:
+        def __init__(self, _redis: object) -> None:
+            pass
+
+        async def record(self, busy: object) -> None:
+            recorded.append(busy)
+
+    monkeypatch.setattr(cli_module, "create_session_factory", lambda _engine: factory)
+    monkeypatch.setattr(cli_module, "UsageService", lambda *_: MagicMock())
+    monkeypatch.setattr(cli_module, "load_panel_relays", AsyncMock(return_value=()))
+    monkeypatch.setattr(cli_module, "run_usage_poll", AsyncMock(return_value=summary))
+    monkeypatch.setattr(Redis, "from_url", staticmethod(lambda _url: redis))
+    monkeypatch.setattr(cli_module, "ServerPorts", Ports)
+    monkeypatch.setattr(cli_module, "fill_relay_ports", AsyncMock(return_value=["thr 2053"]))
+    monkeypatch.setattr(cli_module, "enforce_traffic_quotas", AsyncMock())
+    monkeypatch.setattr(cli_module, "enforce_access_expiry", AsyncMock())
+    monkeypatch.setattr(cli_module, "credentials_awaiting_removal", AsyncMock(return_value=False))
+    settings = MagicMock(xray_client_dns="")
+    settings.relay_list.return_value = ()
+
+    asyncio.run(cli_module._collect_usage_once(settings, MagicMock(), MagicMock()))
+
+    assert recorded == [summary.busy]
+    assert "relay port given: thr 2053" in capsys.readouterr().out
+    redis.aclose.assert_awaited_once_with()

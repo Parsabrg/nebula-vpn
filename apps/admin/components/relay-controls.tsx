@@ -35,13 +35,10 @@ export function AddRelayForm({
   const [exitId, setExitId] = useState(servers[0]?.id ?? "");
   const [viaId, setViaId] = useState(servers[1]?.id ?? "");
   const [host, setHost] = useState("");
+  // Empty: a free port on the relay server is picked for each protocol
+  // (never one in use there, or another relay's) within a minute.
   const startPorts = (): Record<string, string> =>
-    Object.fromEntries(
-      profiles.map((profile) => [
-        profile.code,
-        profile.port ? String(profile.port) : "",
-      ]),
-    );
+    Object.fromEntries(profiles.map((profile) => [profile.code, ""]));
   const [ports, setPorts] = useState<Record<string, string>>(startPorts);
 
   const chosen: Record<string, number> = {};
@@ -56,8 +53,7 @@ export function AddRelayForm({
     host.trim() !== "" &&
     exitId !== "" &&
     viaId !== "" &&
-    exitId !== viaId &&
-    Object.keys(chosen).length > 0;
+    exitId !== viaId;
 
   return (
     <div className="auth-form">
@@ -117,10 +113,15 @@ export function AddRelayForm({
           onChange={(event) => setHost(event.target.value)}
         />
       </div>
-      <fieldset className="field">
-        <legend className="field__label">
-          Port on the relay for each protocol to offer (empty: not offered)
-        </legend>
+      <details className="field">
+        <summary className="field__label">
+          Choose ports yourself (optional)
+        </summary>
+        <p className="field__hint">
+          Leave these empty: every protocol the exit offers gets a free port on
+          the relay&apos;s server, never one already in use there. A port typed
+          here is used instead.
+        </p>
         {profiles.map((profile) => (
           <label key={profile.code} className="relay-port">
             <span>{profile.displayName}</span>
@@ -134,7 +135,7 @@ export function AddRelayForm({
             />
           </label>
         ))}
-      </fieldset>
+      </details>
       {exitId !== "" && exitId === viaId ? (
         <p role="alert">The exit and the relay must be different servers.</p>
       ) : null}

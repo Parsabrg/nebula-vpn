@@ -19,6 +19,7 @@ which only needs the outward way, kept working.
 """
 
 import hmac
+import json
 import time
 from collections.abc import Iterable
 from dataclasses import replace
@@ -134,6 +135,8 @@ async def load_panel_relays(session: "AsyncSession") -> tuple[Relay, ...]:
             ports=dict(route.ports),
         )
         for route, exit_code, via_code in rows
+        # A relay just added has no ports until its server's are known.
+        if route.ports
     )
 
 
@@ -297,3 +300,112 @@ async def _panel_via(request: Request, code: str) -> "UUID | None":
     if catalog is None:
         return None
     return await catalog.via_of(code)
+
+
+# Ports a relay is given, in order: those Cloudflare also proxies, which
+# filtering sees used for HTTPS all day, then a plain range.
+RELAY_PORT_CANDIDATES = (
+    2052, 2053, 2082, 2083, 2086, 2087, 2095, 2096, 8443, 8880, 8080, *range(10000, 20000),
+)  # fmt: skip
+# Not carried through a relay: WireGuard (not forwarded), the DNS tunnel (it
+# reaches its server through resolvers) and the ad-block twins (they share
+# their profile's port).
+_NOT_RELAYED = ("wireguard", "vless-enc-dns")
+BUSY_SECONDS = 3600
+
+
+def _in_ranges(port: int, ranges: Iterable[str]) -> bool:
+    for span in ranges:
+        low, _, high = span.partition("-")
+        if low.isdigit() and high.isdigit() and int(low) <= port <= int(high):
+            return True
+    return False
+
+
+def pick_relay_ports(
+    profiles: Iterable[str], taken: set[int], ranges: Iterable[str]
+) -> dict[str, int]:
+    """A free port on the relay server for each of [profiles]: never one in
+    [taken] (listening there, or another relay's), inside [ranges] (redirected
+    elsewhere, Hysteria2's hopping), or given twice."""
+
+    ranges = tuple(ranges)
+    free = (p for p in RELAY_PORT_CANDIDATES if p not in taken and not _in_ranges(p, ranges))
+    return {profile: next(free) for profile in profiles}
+
+
+def relayed_profile(code: str) -> bool:
+    return not code.endswith("-adblock") and not any(code.startswith(n) for n in _NOT_RELAYED)
+
+
+class ServerPorts:
+    """What each server last reported taken, kept for an hour: a relay is given
+    ports only on a server whose ports are known."""
+
+    def __init__(self, redis: _Redis) -> None:
+        self._redis = redis
+
+    async def record(self, busy: dict[str, tuple[frozenset[int], tuple[str, ...]]]) -> None:
+        for code, (ports, ranges) in busy.items():
+            value = json.dumps({"ports": sorted(ports), "ranges": list(ranges)})
+            await self._redis.set(f"nebula:server-ports:{code}", value, ex=BUSY_SECONDS)
+
+    async def taken(self, code: str) -> tuple[set[int], tuple[str, ...]] | None:
+        (raw,) = await self._redis.mget([f"nebula:server-ports:{code}"])
+        if raw is None:
+            return None
+        known = json.loads(raw)  # type: ignore[arg-type]
+        return set(known["ports"]), tuple(known["ranges"])
+
+
+async def fill_relay_ports(session_factory: "SessionFactory", ports: ServerPorts) -> list[str]:
+    """Gives each panel relay a port for every profile its exit offers and it
+    does not carry yet -- a new relay, or an exit that gained a protocol --
+    from the free ones on its relay server. Returns "relay:profile=port" for
+    each port given. A relay server that has not reported its ports is left
+    for the next poll."""
+
+    from nebula_api.models.topology import ProtocolProfile, ServerProtocolCapability
+    from nebula_api.models.types import CapabilityState
+
+    given: list[str] = []
+    async with session_factory() as session:
+        routes = list(await session.scalars(select(RelayRoute).order_by(RelayRoute.created_at)))
+        for route in routes:
+            offered = [
+                code
+                for code in (
+                    await session.scalars(
+                        select(ProtocolProfile.code)
+                        .join(
+                            ServerProtocolCapability,
+                            ServerProtocolCapability.protocol_profile_id == ProtocolProfile.id,
+                        )
+                        .where(
+                            ServerProtocolCapability.vpn_server_id == route.exit_server_id,
+                            ServerProtocolCapability.state == CapabilityState.ENABLED.value,
+                        )
+                        .order_by(ProtocolProfile.code)
+                    )
+                ).all()
+                if relayed_profile(code) and code not in route.ports
+            ]
+            if not offered:
+                continue
+            via = await session.get(VPNServer, route.via_server_id)
+            known = await ports.taken(via.code) if via is not None else None
+            if via is None or known is None:
+                continue
+            listening, ranges = known
+            # Every relay on this server, this one included, as it is now.
+            on_via = {
+                port
+                for other in routes
+                if other.via_server_id == route.via_server_id
+                for port in other.ports.values()
+            }
+            new = pick_relay_ports(offered, listening | on_via, ranges)
+            route.ports = {**route.ports, **new}  # a new dict: the JSON column sees the change
+            given += [f"{route.code}:{code}={port}" for code, port in new.items()]
+        await session.commit()
+    return given
