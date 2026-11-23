@@ -842,6 +842,8 @@ fi
 # delegated name or names (NEBULA_COTTENDNS_DOMAINS, comma-separated, remembered). It listens on loopback
 # behind the router that owns port 53; whatever runs on 53 is left as it is.
 COTTENDNS_DOMAIN=${NEBULA_COTTENDNS_DOMAINS:-$(sed -n 's/^NEBULA_COTTENDNS_DOMAINS=//p' "$STATE" 2>/dev/null | tail -1 || true)}
+# A server set up before the answer was saved has it only in agent.env.
+[ -n "$COTTENDNS_DOMAIN" ] || COTTENDNS_DOMAIN=$(envget NEBULA_COTTENDNS_DOMAINS)
 if [ -n "$COTTENDNS_DOMAIN" ]; then
   remember NEBULA_COTTENDNS_DOMAINS "$COTTENDNS_DOMAIN"
   if [ "$(cat /usr/local/lib/nebula-cottendns.version 2>/dev/null)" != "$COTTENDNS_VERSION" ]; then
