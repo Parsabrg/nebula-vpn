@@ -896,6 +896,14 @@ agentset() { sed -i "/^$1=/d" $ETC/agent.env; printf '%s=%s\n' "$1" "$2" >> $ETC
 DNS_NEW=""
 [ -n "$(agentget NEBULA_XRAY_DNS_REDIRECT)" ] \
   || { agentset NEBULA_XRAY_DNS_REDIRECT 198.18.0.53=127.0.0.1:5354; DNS_NEW=1; }
+# Clients come and go through Xray's API and Hysteria2's HTTP auth, without
+# restarting either -- a restart drops everyone on the server, at every
+# connect and disconnect. The API has no authentication, so it gets a
+# loopback address of its own; on a host shared with untrusted local users,
+# refuse them 127.25.41.4 (docs/runbooks/deployment.md). A value already set
+# is kept.
+[ -n "$(agentget NEBULA_XRAY_LIVE_CLIENT_UPDATES)" ] \
+  || { agentset NEBULA_XRAY_API_HOST 127.25.41.4; agentset NEBULA_XRAY_LIVE_CLIENT_UPDATES true; }
 # The DNS tunnel forwards only to VLESS Encryption, so it needs that inbound.
 if [ -n "${COTTENDNS_DOMAIN:-}" ]; then
   if [ "$(agentget NEBULA_XRAY_VLESSENC_ENABLED)" = true ]; then
