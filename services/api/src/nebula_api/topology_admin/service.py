@@ -375,10 +375,15 @@ class TopologyAdminService:
                 raise LookupError("server not found")
             if await session.scalar(select(RelayRoute.id).where(RelayRoute.code == code)):
                 raise ValueError("relay code taken")
-            # A server forwards to one exit: its relay is set up as a whole.
-            if await session.scalar(
-                select(RelayRoute.id).where(RelayRoute.via_server_id == via_server_id)
-            ):
+            # A relay server may forward to several exits, each on its own ports.
+            taken = {
+                port
+                for other in await session.scalars(
+                    select(RelayRoute.ports).where(RelayRoute.via_server_id == via_server_id)
+                )
+                for port in other.values()
+            }
+            if taken & set(ports.values()):
                 raise ValueError("relay server in use")
             session.add(
                 RelayRoute(
@@ -433,18 +438,23 @@ class TopologyAdminService:
     async def relay_request(
         self, *, via_server_id: UUID, report_base: str, report_token: str
     ) -> tuple[VPNServer, SetRelayRequest] | None:
-        """What the relay server should forward: its panel relay's ports to the
-        exit's IPv4 address, or nothing once it has none. None when the server
-        is gone or the exit's address cannot be had."""
+        """What the relay server should forward: each of its panel relays'
+        ports to that relay's exit (IPv4), or nothing once it has none. None
+        when the server is gone or an exit's address cannot be had."""
 
         async with self._session_factory() as session:
             via = await session.get(VPNServer, via_server_id)
-            route = await session.scalar(
-                select(RelayRoute).where(RelayRoute.via_server_id == via_server_id)
+            routes = list(
+                await session.scalars(
+                    select(RelayRoute)
+                    .where(RelayRoute.via_server_id == via_server_id)
+                    .order_by(RelayRoute.created_at)
+                )
             )
-            exit_server = (
-                await session.get(VPNServer, route.exit_server_id) if route is not None else None
-            )
+            exits = {
+                route.exit_server_id: await session.get(VPNServer, route.exit_server_id)
+                for route in routes
+            }
             profiles = {
                 row.code: (row.required_port, row.requires_udp)
                 for row in await session.execute(
@@ -457,21 +467,39 @@ class TopologyAdminService:
             }
         if via is None:
             return None
-        if route is None or exit_server is None:
+        routes = [route for route in routes if exits.get(route.exit_server_id) is not None]
+        if not routes:
             return via, SetRelayRequest()
-        target = await _ipv4_of(exit_server.public_host)
-        if target is None:
-            return None
+        targets: dict[UUID, str] = {}
+        for exit_id, exit_server in exits.items():
+            if exit_server is None:
+                continue
+            address = await _ipv4_of(exit_server.public_host)
+            if address is None:
+                return None
+            targets[exit_id] = address
+        first = targets[routes[0].exit_server_id]
         ports = [
-            RelayPortSpec(here=here, proto="udp" if udp else "tcp", there=there)
+            RelayPortSpec(
+                here=here,
+                proto="udp" if udp else "tcp",
+                there=there,
+                # The first relay's exit is the file's default target; the
+                # others name theirs on each port.
+                target=None
+                if targets[route.exit_server_id] == first
+                else targets[route.exit_server_id],
+            )
+            for route in routes
             for code, here in route.ports.items()
             for there, udp in (profiles.get(code, (None, False)),)
             if there is not None
         ]
         return via, SetRelayRequest(
-            target=target,
+            target=first,
             ports=ports,
-            report_url=f"{report_base}/v1/relays/{route.code}/up" if report_token else None,
+            # One report for the server: it marks every relay on it (relays.py).
+            report_url=f"{report_base}/v1/relays/{routes[0].code}/up" if report_token else None,
             report_token=report_token or None,
         )
 
@@ -801,6 +829,11 @@ async def _ipv4_of(host: str) -> str | None:
     return str(infos[0][4][0]) if infos else None
 
 
+def relay_port_spelling(p: RelayPortSpec) -> str:
+    """443/tcp:8447, or 443/tcp:203.0.113.9:8447 for another exit."""
+    return f"{p.here}/{p.proto}:{p.target + ':' if p.target else ''}{p.there}"
+
+
 def relay_env(request: SetRelayRequest) -> str:
     """The request as relay.env lines, as the agent writes it; empty for none."""
 
@@ -808,7 +841,7 @@ def relay_env(request: SetRelayRequest) -> str:
         return ""
     lines = [
         f"NEBULA_RELAY_TARGET={request.target}",
-        "NEBULA_RELAY_PORTS=" + " ".join(f"{p.here}/{p.proto}:{p.there}" for p in request.ports),
+        "NEBULA_RELAY_PORTS=" + " ".join(relay_port_spelling(p) for p in request.ports),
     ]
     if request.report_url and request.report_token:
         lines += [

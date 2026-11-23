@@ -39,6 +39,7 @@ def test_a_relay_is_written_for_root_to_apply(client: TestClient, relay_file: Pa
             "ports": [
                 {"here": 2053, "proto": "tcp", "there": 8449},
                 {"here": 443, "proto": "udp", "there": 8450},
+                {"here": 2083, "proto": "tcp", "there": 8448, "target": "198.51.100.7"},
             ],
             "report_url": URL,
             "report_token": TOKEN,
@@ -48,7 +49,7 @@ def test_a_relay_is_written_for_root_to_apply(client: TestClient, relay_file: Pa
     assert response.status_code == 204
     assert relay_file.read_text(encoding="utf-8").splitlines() == [
         "NEBULA_RELAY_TARGET=203.0.113.10",
-        "NEBULA_RELAY_PORTS=2053/tcp:8449 443/udp:8450",
+        "NEBULA_RELAY_PORTS=2053/tcp:8449 443/udp:8450 2083/tcp:198.51.100.7:8448",
         f"NEBULA_RELAY_REPORT_URL={URL}",
         f"NEBULA_RELAY_REPORT_TOKEN={TOKEN}",
     ]

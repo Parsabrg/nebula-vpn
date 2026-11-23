@@ -349,6 +349,8 @@ class RelayPortSpec(BaseModel):
     here: int = Field(ge=1, le=65_535)
     proto: Literal["tcp", "udp"]
     there: int = Field(ge=1, le=65_535)
+    # Another exit than the request's target (a relay server may forward to several).
+    target: str | None = None
 
 
 class SetRelayRequest(BaseModel):

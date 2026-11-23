@@ -53,9 +53,13 @@ the relay saves that when it changed, and step 2 applies it. A relay that is
 reporting in therefore follows the panel within a minute either way. Its very
 first setup still needs the agent reached once, or the manual commands.
 
-A server forwards to one exit, so it carries one panel relay. **Remove** asks
-its agent to forward nothing, which takes the forwarding and the report
-timer down. When the agent cannot be reached, the relay is still saved and
+A server can carry several panel relays, one per exit ("Germany via Tehran",
+"Netherlands via Tehran"), each on its own ports: Add refuses a port another
+relay on the same server already uses. In `relay.env` the first relay's exit
+is `NEBULA_RELAY_TARGET`; a port for another exit names it
+(`2083/tcp:203.0.113.9:8448`). The server reports in once for all of them.
+**Remove** takes one relay's ports away; with none left its agent forwards
+nothing, which takes the forwarding and the report timer down. When the agent cannot be reached, the relay is still saved and
 the panel shows the commands to set the server up by hand (below). A server
 installed before this needs `install.sh` run once more for the root unit.
 A relay in `NEBULA_RELAYS` is changed in that file.
