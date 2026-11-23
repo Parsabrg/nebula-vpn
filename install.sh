@@ -1087,6 +1087,18 @@ STANDARD_PROTOCOLS="grpc ws tcp hysteria ss2022 vlessenc reality"
 if [ -n "$FRESH_AGENT_ENV" ] && [ -z "$CONFIGURE" ]; then
   CONFIGURE=1 NEBULA_PROTOCOLS=${NEBULA_PROTOCOLS:-$STANDARD_PROTOCOLS}
 fi
+# A restore: the protocols the backup has on, on their ports, so the firewall
+# opens them again. "none" when it has none (XHTTP and WireGuard only).
+if [ -n "$RESTORE_DIR" ] && [ -z "$CONFIGURE" ]; then
+  on=""
+  for entry in "${PROTOCOLS[@]}"; do
+    IFS='|' read -r _ key _ <<<"$entry"
+    [ "$(agentget "$key")" = true ] || continue
+    short=${key#NEBULA_XRAY_}; short=${short%_ENABLED}; on+=" ${short,,}"
+  done
+  on=${on# }
+  CONFIGURE=1 NEBULA_PROTOCOLS=${on:-none}
+fi
 if [ -n "$CONFIGURE" ]; then
   [ -n "${NEBULA_PROTOCOLS:-}" ] || [ -t 0 ] \
     || die "--configure asks questions; run it in a terminal, or name the protocols in NEBULA_PROTOCOLS"
