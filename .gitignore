@@ -65,3 +65,6 @@ backups/
 # Local tooling output
 graphify-out/
 uv.lock
+
+# Wrangler (Cloudflare) local state: account and location data, never committed.
+.wrangler/
