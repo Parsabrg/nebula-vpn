@@ -558,7 +558,10 @@ setenv NEBULA_ALLOWED_ORIGINS "https://$PANEL$WEB"
 # 443 first; the old ports stay open and listed for apps that know them.
 routes="https://$APIHOST:8444,https://$NEBULA_DOMAIN:8445"
 [ -n "$WEB" ] || routes="https://$APIHOST,https://$NEBULA_DOMAIN,$routes"
-setenv NEBULA_API_ROUTES "$routes"
+# Set once: a rerun or a restore keeps the list the apps already learned
+# (an administrator may have added a CDN address to it).
+envhas() { grep -q "^$1=." $ETC/compose.env; }
+envhas NEBULA_API_ROUTES || setenv NEBULA_API_ROUTES "$routes"
 setenv NEBULA_EMAIL_FROM "$NEBULA_EMAIL_FROM"
 # The resolver image the bundle loaded, by the name it was saved under.
 [ -z "$BUNDLE" ] || setenv NEBULA_DNS_IMAGE adguard/adguardhome:nebula-bundle
@@ -570,8 +573,9 @@ if grep -q '^NEBULA_XRAY_CLIENT_DNS=' $ETC/compose.env; then
 else
   setenv NEBULA_XRAY_CLIENT_DNS 198.18.0.53
 fi
-# What the apps call this server; every install was "Nebula" before.
-setenv NEBULA_DEPLOYMENT_NAME "$NEBULA_DOMAIN"
+# What the apps call this server; every install was "Nebula" before. A name
+# an administrator chose stays.
+grep -qE '^NEBULA_DEPLOYMENT_NAME=(Nebula)?$' $ETC/compose.env || ! envhas NEBULA_DEPLOYMENT_NAME   && setenv NEBULA_DEPLOYMENT_NAME "$NEBULA_DOMAIN"
 case $NEBULA_EMAIL_MODE in
   resend) setenv NEBULA_EMAIL_PROVIDER resend ;;
   smtp) setenv NEBULA_EMAIL_PROVIDER smtp; setenv NEBULA_SMTP_HOST "$NEBULA_SMTP_HOST"
