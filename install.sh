@@ -44,6 +44,15 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ETC=/etc/nebula
 SECRETS=$ETC/secrets
+# WireGuard's interface and port: a server with agent.env keeps its own (a
+# restore, or one set up before this installer); a new one uses wg0 and 51820.
+# Read again after a restore puts agent.env back.
+wg_settings() {
+  WGIF=$( { [ -f $ETC/agent.env ] && sed -n 's/^NEBULA_WG_INTERFACE=//p' $ETC/agent.env | tail -1; } || true)
+  WGPORT=$( { [ -f $ETC/agent.env ] && sed -n 's/^NEBULA_WG_LISTEN_PORT=//p' $ETC/agent.env | tail -1; } || true)
+  WGIF=${WGIF:-wg0}; WGPORT=${WGPORT:-51820}
+}
+wg_settings
 # Working files and logs: a fresh private directory, not fixed names in
 # /tmp that another local user could plant a symlink at (AUD-023). Left
 # behind on failure for its logs; removed at the end.
@@ -132,9 +141,9 @@ wireguard_routing() {
   local wan=$1 file=$2 nat forward n
   grep -q 'nebula-wireguard' "$file" && return 0
   nat="# nebula-wireguard: clients' traffic leaves as this host\n*nat\n:POSTROUTING ACCEPT [0:0]\n-A POSTROUTING -s $WG_POOL -o $wan -j MASQUERADE\nCOMMIT\n"
-  forward="# nebula-wireguard: not each other, not this host's networks\n-A ufw-before-forward -i wg0 -o wg0 -j REJECT\n"
-  for n in $WG_BLOCKED; do forward+="-A ufw-before-forward -i wg0 -d $n -j REJECT\n"; done
-  forward+="-A ufw-before-input -i wg0 -j REJECT\n"
+  forward="# nebula-wireguard: not each other, not this host's networks\n-A ufw-before-forward -i $WGIF -o $WGIF -j REJECT\n"
+  for n in $WG_BLOCKED; do forward+="-A ufw-before-forward -i $WGIF -d $n -j REJECT\n"; done
+  forward+="-A ufw-before-input -i $WGIF -j REJECT\n"
   awk -v nat="$nat" -v fwd="$forward" '
     NR == 1 { printf "%s", nat }
     /^-A ufw-before-input -i lo -j ACCEPT/ && !done { printf "%s", fwd; done = 1 }
@@ -152,20 +161,20 @@ hysteria_hop() {
     && cat "$file.nebula" > "$file" && rm -f "$file.nebula"
 }
 # A joined server's WireGuard clients use its resolver: DNS to the tunnel's
-# gateway ($3) is redirected to the resolver's port there, and only wg0 may
+# gateway ($3) is redirected to the resolver's port there, and only WireGuard may
 # reach it. Once (marked).
 wireguard_dns() {
   local wan=$1 file=$2 gw=$3 nat="" fwd="" proto
   grep -q 'nebula-wg-dns' "$file" && return 0
   nat="# nebula-wg-dns: WireGuard clients' DNS to this server's resolver\n*nat\n:PREROUTING ACCEPT [0:0]\n"
   for proto in udp tcp; do
-    nat+="-A PREROUTING -i wg0 -d $gw -p $proto --dport 53 -j REDIRECT --to-ports 5354\n"
-    fwd+="-A ufw-before-input -i wg0 -d $gw -p $proto --dport 5354 -j ACCEPT\n"
+    nat+="-A PREROUTING -i $WGIF -d $gw -p $proto --dport 53 -j REDIRECT --to-ports 5354\n"
+    fwd+="-A ufw-before-input -i $WGIF -d $gw -p $proto --dport 5354 -j ACCEPT\n"
   done
   nat+="COMMIT\n"
-  awk -v nat="$nat" -v fwd="$fwd" '
+  awk -v nat="$nat" -v fwd="$fwd" -v reject="-A ufw-before-input -i $WGIF -j REJECT" '
     NR == 1 { printf "%s", nat }
-    /^-A ufw-before-input -i wg0 -j REJECT/ && !done { printf "%s", fwd; done = 1 }
+    $0 == reject && !done { printf "%s", fwd; done = 1 }
     { print }' "$file" > "$file.nebula" && cat "$file.nebula" > "$file" && rm -f "$file.nebula"
 }
 # The tunnels' DNS address (198.18.0.53), dialled by this host itself, goes
@@ -277,16 +286,19 @@ if [ "${1:-}" = --uninstall ]; then
     systemctl disable --now "$(basename "$unit")" >/dev/null 2>&1 || true
     rm -rf "$unit"
   done
-  systemctl disable --now wg-quick@wg0 >/dev/null 2>&1 || true
+  systemctl disable --now "wg-quick@$WGIF" >/dev/null 2>&1 || true
   systemctl daemon-reload
-  rm -f /etc/wireguard/wg0.conf /etc/sysctl.d/99-nebula-forward.conf /etc/polkit-1/rules.d/49-nebula-xray-agent.rules
+  rm -f "/etc/wireguard/$WGIF.conf" /etc/sysctl.d/99-nebula-forward.conf /etc/polkit-1/rules.d/49-nebula-xray-agent.rules
   rm -rf $ETC /var/lib/nebula /opt/nebula-vpn-agent /opt/nebula-awscli
+  # nebula-xray: the XHTTP site's name on servers set up before this installer.
   rm -f /etc/nginx/sites-enabled/nebula /etc/nginx/sites-available/nebula /etc/nginx/sites-available/nebula-acme \
-    /etc/nginx/conf.d/xray-8445.conf /etc/nginx/snippets/nebula-*
+    /etc/nginx/sites-enabled/nebula-xray /etc/nginx/sites-available/nebula-xray \
+    /etc/nginx/conf.d/xray-8445.conf /etc/nginx/conf.d/nebula-ratelimit.conf \
+    /etc/nginx/snippets/nebula-* /etc/nginx/snippets/cloudflare-real-ip.conf
   if command -v nginx >/dev/null; then nginx -t >/dev/null 2>&1 && systemctl reload nginx 2>/dev/null || true; fi
   step "Firewall"
   # Rules marked nebula, then the blocks the installer added to before.rules:
-  # each "# nebula-..." block, WireGuard's (wg0 is Nebula's) and those for the
+  # each "# nebula-..." block, those for Nebula's WireGuard interface and the
   # nebula-xray user.
   if command -v ufw >/dev/null; then
     while n=$(ufw status numbered | grep -E '# nebula' | head -1 | sed -E 's/^\[ *([0-9]+)\].*/\1/'); [ -n "$n" ]; do
@@ -295,12 +307,12 @@ if [ "${1:-}" = --uninstall ]; then
     for f in /etc/ufw/before.rules /etc/ufw/before6.rules; do
       [ -f "$f" ] || continue
       cp "$f" "$f.before-nebula-uninstall"
-      awk '
+      awk -v wg="$WGIF" '
         /^# nebula-/ { pending = 1; next }
         pending && $0 == "*nat" { innat = 1; pending = 0; next }
         { pending = 0 }
         innat { if ($0 == "COMMIT") innat = 0; next }
-        /-[io] wg0 |uid-owner nebula-xray/ { next }
+        index($0, "-i " wg " ") || index($0, "-o " wg " ") || /uid-owner nebula-xray/ { next }
         { print }' "$f.before-nebula-uninstall" > "$f"
     done
     ufw reload >/dev/null || warn "ufw did not reload; the old rules are in /etc/ufw/*.before-nebula-uninstall"
@@ -328,6 +340,7 @@ if [ "${1:-}" = --restore ]; then
   age --decrypt -i "$key" "$backup" | tar -xzf - -C "$RESTORE_DIR" || die "that key does not open this backup"
   install -d -m 0755 $ETC
   cp -a "$RESTORE_DIR/config/." $ETC/
+  wg_settings
   # Not kept on the server: encrypting needs only the public half, which
   # backup.env already names. A copy here would open every backup.
   [ -z "${NEBULA_BACKUP_KEY_FILE:-}" ] && rm -f "$key"
@@ -545,7 +558,12 @@ setenv NEBULA_ALLOWED_ORIGINS "https://$PANEL$WEB"
 # 443 first; the old ports stay open and listed for apps that know them.
 routes="https://$APIHOST:8444,https://$NEBULA_DOMAIN:8445"
 [ -n "$WEB" ] || routes="https://$APIHOST,https://$NEBULA_DOMAIN,$routes"
-setenv NEBULA_API_ROUTES "$routes"
+# Set once: a rerun or a restore keeps the list the apps already learned
+# (an administrator may have added a CDN address to it).
+# Written every run, the same value, so the file stays the same on a rerun.
+envval() { sed -n "s/^$1=//p" $ETC/compose.env | tail -1; }
+was=$(envval NEBULA_API_ROUTES)
+setenv NEBULA_API_ROUTES "${was:-$routes}"
 setenv NEBULA_EMAIL_FROM "$NEBULA_EMAIL_FROM"
 # The resolver image the bundle loaded, by the name it was saved under.
 [ -z "$BUNDLE" ] || setenv NEBULA_DNS_IMAGE adguard/adguardhome:nebula-bundle
@@ -557,8 +575,11 @@ if grep -q '^NEBULA_XRAY_CLIENT_DNS=' $ETC/compose.env; then
 else
   setenv NEBULA_XRAY_CLIENT_DNS 198.18.0.53
 fi
-# What the apps call this server; every install was "Nebula" before.
-setenv NEBULA_DEPLOYMENT_NAME "$NEBULA_DOMAIN"
+# What the apps call this server; every install was "Nebula" before. A name
+# an administrator chose stays.
+was=$(envval NEBULA_DEPLOYMENT_NAME)
+[ -n "$was" ] && [ "$was" != Nebula ] || was=$NEBULA_DOMAIN
+setenv NEBULA_DEPLOYMENT_NAME "$was"
 case $NEBULA_EMAIL_MODE in
   resend) setenv NEBULA_EMAIL_PROVIDER resend ;;
   smtp) setenv NEBULA_EMAIL_PROVIDER smtp; setenv NEBULA_SMTP_HOST "$NEBULA_SMTP_HOST"
@@ -661,6 +682,12 @@ Create these DNS records at your DNS provider (proxy/CDN off, "DNS only"):
   A  $NEBULA_DOMAIN     $PUBLIC_IP
 EOF
   [ -n "$JOIN_URL" ] || echo "  A  *.$NEBULA_DOMAIN   $PUBLIC_IP"
+  # Only a new certificate needs every name; a server that has one (a rerun,
+  # a restore, names behind a CDN) goes on and says what is missing.
+  if [ -f "$CERT/fullchain.pem" ] && [ ! -t 0 ]; then
+    warn "not every name points here; keeping the certificate this server already has"
+    break
+  fi
   [ -t 0 ] || die "DNS is not ready"
   read -rp "Press Enter once they are saved (it can take a few minutes), or type skip: " answer
   [ "$answer" = skip ] && break
@@ -690,12 +717,12 @@ rm -f /etc/nginx/sites-enabled/default
 # paths, gRPC service name and Hysteria2 decoy. A new install picks its own;
 # one that already has agent.env keeps what its clients already use.
 envget() { [ -f $ETC/agent.env ] && sed -n "s/^$1=//p" $ETC/agent.env | tail -1; return 0; }
-# WireGuard's address range. A server that has one keeps it (wg0.conf first,
+# WireGuard's address range. A server that has one keeps it (its wg-quick file first,
 # then agent.env); a new one takes NEBULA_WG_CLIENT_POOL, or a /20 (4094
 # devices). The server's address is the range's first one.
 WG_ADDR=
 # Under pipefail a missing file would end the install here.
-[ ! -f /etc/wireguard/wg0.conf ] || WG_ADDR=$(sed -n 's/^Address *= *//p' /etc/wireguard/wg0.conf | head -1)
+[ ! -f "/etc/wireguard/$WGIF.conf" ] || WG_ADDR=$(sed -n 's/^Address *= *//p' "/etc/wireguard/$WGIF.conf" | head -1)
 [ -n "$WG_ADDR" ] || WG_ADDR=$(envget NEBULA_WG_SERVER_ADDRESS)
 if [ -z "$WG_ADDR" ]; then
   WG_ADDR=$(python3 -c 'import ipaddress,sys; n=ipaddress.ip_network(sys.argv[1]); assert n.version == 4 and n.is_private and n.prefixlen <= 29; print(f"{next(n.hosts())}/{n.prefixlen}")' \
@@ -785,13 +812,13 @@ cat > /etc/letsencrypt/renewal-hooks/deploy/nebula.sh <<'EOF'
 systemctl reload nginx; systemctl restart nebula-xray nebula-hysteria
 EOF
 chmod 0755 /etc/letsencrypt/renewal-hooks/deploy/nebula.sh
-if [ ! -f /etc/wireguard/wg0.conf ]; then
+if [ ! -f "/etc/wireguard/$WGIF.conf" ]; then
   umask 077
-  printf '[Interface]\nAddress = %s\nListenPort = 51820\nPostUp = wg set %%i private-key %s\n' \
-    "$WG_ADDR" $SECRETS/wireguard_server_private_key > /etc/wireguard/wg0.conf
+  printf '[Interface]\nAddress = %s\nListenPort = %s\nPostUp = wg set %%i private-key %s\n' \
+    "$WG_ADDR" "$WGPORT" $SECRETS/wireguard_server_private_key > "/etc/wireguard/$WGIF.conf"
   umask 022
 fi
-systemctl enable --now wg-quick@wg0 >/dev/null 2>&1
+systemctl enable --now "wg-quick@$WGIF" >/dev/null 2>&1
 # A joined server's resolver for the tunnels, on 127.0.0.1:5354 like the
 # control plane's. DNS over HTTPS to resolvers named by address: looking a
 # name up first in plain DNS can be forged inside Iran. No query log.
@@ -819,6 +846,8 @@ fi
 # delegated name or names (NEBULA_COTTENDNS_DOMAINS, comma-separated, remembered). It listens on loopback
 # behind the router that owns port 53; whatever runs on 53 is left as it is.
 COTTENDNS_DOMAIN=${NEBULA_COTTENDNS_DOMAINS:-$(sed -n 's/^NEBULA_COTTENDNS_DOMAINS=//p' "$STATE" 2>/dev/null | tail -1 || true)}
+# A server set up before the answer was saved has it only in agent.env.
+[ -n "$COTTENDNS_DOMAIN" ] || COTTENDNS_DOMAIN=$(envget NEBULA_COTTENDNS_DOMAINS)
 if [ -n "$COTTENDNS_DOMAIN" ]; then
   remember NEBULA_COTTENDNS_DOMAINS "$COTTENDNS_DOMAIN"
   if [ "$(cat /usr/local/lib/nebula-cottendns.version 2>/dev/null)" != "$COTTENDNS_VERSION" ]; then
@@ -854,7 +883,7 @@ SSH_PORT=$(sshd -T 2>/dev/null | awk '/^port /{p=$2} END{print p}' || true)
   | awk 'tolower($1)=="port"{p=$2} END{print p}' || true)
 SSH_PORT=${SSH_PORT:-22}
 ufw allow "$SSH_PORT/tcp" comment ssh >/dev/null
-for p in 80/tcp 8445/tcp 8447/tcp 8448/tcp 8449/tcp 8450/udp 51820/udp; do ufw allow $p comment nebula >/dev/null; done
+for p in 80/tcp 8445/tcp 8447/tcp 8448/tcp 8449/tcp 8450/udp "$WGPORT/udp"; do ufw allow $p comment nebula >/dev/null; done
 [ "$XPORT" != 443 ] || { ufw allow 443/tcp comment nebula >/dev/null; ufw allow 443/udp comment nebula >/dev/null; }
 if [ -n "$JOIN_URL" ]; then
   # The control plane reaches this agent over the internet; only it may.
@@ -910,11 +939,11 @@ local_dns_redirect /etc/ufw/before.rules
 printf 'net.ipv4.ip_forward=1\n' > /etc/sysctl.d/99-nebula-forward.conf
 sysctl -q -p /etc/sysctl.d/99-nebula-forward.conf
 sed -i 's|^#\?net/ipv4/ip_forward=.*|net/ipv4/ip_forward=1|' /etc/ufw/sysctl.conf
-ufw route allow in on wg0 out on "$WAN" comment nebula-wireguard >/dev/null
+ufw route allow in on "$WGIF" out on "$WAN" comment nebula-wireguard >/dev/null
 ufw --force enable >/dev/null; ufw reload >/dev/null
 if [ -n "$JOIN_URL" ]; then opened="9443 from $CONTROL_IP"; else opened="8444"; fi
 [ "$XPORT" != 443 ] || opened="443, 443/udp, $opened"
-ok "open: ssh ($SSH_PORT), 80, $opened, 8445, 8447-8449, 8450/udp${HOP:+ (and $HOP/udp to ${HYPORT:-8450})}, 51820/udp"
+ok "open: ssh ($SSH_PORT), 80, $opened, 8445, 8447-8449, 8450/udp${HOP:+ (and $HOP/udp to ${HYPORT:-8450})}, $WGPORT/udp"
 
 step "VPN agent"
 if [ ! -x /opt/nebula-vpn-agent/.venv/bin/nebula-agent-serve ]; then
@@ -1064,6 +1093,18 @@ STANDARD_PROTOCOLS="grpc ws tcp hysteria ss2022 vlessenc reality"
 if [ -n "$FRESH_AGENT_ENV" ] && [ -z "$CONFIGURE" ]; then
   CONFIGURE=1 NEBULA_PROTOCOLS=${NEBULA_PROTOCOLS:-$STANDARD_PROTOCOLS}
 fi
+# A restore: the protocols the backup has on, on their ports, so the firewall
+# opens them again. "none" when it has none (XHTTP and WireGuard only).
+if [ -n "$RESTORE_DIR" ] && [ -z "$CONFIGURE" ]; then
+  on=""
+  for entry in "${PROTOCOLS[@]}"; do
+    IFS='|' read -r _ key _ <<<"$entry"
+    [ "$(agentget "$key")" = true ] || continue
+    short=${key#NEBULA_XRAY_}; short=${short%_ENABLED}; on+=" ${short,,}"
+  done
+  on=${on# }
+  CONFIGURE=1 NEBULA_PROTOCOLS=${on:-none}
+fi
 if [ -n "$CONFIGURE" ]; then
   [ -n "${NEBULA_PROTOCOLS:-}" ] || [ -t 0 ] \
     || die "--configure asks questions; run it in a terminal, or name the protocols in NEBULA_PROTOCOLS"
@@ -1142,8 +1183,8 @@ if [ -n "$CONFIGURE" ]; then
   echo "WireGuard"; ask_port wgport "$oldwg"
   if [ "$wgport" != "$oldwg" ]; then
     agentset NEBULA_WG_LISTEN_PORT "$wgport"
-    sed -i "s/^ListenPort = .*/ListenPort = $wgport/" /etc/wireguard/wg0.conf
-    systemctl restart wg-quick@wg0
+    sed -i "s/^ListenPort = .*/ListenPort = $wgport/" "/etc/wireguard/$WGIF.conf"
+    systemctl restart "wg-quick@$WGIF"
     CLOSE_PORTS+=("$oldwg/udp"); OPEN_PORTS+=("$wgport/udp")
   fi
 fi
