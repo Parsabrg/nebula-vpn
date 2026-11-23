@@ -13,6 +13,8 @@
 #   NEBULA_DOMAIN, NEBULA_ADMIN_EMAIL, NEBULA_EMAIL_MODE (smtp|resend|skip),
 #   NEBULA_SMTP_HOST, NEBULA_SMTP_PORT, NEBULA_SMTP_USERNAME, NEBULA_SMTP_PASSWORD,
 #   NEBULA_RESEND_API_KEY, NEBULA_EMAIL_FROM, NEBULA_INSTALL_PROXY, NEBULA_ASSUME_YES=1
+# Protocols (docs/runbooks/protocols.md): NEBULA_PROTOCOLS, and NEBULA_REALITY_SITE
+# for the site REALITY borrows (default www.speedtest.net).
 # Optional: NEBULA_ADMIN_ALLOW (addresses that may open the admin panel;
 # default any), NEBULA_WG_CLIENT_POOL (WireGuard's range on a new install).
 #
@@ -851,7 +853,9 @@ fi
     -r "$REPO/services/vpn-agent/requirements.lock" \
   && /opt/nebula-vpn-agent/.venv/bin/pip install -q --no-deps --no-build-isolation ${PAYLOAD:+--no-index} "$REPO/services/vpn-agent"; } \
   >$WORK/nebula-agent-pip.log 2>&1 || { tail -n 20 $WORK/nebula-agent-pip.log; die "installing the agent failed"; }
+FRESH_AGENT_ENV=""
 if [ ! -f $ETC/agent.env ]; then
+  FRESH_AGENT_ENV=1
   umask 027
   cat > $ETC/agent.env <<EOF
 NEBULA_ENV=production
@@ -980,13 +984,26 @@ PROTOCOLS=(
 )
 ENABLE_CODES=() DISABLE_CODES=() OPEN_PORTS=() CLOSE_PORTS=()
 newport="" xhttp="" wgport=""
+# The standard set every server offers (docs/runbooks/protocols.md): a new
+# install or join turns it on; --configure changes it, by questions or, with
+# NEBULA_PROTOCOLS (the names below, space-separated), without any.
+STANDARD_PROTOCOLS="grpc ws tcp hysteria ss2022 vlessenc reality"
+if [ -n "$FRESH_AGENT_ENV" ] && [ -z "$CONFIGURE" ]; then
+  CONFIGURE=1 NEBULA_PROTOCOLS=${NEBULA_PROTOCOLS:-$STANDARD_PROTOCOLS}
+fi
 if [ -n "$CONFIGURE" ]; then
-  [ -t 0 ] || die "--configure asks questions; run it in a terminal"
+  [ -n "${NEBULA_PROTOCOLS:-}" ] || [ -t 0 ] \
+    || die "--configure asks questions; run it in a terminal, or name the protocols in NEBULA_PROTOCOLS"
   step "Protocols and ports"
   echo "Enter keeps what is set now. XHTTP (through nginx) and WireGuard are always on."
-  yes_no() { local a; read -rp "$1 [$2]: " a; a=${a:-$2}; [[ $a =~ ^[Yy] ]]; }
+  # With NEBULA_PROTOCOLS: on exactly those, every port and site kept.
+  yes_no() {
+    local a
+    if [ -n "${NEBULA_PROTOCOLS:-}" ]; then [[ " $NEBULA_PROTOCOLS " == *" $3 "* ]]; return; fi
+    read -rp "$1 [$2]: " a; a=${a:-$2}; [[ $a =~ ^[Yy] ]]
+  }
   ask_port() {
-    local a; read -rp "  port [$2]: " a; a=${a:-$2}
+    local a=""; [ -n "${NEBULA_PROTOCOLS:-}" ] || read -rp "  port [$2]: " a; a=${a:-$2}
     [[ $a =~ ^[0-9]+$ ]] && [ "$a" -ge 1 ] && [ "$a" -le 65535 ] || die "'$a' is not a port"
     printf -v "$1" '%s' "$a"
   }
@@ -994,7 +1011,8 @@ if [ -n "$CONFIGURE" ]; then
     IFS='|' read -r name key portkey default proto codes <<<"$entry"
     was=$(agentget "$key"); was=${was:-false}
     oldport=$(agentget "$portkey"); oldport=${oldport:-$default}
-    if yes_no "$name" "$([ "$was" = true ] && echo Y || echo n)"; then
+    short=${key#NEBULA_XRAY_}; short=${short%_ENABLED}; short=${short,,}
+    if yes_no "$name" "$([ "$was" = true ] && echo Y || echo n)" "$short"; then
       ask_port newport "$oldport"
       agentset "$key" true; agentset "$portkey" "$newport"
       case $key in
@@ -1020,8 +1038,8 @@ if [ -n "$CONFIGURE" ]; then
           # name to an address that is not Microsoft's from its datacentres,
           # which breaks it through an Iranian relay; the home
           # line let it through.
-          site=$(agentget NEBULA_XRAY_REALITY_SERVER_NAME); site=${site:-www.speedtest.net}
-          read -rp "  site to borrow [$site]: " a; site=${a:-$site}
+          site=${NEBULA_REALITY_SITE:-$(agentget NEBULA_XRAY_REALITY_SERVER_NAME)}; site=${site:-www.speedtest.net}
+          a=""; [ -n "${NEBULA_PROTOCOLS:-}" ] || read -rp "  site to borrow [$site]: " a; site=${a:-$site}
           [[ $site =~ ^[A-Za-z0-9.-]+$ ]] || die "'$site' is not a host name"
           agentset NEBULA_XRAY_REALITY_SERVER_NAME "$site"
           agentset NEBULA_XRAY_REALITY_DEST "$site:443" ;;
@@ -1129,11 +1147,13 @@ if [ -n "$CONFIGURE" ] && [ -z "$JOIN_URL" ]; then
   done
   ok "the control plane offers what $server serves"
 elif [ -n "$CONFIGURE" ]; then
-  if [ ${#ENABLE_CODES[@]} -gt 0 ] || [ ${#DISABLE_CODES[@]} -gt 0 ]; then
-    warn "on the control plane (in its API container), turn the changed protocols on or off:"
+  # The control plane reads what this server serves at its next usage poll
+  # and offers what is new; one turned off here, turn off in the panel too.
+  [ ${#ENABLE_CODES[@]} -eq 0 ] || ok "the control plane offers the new protocols within a minute"
+  if [ ${#DISABLE_CODES[@]} -gt 0 ]; then
+    warn "on the control plane (in its API container), turn the removed protocols off:"
+    for code in "${DISABLE_CODES[@]}"; do echo "    nebula-api disable-server-capability --server-code ${NEBULA_SERVER_CODE:-<this server>} --protocol-profile-code $code"; done
   fi
-  for code in "${ENABLE_CODES[@]}"; do echo "    nebula-api enable-server-capability --server-code ${NEBULA_SERVER_CODE:-<this server>} --protocol-profile-code $code"; done
-  for code in "${DISABLE_CODES[@]}"; do echo "    nebula-api disable-server-capability --server-code ${NEBULA_SERVER_CODE:-<this server>} --protocol-profile-code $code"; done
 fi
 
 step "Checking what clients will see"
