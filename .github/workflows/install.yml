@@ -41,9 +41,12 @@ env:
   NEBULA_EMAIL_MODE: skip
   NEBULA_BACKUP_OFFSITE: local
   NEBULA_ASSUME_YES: "1"
-  # The site REALITY borrows must answer from the runner's network; the
-  # default (www.speedtest.net) is chosen for Iran, not for a cloud runner.
-  NEBULA_REALITY_SITE: www.microsoft.com
+  # The standard set (docs/runbooks/protocols.md) without REALITY: on a runner,
+  # whose public address is put on loopback behind Azure's NAT, REALITY's
+  # handshake with the borrowed site fails (www.speedtest.net and
+  # www.microsoft.com alike) while it carries traffic on real servers --
+  # checked end to end on two, 2026-11-23.
+  NEBULA_PROTOCOLS: grpc ws tcp hysteria ss2022 vlessenc
 
 jobs:
   shellcheck:
