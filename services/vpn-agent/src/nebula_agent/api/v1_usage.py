@@ -23,6 +23,7 @@ from nebula_agent.drivers.hysteria_config_store import (
     traffic_stats_secret,
 )
 from nebula_agent.drivers.xray_config_store import STATS_API_PORT
+from nebula_agent.enrollment import served_profiles
 from nebula_agent.settings import Settings, parse_dns_redirect
 from nebula_agent.usage import (
     UsageSample,
@@ -50,6 +51,9 @@ class UsageResponse(BaseModel):
     # mean very different things when a user's usage suddenly stops growing.
     sources_read: list[str]
     sources_failed: list[str]
+    # The protocol profiles this server serves, so the control plane offers
+    # a protocol turned on here without anyone telling it (usage/poll.py).
+    served_profiles: list[str] = []
 
 
 RELAY_CHECK_SECONDS = 3.0
@@ -186,4 +190,5 @@ async def collect_usage(
         ],
         sources_read=read,
         sources_failed=failed,
+        served_profiles=served_profiles(settings),
     )

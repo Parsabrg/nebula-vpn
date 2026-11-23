@@ -93,6 +93,7 @@ class CounterReading:
     sources_read: frozenset[str]
     sources_failed: list[str]
     collected_at: datetime
+    served_profiles: frozenset[str] = frozenset()
 
 
 async def read_counters(agent: AgentClient, *, clock: Clock) -> CounterReading:
@@ -113,6 +114,7 @@ async def read_counters(agent: AgentClient, *, clock: Clock) -> CounterReading:
         sources_read=frozenset(response.sources_read),
         sources_failed=list(response.sources_failed),
         collected_at=collected_at,
+        served_profiles=frozenset(response.served_profiles),
     )
 
 

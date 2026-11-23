@@ -364,7 +364,7 @@ def _wireguard_range(settings: object) -> tuple[str, str] | None:
     return str(settings.wg_client_pool), str(address.ip)  # type: ignore[attr-defined]
 
 
-def _served_profiles(settings: object) -> list[str]:
+def served_profiles(settings: object) -> list[str]:
     """What this node will serve, so the control plane offers it at once."""
 
     from nebula_agent.driver_factory import build_xray_driver
@@ -400,7 +400,7 @@ def main(argv: list[str] | None = None) -> int:
             agent_port=arguments.agent_port or settings.agent_bind_port,
             control_plane_ca_file=arguments.control_plane_ca,
             service_group=arguments.service_group or None,
-            protocol_profiles=_served_profiles(settings),
+            protocol_profiles=served_profiles(settings),
             wireguard=_wireguard_range(settings),
         )
     except (EnrollmentError, OSError) as error:

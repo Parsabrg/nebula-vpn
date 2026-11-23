@@ -21,8 +21,8 @@ from sqlalchemy import select
 
 from nebula_api.agent_client.client import AgentClient, AgentClientError
 from nebula_api.db.engine import SessionFactory
-from nebula_api.models.topology import VPNServer
-from nebula_api.models.types import RUNNING_SERVER_STATES, ServerState
+from nebula_api.models.topology import ProtocolProfile, ServerProtocolCapability, VPNServer
+from nebula_api.models.types import RUNNING_SERVER_STATES, CapabilityState, ServerState
 from nebula_api.usage.counters import Clock, read_counters
 from nebula_api.usage.service import UsageSample, UsageService
 
@@ -76,6 +76,7 @@ async def run_usage_poll(
     sources_failed: list[str] = []
     relay_checked: set[str] = set()
     resolver_checked: set[str] = set()
+    served: dict[object, frozenset[str]] = {}
 
     for server in servers:
         client_factory = agent_client_builder
@@ -99,12 +100,16 @@ async def run_usage_poll(
             continue
         sources_failed.extend(f"{server.code}:{name}" for name in reading.sources_failed)
         collected.extend(reading.samples)
+        if reading.served_profiles:
+            served[server.id] = reading.served_profiles
         if "relay" in reading.sources_read:
             relay_checked.add(server.code)
         if "dns" in reading.sources_read:
             resolver_checked.add(server.code)
 
     active = await usage.record(collected)
+    if served:
+        await offer_served_profiles(session_factory, served)
     return UsagePollSummary(
         servers_polled=polled,
         servers_failed=failed,
@@ -114,3 +119,51 @@ async def run_usage_poll(
         relay_checked=relay_checked,
         resolver_checked=resolver_checked,
     )
+
+
+async def offer_served_profiles(
+    session_factory: SessionFactory, served: dict[object, frozenset[str]]
+) -> int:
+    """Offers what each server says it serves (and each one's ad-block twin,
+    the same inbound) where the control plane has no row for it yet: a
+    protocol turned on on a server then reaches its users without anyone
+    running a command here. A row that exists is left as it is, so a protocol
+    an administrator turned off stays off.
+
+    ponytail: adds only. A protocol turned off on the server stays offered
+    until it is turned off here too; removing on the server's word needs every
+    agent to report every profile it serves (the DNS tunnel's does not yet).
+    """
+
+    added = 0
+    async with session_factory() as session:
+        for server_id, codes in served.items():
+            wanted = set(codes) | {f"{code}-adblock" for code in codes}
+            have = set(
+                (
+                    await session.scalars(
+                        select(ServerProtocolCapability.protocol_profile_id).where(
+                            ServerProtocolCapability.vpn_server_id == server_id
+                        )
+                    )
+                ).all()
+            )
+            for profile in (
+                await session.scalars(
+                    select(ProtocolProfile).where(ProtocolProfile.code.in_(wanted))
+                )
+            ).all():
+                if profile.id in have:
+                    continue
+                session.add(
+                    ServerProtocolCapability(
+                        vpn_server_id=server_id,
+                        protocol_profile_id=profile.id,
+                        state=CapabilityState.ENABLED.value,
+                        validated_profile_version=str(profile.version),
+                    )
+                )
+                added += 1
+                _LOGGER.info("offering %s on server %s: it serves it", profile.code, server_id)
+        await session.commit()
+    return added
