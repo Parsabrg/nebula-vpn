@@ -8,12 +8,14 @@ import asyncio
 import json
 from dataclasses import replace
 from typing import cast
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
+from redis.asyncio import Redis
 from test_devices_routes import (
     AUTH_HEADERS,
     DEVICE_ID,
@@ -524,3 +526,45 @@ def test_a_relay_server_that_has_not_reported_is_left_for_later() -> None:
         asyncio.run(fill_relay_ports(cast(Any, lambda: scope()), ServerPorts(_FakeRedis()))) == []
     )
     assert route.ports == {}
+
+
+def test_a_usage_pass_records_busy_ports_and_gives_relay_ports(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import nebula_api.cli as cli_module
+
+    session = AsyncMock()
+    factory = MagicMock(
+        return_value=MagicMock(
+            __aenter__=AsyncMock(return_value=session), __aexit__=AsyncMock(return_value=None)
+        )
+    )
+    summary = MagicMock(busy={"nl": ([443], [])}, relay_checked={}, resolver_checked={})
+    redis = AsyncMock()
+    recorded: list[object] = []
+
+    class Ports:
+        def __init__(self, _redis: object) -> None:
+            pass
+
+        async def record(self, busy: object) -> None:
+            recorded.append(busy)
+
+    monkeypatch.setattr(cli_module, "create_session_factory", lambda _engine: factory)
+    monkeypatch.setattr(cli_module, "UsageService", lambda *_: MagicMock())
+    monkeypatch.setattr(cli_module, "load_panel_relays", AsyncMock(return_value=()))
+    monkeypatch.setattr(cli_module, "run_usage_poll", AsyncMock(return_value=summary))
+    monkeypatch.setattr(Redis, "from_url", staticmethod(lambda _url: redis))
+    monkeypatch.setattr(cli_module, "ServerPorts", Ports)
+    monkeypatch.setattr(cli_module, "fill_relay_ports", AsyncMock(return_value=["thr 2053"]))
+    monkeypatch.setattr(cli_module, "enforce_traffic_quotas", AsyncMock())
+    monkeypatch.setattr(cli_module, "enforce_access_expiry", AsyncMock())
+    monkeypatch.setattr(cli_module, "credentials_awaiting_removal", AsyncMock(return_value=False))
+    settings = MagicMock(xray_client_dns="")
+    settings.relay_list.return_value = ()
+
+    asyncio.run(cli_module._collect_usage_once(settings, MagicMock(), MagicMock()))
+
+    assert recorded == [summary.busy]
+    assert "relay port given: thr 2053" in capsys.readouterr().out
+    redis.aclose.assert_awaited_once_with()
