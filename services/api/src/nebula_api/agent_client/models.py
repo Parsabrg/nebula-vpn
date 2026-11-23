@@ -390,3 +390,5 @@ class CollectUsageResponse(BaseModel):
     samples: list[UsageSampleItem]
     sources_read: list[str]
     sources_failed: list[str]
+    # What the server serves; older agents send nothing.
+    served_profiles: list[str] = []

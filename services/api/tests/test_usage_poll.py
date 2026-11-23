@@ -370,3 +370,44 @@ def test_the_session_is_released_before_any_agent_is_dialled() -> None:
     )
 
     assert dialled == ["yes"]
+
+
+class _Profile:
+    def __init__(self, code: str) -> None:
+        self.id = f"id-{code}"
+        self.code = code
+        self.version = 1
+
+
+class _OfferSession:
+    """First query: the server's existing rows; second: the profiles asked for."""
+
+    def __init__(self, have: list[str], profiles: list[_Profile]) -> None:
+        self.answers: list[list[Any]] = [have, profiles]
+        self.added: list[Any] = []
+
+    async def scalars(self, _statement: object) -> Any:
+        return _Scalars(self.answers.pop(0))
+
+    def add(self, row: object) -> None:
+        self.added.append(row)
+
+    async def commit(self) -> None:
+        return None
+
+
+def test_a_served_protocol_without_a_row_is_offered_and_an_existing_row_is_left() -> None:
+    from nebula_api.usage.poll import offer_served_profiles
+
+    reality, ss2022 = _Profile("vless-reality-vision"), _Profile("shadowsocks-2022")
+    # The administrator turned shadowsocks-2022 off: its row exists and stays.
+    session = _OfferSession(have=[ss2022.id], profiles=[reality, ss2022])
+    added = asyncio.run(
+        offer_served_profiles(
+            _session_factory(cast(FakeSession, session)),
+            {"server-1": frozenset({"vless-reality-vision", "shadowsocks-2022"})},
+        )
+    )
+    assert added == 1
+    assert [row.protocol_profile_id for row in session.added] == [reality.id]
+    assert session.added[0].state == "enabled"

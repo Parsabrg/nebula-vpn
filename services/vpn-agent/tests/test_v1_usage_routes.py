@@ -195,6 +195,7 @@ def test_every_source_failing_still_answers_rather_than_erroring(
         "samples": [],
         "sources_read": [],
         "sources_failed": ["wireguard", "xray"],
+        "served_profiles": [],
     }
 
 
