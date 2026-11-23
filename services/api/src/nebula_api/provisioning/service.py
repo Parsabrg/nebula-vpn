@@ -143,6 +143,11 @@ class TrafficQuotaExhausted(ProvisioningRejected):
         super().__init__("Data limit reached")
 
 
+# Full subscription-link builds per device per rate window; apps fetch every
+# few hours, and a complete build is cached (nebula_api/subscription.py).
+SUBSCRIPTION_BUILDS_PER_WINDOW = 6
+
+
 class ProvisioningRateLimited(ProvisioningRejected):
     """Generic rate denial with a bounded client retry hint."""
 
@@ -582,10 +587,14 @@ class ProvisioningService:
         protocol_profile_code: str,
         request_id: UUID,
         network_prefix: str,
+        rate_limited: bool = True,
     ) -> RequestXrayClientResult:
+        """[rate_limited] False: the caller has counted the request itself
+        (a subscription link, once per build: require_subscription_build)."""
         now = self._now()
         async with self._session_factory() as session:
-            await self._require_rate_limit(session, user_id, network_prefix, request_id)
+            if rate_limited:
+                await self._require_rate_limit(session, user_id, network_prefix, request_id)
 
             device = await session.scalar(
                 select(Device)
@@ -1200,6 +1209,19 @@ class ProvisioningService:
         if address is None:
             raise ProvisioningRejected()
         return address
+
+    async def require_subscription_build(self, device_id: UUID) -> None:
+        """A subscription link's full build: one per protocol it lists would
+        spend the account's whole provisioning allowance on a single fetch
+        once there are a few servers, so a build counts once, in a bucket of
+        its own, and its protocols do not count again."""
+
+        if not await self._redis.rate_limit(
+            (RateBucket("subscription-build", str(device_id)),),
+            limit=SUBSCRIPTION_BUILDS_PER_WINDOW,
+            window_seconds=self._settings.auth_rate_window_seconds,
+        ):
+            raise ProvisioningRateLimited(self._settings.auth_rate_window_seconds)
 
     async def _require_rate_limit(
         self, session: AsyncSession, user_id: UUID, network_prefix: str, request_id: UUID

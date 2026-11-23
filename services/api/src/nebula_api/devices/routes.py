@@ -237,6 +237,7 @@ async def xray_client_for(
     device_id: UUID,
     server_code: str,
     protocol_profile_code: str,
+    rate_limited: bool = True,
 ) -> XrayClientResponse:
     """A device's credential for one profile, as the app is sent it.
 
@@ -264,6 +265,7 @@ async def xray_client_for(
         protocol_profile_code=protocol_profile_code,
         request_id=uuid4(),
         network_prefix=client_network_prefix(request),
+        rate_limited=rate_limited,
     )
     profile = await _service(request).dns_profile_for(user_id=user_id, device_id=device_id)
     # The exit's resolver: a relay forwards to it.
