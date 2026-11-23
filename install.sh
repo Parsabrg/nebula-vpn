@@ -560,8 +560,10 @@ routes="https://$APIHOST:8444,https://$NEBULA_DOMAIN:8445"
 [ -n "$WEB" ] || routes="https://$APIHOST,https://$NEBULA_DOMAIN,$routes"
 # Set once: a rerun or a restore keeps the list the apps already learned
 # (an administrator may have added a CDN address to it).
-envhas() { grep -q "^$1=." $ETC/compose.env; }
-envhas NEBULA_API_ROUTES || setenv NEBULA_API_ROUTES "$routes"
+# Written every run, the same value, so the file stays the same on a rerun.
+envval() { sed -n "s/^$1=//p" $ETC/compose.env | tail -1; }
+was=$(envval NEBULA_API_ROUTES)
+setenv NEBULA_API_ROUTES "${was:-$routes}"
 setenv NEBULA_EMAIL_FROM "$NEBULA_EMAIL_FROM"
 # The resolver image the bundle loaded, by the name it was saved under.
 [ -z "$BUNDLE" ] || setenv NEBULA_DNS_IMAGE adguard/adguardhome:nebula-bundle
@@ -575,7 +577,9 @@ else
 fi
 # What the apps call this server; every install was "Nebula" before. A name
 # an administrator chose stays.
-grep -qE '^NEBULA_DEPLOYMENT_NAME=(Nebula)?$' $ETC/compose.env || ! envhas NEBULA_DEPLOYMENT_NAME   && setenv NEBULA_DEPLOYMENT_NAME "$NEBULA_DOMAIN"
+was=$(envval NEBULA_DEPLOYMENT_NAME)
+[ -n "$was" ] && [ "$was" != Nebula ] || was=$NEBULA_DOMAIN
+setenv NEBULA_DEPLOYMENT_NAME "$was"
 case $NEBULA_EMAIL_MODE in
   resend) setenv NEBULA_EMAIL_PROVIDER resend ;;
   smtp) setenv NEBULA_EMAIL_PROVIDER smtp; setenv NEBULA_SMTP_HOST "$NEBULA_SMTP_HOST"
