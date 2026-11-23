@@ -178,9 +178,25 @@ def _client(auth: _Auth | None = None, account: AccountEntry | None = None) -> T
     app.state.user_auth_service = auth or _Auth()
     app.state.account_service = _Accounts(account)
     app.state.server_discovery_service = _Servers()
+    app.state.provisioning_service = _Builds()
     install_auth_http_safeguards(app, settings)
     app.include_router(subscription.router)
     return TestClient(app)
+
+
+class _Builds:
+    """Counts subscription builds; refuses past [allowed]."""
+
+    def __init__(self, allowed: int = 99) -> None:
+        self.allowed = allowed
+        self.builds = 0
+
+    async def require_subscription_build(self, _device_id: object) -> None:
+        from nebula_api.provisioning.service import ProvisioningRateLimited
+
+        self.builds += 1
+        if self.builds > self.allowed:
+            raise ProvisioningRateLimited(900)
 
 
 def test_new_link_is_a_path() -> None:
@@ -299,3 +315,24 @@ def test_new_link_names_the_iran_relay_server_while_it_is_up(
     topology.chosen = "evil.example.net"
     answer = client.post("/v1/account/subscription", headers={"Authorization": "Bearer t"})
     assert answer.json()["url"] == f"https://cdn.example.org/v1/sub/{_SECRET}"
+
+
+def test_a_build_counts_once_and_its_protocols_not_again(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[object] = []
+
+    async def credential(_request: object, **kwargs: object) -> XrayClientResponse:
+        seen.append(kwargs.get("rate_limited"))
+        return _credential()
+
+    monkeypatch.setattr(subscription, "xray_client_for", credential)
+    subscription._cache.clear()
+    client = _client(account=_account(datetime(2027, 1, 1, tzinfo=UTC)))
+    builds = client.app.state.provisioning_service  # type: ignore[attr-defined]
+    assert client.get(f"/v1/sub/{_SECRET}").status_code == 200
+    assert builds.builds == 1
+    assert seen and set(seen) == {False}
+
+    # Over the limit with nothing cached: refused, not a short list.
+    subscription._cache.clear()
+    builds.allowed = 1
+    assert client.get(f"/v1/sub/{_SECRET}").status_code == 429

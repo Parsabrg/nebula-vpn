@@ -31,7 +31,11 @@ from nebula_api.auth.user_service import (
 )
 from nebula_api.devices.routes import xray_client_for
 from nebula_api.devices.schemas import XrayClientResponse
-from nebula_api.provisioning.service import ProvisioningError
+from nebula_api.provisioning.service import (
+    ProvisioningError,
+    ProvisioningRateLimited,
+    ProvisioningService,
+)
 from nebula_api.relays import relay_list, relays_up, with_relays
 from nebula_api.servers.service import ServerDiscoveryService
 from nebula_api.topology_seed import WIREGUARD_PROTOCOL_CODE
@@ -154,7 +158,13 @@ async def subscription(secret: str, request: Request) -> Response:
     if cached is not None and cached[0] > now:
         body = cached[1]
     else:
-        links, complete = await _links(request, user_id, device_id)
+        try:
+            links, complete = await _links(request, user_id, device_id)
+        except ProvisioningRateLimited:
+            # Fetched too often: the last answer while there is one.
+            if cached is None:
+                raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS) from None
+            links, complete = [], False
         body = base64.b64encode("\n".join(links).encode()).decode()
         if complete:
             if len(_cache) >= _CACHE_MAX:
@@ -198,6 +208,10 @@ async def _links(request: Request, user_id: UUID, device_id: UUID) -> tuple[list
         servers = with_relays(
             servers, relays, await relays_up(request, relays), include_maintenance=False
         )
+    # Counted once for the whole build; its protocols are not counted again.
+    await _service(request, "provisioning_service", ProvisioningService).require_subscription_build(
+        device_id
+    )
     links: list[str] = []
     complete = True
     for server in servers:
@@ -214,6 +228,7 @@ async def _links(request: Request, user_id: UUID, device_id: UUID) -> tuple[list
                     device_id=device_id,
                     server_code=server.code,
                     protocol_profile_code=profile.code,
+                    rate_limited=False,
                 )
             except (ProvisioningError, AuthStateUnavailable, HTTPException):
                 # One profile that cannot be had leaves the others listed.
