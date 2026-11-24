@@ -1349,6 +1349,19 @@ EOF
   exit 0
 fi
 
+# --- Upkeep --------------------------------------------------------------------
+# Every 15 minutes each server's WireGuard peers and Xray clients are matched
+# to the database (a revoked device loses access, a rebuilt server gets its
+# clients back) and usage is collected; once a week old history is pruned.
+
+step "Upkeep"
+for unit in nebula-reconcile.service nebula-reconcile.timer nebula-prune.service nebula-prune.timer; do
+  sed "s#/opt/nebula#$REPO#g" "$REPO/infrastructure/systemd/$unit" > /etc/systemd/system/$unit
+done
+systemctl daemon-reload; systemctl enable --now nebula-reconcile.timer nebula-prune.timer >/dev/null 2>&1
+systemctl start nebula-reconcile.service || warn "the first sweep failed: journalctl -u nebula-reconcile.service"
+ok "reconciled every 15 minutes, pruned weekly"
+
 # --- Backups -------------------------------------------------------------------
 
 step "Backups"
