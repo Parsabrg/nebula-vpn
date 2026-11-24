@@ -57,30 +57,71 @@ void main() {
     // The same details again: nothing to rebuild the server list for.
     expect(await _sync(_Answering(200, _served), store).refresh(), isFalse);
 
-    expect(store.details!.domains, <String>[
+    expect(store.tunnels.single.domains, <String>[
       'nt.example.test',
       'nt.backup.test',
     ]);
-    expect(store.details!.serverCode, 'study-lab-1');
-    expect(store.details!.encryptionMethod, 5);
+    expect(store.tunnels.single.serverCode, 'study-lab-1');
+    expect(store.tunnels.single.encryptionMethod, 5);
+  });
+
+  test("keeps every server's tunnel from a newer server", () async {
+    final InMemoryDnsTunnelStore store = InMemoryDnsTunnelStore();
+    final Map<String, Object> second = <String, Object>{
+      ..._served,
+      'domains': <String>['t2.example.test'],
+      'server_code': 'nl',
+    };
+
+    expect(
+      await _sync(
+        _Answering(200, <String, Object>{
+          ..._served,
+          'tunnels': <Object>[_served, second],
+        }),
+        store,
+      ).refresh(),
+      isTrue,
+    );
+
+    expect(store.tunnels.map((DnsTunnelDetails t) => t.serverCode), <String>[
+      'study-lab-1',
+      'nl',
+    ]);
+    expect(dnsTunnelFor(store.tunnels, 'nl')!.domains, <String>[
+      't2.example.test',
+    ]);
+    expect(dnsTunnelFor(store.tunnels)!.serverCode, 'study-lab-1');
+    expect(dnsTunnelFor(store.tunnels, 'tehran'), isNull);
+  });
+
+  test('a copy an older app saved (one tunnel) still reads', () {
+    final List<DnsTunnelDetails> old = DnsTunnelDetails.listFromJson(
+      jsonDecode(jsonEncode(_served)),
+    );
+    expect(old.single.serverCode, 'study-lab-1');
+    final List<DnsTunnelDetails> saved = DnsTunnelDetails.listFromJson(
+      jsonDecode(jsonEncode(DnsTunnelDetails.listToJson(old))),
+    );
+    expect(saved.single.key, old.single.key);
   });
 
   test('a server without a tunnel (404) clears the stored copy', () async {
     final InMemoryDnsTunnelStore store = InMemoryDnsTunnelStore()
-      ..details = DnsTunnelDetails.fromJson(_served);
+      ..tunnels = DnsTunnelDetails.listFromJson(_served);
 
     expect(await _sync(_Answering(404), store).refresh(), isTrue);
 
-    expect(store.details, isNull);
+    expect(store.tunnels, isEmpty);
   });
 
   test('a failed request keeps the stored copy', () async {
     final InMemoryDnsTunnelStore store = InMemoryDnsTunnelStore()
-      ..details = DnsTunnelDetails.fromJson(_served);
+      ..tunnels = DnsTunnelDetails.listFromJson(_served);
 
     expect(await _sync(_Answering(null), store).refresh(), isFalse);
 
-    expect(store.details, isNotNull);
+    expect(store.tunnels, isNotEmpty);
   });
 
   test('details round-trip through JSON; a missing key is rejected', () {

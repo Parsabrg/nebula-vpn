@@ -569,10 +569,11 @@ mixin _Connecting on _DevicesCore {
 
   /// [config] routed through the DNS tunnel: its engine on a free loopback
   /// port, Xray's outbound dialling that port.
-  Future<String> _throughDnsTunnel(String config) async {
-    final DnsTunnelDetails? details = await ref
-        .read(dnsTunnelStoreProvider)
-        .read();
+  Future<String> _throughDnsTunnel(String config, String serverCode) async {
+    final DnsTunnelDetails? details = dnsTunnelFor(
+      await ref.read(dnsTunnelStoreProvider).read(),
+      serverCode,
+    );
     if (details == null) {
       throw StateError('No DNS tunnel details on this device');
     }
@@ -774,7 +775,7 @@ mixin _Connecting on _DevicesCore {
           );
           aetherCarriesWarp = aetherCarriesWarp && warpIdentity == null;
           if (protocolProfileCode == kDnsTunnelProfileCode) {
-            config = await _throughDnsTunnel(config);
+            config = await _throughDnsTunnel(config, serverCode);
           }
           await _xrayTunnel.connect(
             config,

@@ -15,18 +15,21 @@ const String _kVlessEncProfileCode = 'vless-enc';
 String credentialProfileCode(String code) =>
     code == kDnsTunnelProfileCode ? _kVlessEncProfileCode : code;
 
-/// [servers] with the DNS tunnel offered on the server it reaches, when
+/// [servers] with a DNS tunnel offered on each server one reaches, when
 /// that server lists VLESS Encryption.
 List<AvailableServer> withDnsTunnelProfile(
   List<AvailableServer> servers,
-  DnsTunnelDetails? tunnel,
+  List<DnsTunnelDetails> tunnels,
 ) {
-  if (tunnel == null) {
+  if (tunnels.isEmpty) {
     return servers;
   }
+  final Set<String> reached = <String>{
+    for (final DnsTunnelDetails tunnel in tunnels) tunnel.serverCode,
+  };
   return <AvailableServer>[
     for (final AvailableServer server in servers)
-      if (server.code != tunnel.serverCode)
+      if (!reached.contains(server.code))
         server
       else
         AvailableServer(

@@ -42,6 +42,7 @@ from nebula_api.agent_client.models import (
     RevokeDeviceResponse,
     RevokeXrayClientRequest,
     RevokeXrayClientResponse,
+    SetDnsTunnelRequest,
     SetRelayRequest,
     XrayHealthRequest,
     XrayHealthResponse,
@@ -294,6 +295,13 @@ class AgentClient:
         """Ask the agent's server to be this relay; root applies it there."""
 
         response = await self._post("/v1/relay", request)
+        if response.status_code >= 400:
+            raise AgentRejected(response.status_code, _extract_detail(response))
+
+    async def set_dns_tunnel(self, request: SetDnsTunnelRequest) -> None:
+        """The DNS tunnel the agent's server should serve (desired state)."""
+
+        response = await self._post("/v1/dns-tunnel", request)
         if response.status_code >= 400:
             raise AgentRejected(response.status_code, _extract_detail(response))
 

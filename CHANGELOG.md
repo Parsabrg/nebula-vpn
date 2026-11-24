@@ -8,6 +8,7 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 ## Unreleased
 
 ### Apps
+- The DNS tunnel is offered on every server that has one, not only on one server.
 - "Block ads" in Settings (Routing) blocks ads and trackers on every server and protocol;
   the servers' separate "(Ad-block)" profiles are no longer listed. Someone who had picked
   one finds the switch already on.
@@ -24,6 +25,9 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   the peer back; sign-out, an admin, or the account running out removes it.
 
 ### Admin panel
+- Servers → Manage → DNS tunnel: give a server DNS tunnel names; the dialog lists the
+  DNS records to add (with a copy button) and checks that they work. Also
+  `nebula-api set-dns-tunnel`.
 - Admins page (owners only): add an admin with a one-time password, change a role
   (owner, operator, auditor), disable or re-enable, and see or end their sessions.
   Each change needs a fresh code and is audited. You cannot change or disable
@@ -33,6 +37,9 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   ask for the code. Needs a current browser.
 
 ### Servers
+- Every server gets the DNS tunnel's server; it runs once the server has names, on port 53
+  when nothing else uses it. A tunnel set up before moves to the control plane with its
+  key on the next installer run.
 - Turning a protocol off now revokes its clients at the next reconcile sweep, instead of
   leaving them to fail the sweep (and alert) every 15 minutes.
 - A relay's server can be disabled as an exit and keep relaying: the usage poll still

@@ -104,3 +104,53 @@ export async function loadServerHealth(): Promise<
     ),
   );
 }
+
+export interface DnsTunnelRecord {
+  name: string;
+  type: string;
+  value: string;
+}
+
+export interface DnsTunnelCheck {
+  key: string;
+  ok: boolean;
+  detail: string;
+}
+
+export interface DnsTunnelStatus {
+  serverIp: string | null;
+  records: DnsTunnelRecord[];
+  checks: DnsTunnelCheck[];
+}
+
+/** A server's DNS tunnel names; none turns its tunnel off. */
+export async function setDnsTunnel(
+  serverId: string,
+  domains: string[],
+): Promise<ActionResult<{ domains: string[]; applied: boolean }>> {
+  return toActionResult(
+    apiFetch<{ domains: string[]; applied: boolean }>(
+      `/v1/admin/dns-tunnels/${encodeURIComponent(serverId)}`,
+      { method: "POST", body: { domains } },
+    ),
+  );
+}
+
+/** The records a server's DNS tunnel needs at the DNS provider, and whether they work. */
+export async function checkDnsTunnel(
+  serverId: string,
+): Promise<ActionResult<DnsTunnelStatus>> {
+  return toActionResult(
+    apiFetch<{
+      server_ip: string | null;
+      records: DnsTunnelRecord[];
+      checks: DnsTunnelCheck[];
+    }>(`/v1/admin/dns-tunnels/${encodeURIComponent(serverId)}/check`).then(
+      (body) => ({
+        serverIp: body.server_ip,
+        records: body.records,
+        checks: body.checks,
+      }),
+    ),
+  );
+}

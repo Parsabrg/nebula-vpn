@@ -11,13 +11,13 @@ from pydantic import BaseModel, ConfigDict
 from nebula_agent import __version__
 from nebula_agent.api._dispatch import MAX_OPERATION_BODY_BYTES
 from nebula_agent.api.v1 import router as operations_router
+from nebula_agent.api.v1_dns_tunnel import router as dns_tunnel_router
 from nebula_agent.api.v1_relay import router as relay_router
 from nebula_agent.api.v1_usage import router as usage_router
 from nebula_agent.api.v1_xray import router as xray_operations_router
 from nebula_agent.driver_factory import build_xray_driver
 from nebula_agent.drivers.base import WireGuardDriver
 from nebula_agent.drivers.config_store import ConfigStore
-from nebula_agent.drivers.cottendns import apply_cottendns
 from nebula_agent.drivers.errors import DriverError
 from nebula_agent.drivers.fake import FakeWireGuardRunner
 from nebula_agent.drivers.hysteria_config_store import HYSTERIA_AUTH_PATH, HYSTERIA_AUTH_PORT
@@ -128,11 +128,6 @@ def create_app(
         # then have it replaced underneath.
         hysteria_auth = await _start_hysteria_auth(runtime_settings, runtime_xray_driver)
         await _resync_xray_config(runtime_xray_driver)
-        try:
-            if await apply_cottendns(runtime_settings):
-                _LOGGER.info("rendered the DNS tunnel's config and restarted it")
-        except Exception:
-            _LOGGER.exception("could not render the DNS tunnel's config; serving the existing one")
         app.state.ready = True
         try:
             yield
@@ -166,6 +161,7 @@ def create_app(
     application.include_router(xray_operations_router)
     application.include_router(usage_router)
     application.include_router(relay_router)
+    application.include_router(dns_tunnel_router)
 
     @application.get("/healthz", response_model=ProbeResponse, tags=["probes"])
     async def health() -> ProbeResponse:

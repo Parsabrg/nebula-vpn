@@ -266,13 +266,16 @@ class DioServerRepository implements ServerRepository {
   final Dio _dio;
 
   /// The DNS tunnel's details, where this platform runs it (Android).
-  final Future<DnsTunnelDetails?> Function()? dnsTunnel;
+  final Future<List<DnsTunnelDetails>> Function()? dnsTunnel;
 
   Future<List<AvailableServer>> _withDnsTunnel(
     List<AvailableServer> servers,
   ) async {
     try {
-      return withDnsTunnelProfile(servers, await dnsTunnel?.call());
+      return withDnsTunnelProfile(
+        servers,
+        await dnsTunnel?.call() ?? const <DnsTunnelDetails>[],
+      );
     } catch (_) {
       return servers; // An unreadable keystore offers nothing extra.
     }

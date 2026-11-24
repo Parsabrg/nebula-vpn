@@ -3,6 +3,7 @@ import Link from "next/link";
 import {
   getTrafficSummary,
   getVpnServerReconciliation,
+  listDnsTunnels,
   listVpnServers,
   listReconciliationHistory,
 } from "@/lib/topology";
@@ -103,18 +104,21 @@ export default async function ServerHealthPage({
   // The agents' own answers are not awaited here: they come from the
   // servers, and the slowest can take seconds. ServerHealthLive asks for
   // them once the page is on screen.
-  const [servers, reconciliation, history, traffic] = await Promise.all([
-    listVpnServers(),
-    getVpnServerReconciliation(),
-    listReconciliationHistory({
-      ...(params.server_id ? { serverId: params.server_id } : {}),
-      ...(params.target_id ? { targetId: params.target_id } : {}),
-      ...(params.outcome ? { outcome: params.outcome } : {}),
-      offset,
-      limit: 25,
-    }),
-    getTrafficSummary(),
-  ]);
+  const [servers, reconciliation, history, traffic, dnsTunnels] =
+    await Promise.all([
+      listVpnServers(),
+      getVpnServerReconciliation(),
+      listReconciliationHistory({
+        ...(params.server_id ? { serverId: params.server_id } : {}),
+        ...(params.target_id ? { targetId: params.target_id } : {}),
+        ...(params.outcome ? { outcome: params.outcome } : {}),
+        offset,
+        limit: 25,
+      }),
+      getTrafficSummary(),
+      // A deployment from before DNS tunnels were set here answers 404.
+      listDnsTunnels().catch(() => ({}) as Record<string, string[]>),
+    ]);
   const outstanding = reconciliation.reduce(
     (sum, entry) =>
       sum +
@@ -218,6 +222,7 @@ export default async function ServerHealthPage({
                   code={server.code}
                   name={server.displayName}
                   state={server.state}
+                  dnsTunnel={dnsTunnels[server.id] ?? []}
                 />,
               ],
             }))}

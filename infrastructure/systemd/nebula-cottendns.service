@@ -1,9 +1,10 @@
 [Unit]
-Description=Nebula VPN DNS tunnel server (CottenDNS, behind the port-53 router)
+Description=Nebula VPN DNS tunnel server (CottenDNS)
 Documentation=https://github.com/Parsabrg/nebula-vpn/blob/main/docs/runbooks/dns-tunnel.md
 After=network-online.target
 Wants=network-online.target
-# Rendered by nebula-agent on its first start; until then there is nothing to run.
+# Rendered by nebula-agent once the control plane gives this server tunnel
+# names; until then (or after they are removed) there is nothing to run.
 ConditionPathExists=/etc/nebula/cottendns/server_config.toml
 StartLimitIntervalSec=60
 StartLimitBurst=20
@@ -11,20 +12,21 @@ OnFailure=nebula-alert@%n.service
 
 [Service]
 Type=simple
-# Loopback only (127.0.0.1:5310): the router in front owns port 53. It forwards
-# every connection to the VLESS Encryption inbound and nowhere else.
+# On port 53 of the server's address, or on loopback (127.0.0.1:5310) behind
+# whatever else owns 53 (install.sh decides; agent.env NEBULA_COTTENDNS_LISTEN).
+# It forwards every connection to the VLESS Encryption inbound and nowhere else.
 ExecStart=/usr/local/bin/cottendns-server -config /etc/nebula/cottendns/server_config.toml
 User=nebula-cottendns
 Group=nebula-cottendns
-# The key: /etc/nebula/secrets/cottendns_key, root:nebula-secrets 0640.
-SupplementaryGroups=nebula-secrets
+# The key sits beside the config, in this unit's group (written by the agent).
 StateDirectory=nebula-cottendns
 WorkingDirectory=/var/lib/nebula-cottendns
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
-CapabilityBoundingSet=
-AmbientCapabilities=
+# Port 53 is below 1024; nothing else.
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true

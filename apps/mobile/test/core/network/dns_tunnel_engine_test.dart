@@ -71,7 +71,7 @@ void main() {
           profiles: <AvailableProfile>[profile('vless-enc')],
         ),
       ],
-      _details,
+      <DnsTunnelDetails>[_details],
     );
 
     expect(servers[0].profiles.map((AvailableProfile p) => p.code), <String>[

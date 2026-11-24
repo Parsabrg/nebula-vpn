@@ -51,6 +51,7 @@ def test_agent_exposes_only_the_allowlisted_operation_surface() -> None:
         # Desired state, written for root to apply after checking it again
         # (api/v1_relay.py, nebula-relay.path).
         "/v1/relay",
+        "/v1/dns-tunnel",
     }
 
 

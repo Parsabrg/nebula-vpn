@@ -503,6 +503,28 @@ class RelayRoute(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     ports: Mapped[dict[str, int]] = mapped_column(JSONB, nullable=False)
 
 
+class DnsTunnel(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A server's DNS tunnel (docs/runbooks/dns-tunnel.md): the names delegated
+    to it and the tunnel's key. The key is handed to every signed-in app (it
+    reaches only the server's VLESS Encryption inbound, which still wants a
+    credential), so it is kept here, apart from the server's own secrets."""
+
+    __tablename__ = "dns_tunnels"
+    __table_args__ = (
+        CheckConstraint("key ~ '^[0-9a-f]{32}$'", name="key_format"),
+        UniqueConstraint("vpn_server_id", name="uq_dns_tunnels_vpn_server_id"),
+    )
+
+    vpn_server_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("vpn_servers.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    # Tried in turn by the app: a second name on another domain is a backup.
+    domains: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    key: Mapped[str] = mapped_column(String(32), nullable=False)
+
+
 class DeploymentChoice(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """A choice an administrator makes for the whole deployment, by name:
     "subscription_host" is the address subscription links name ("auto", or a

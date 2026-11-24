@@ -34,6 +34,7 @@ from nebula_api.models.provisioning import (
 )
 from nebula_api.models.topology import (
     DeploymentChoice,
+    DnsTunnel,
     Protocol,
     ProtocolProfile,
     ProtocolProfilePlatform,
@@ -60,6 +61,7 @@ __all__ = [
     "DeploymentChoice",
     "Device",
     "DeviceProtocolCredential",
+    "DnsTunnel",
     "EmailDelivery",
     "NodeEnrollmentToken",
     "PasswordResetToken",
