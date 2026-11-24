@@ -37,6 +37,8 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   ask for the code. Needs a current browser.
 
 ### Servers
+- The installer's DNS check gives up on DNS over HTTPS after 8 seconds and uses the system
+  resolver; where DoH is filtered it could hang for up to 40 minutes.
 - A relay server rebuilt from scratch gets its relays back at the next reconcile sweep
   (`nebula-api push-relays`, every 15 minutes) instead of waiting for someone to add them
   again; a relay that has not changed is not applied again.

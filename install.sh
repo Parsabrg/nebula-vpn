@@ -725,7 +725,8 @@ fi
 
 step "DNS"
 resolve() {
-  { fetch -H 'accept: application/dns-json' "https://cloudflare-dns.com/dns-query?name=$1&type=A" 2>/dev/null \
+  # Short: DoH can hang where it is filtered (Iran), and getent follows.
+  { fetch --retry 0 -m 8 -H 'accept: application/dns-json' "https://cloudflare-dns.com/dns-query?name=$1&type=A" 2>/dev/null \
       | grep -oE '"data":"[0-9.]+"' | tail -1 | cut -d'"' -f4; } || true
 }
 dns_ok() {
