@@ -1,7 +1,7 @@
 name: nebula_mobile
 description: Nebula VPN Android and Windows client shell.
 publish_to: none
-version: 0.1.41+2105
+version: 0.1.42+2106
 
 environment:
   sdk: ">=3.14.0 <4.0.0"
