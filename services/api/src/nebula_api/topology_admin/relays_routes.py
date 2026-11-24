@@ -17,7 +17,14 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from nebula_api.auth.admin_authorization import authorize_admin_mutation, require_admin_session
 from nebula_api.auth.http import apply_auth_response_headers
 from nebula_api.models.types import AdminRole
-from nebula_api.relays import Relay, RelayCatalog, RelayHealth, base_profile, relay_list
+from nebula_api.relays import (
+    Relay,
+    RelayCatalog,
+    RelayHealth,
+    base_profile,
+    relay_list,
+    report_base,
+)
 from nebula_api.topology_admin.service import TopologyAdminService
 
 _LOGGER = logging.getLogger(__name__)
@@ -113,7 +120,7 @@ async def list_relays(request: Request, response: Response) -> RelayListResponse
         )
 
     return RelayListResponse(
-        items=[item(relay) for relay in relays], report_url=_report_base(request)
+        items=[item(relay) for relay in relays], report_url=report_base(request.app.state.settings)
     )
 
 
@@ -187,19 +194,13 @@ async def remove_relay(code: str, request: Request, response: Response) -> Respo
     return Response(status_code=status.HTTP_204_NO_CONTENT, headers=dict(response.headers))
 
 
-def _report_base(request: Request) -> str:
-    settings = request.app.state.settings
-    cdns = [name.strip() for name in settings.cdn_host.split(",") if name.strip()]
-    return f"https://{cdns[0]}" if cdns else str(settings.api_public_url).rstrip("/")
-
-
 async def _push(request: Request, via_server_id: UUID) -> None:
     """Set the relay server up, or take it down; the setup commands in the
     panel remain the way when its agent cannot be reached now."""
 
     applied = await _service(request).push_relay(
         via_server_id=via_server_id,
-        report_base=_report_base(request),
+        report_base=report_base(request.app.state.settings),
         report_token=request.app.state.settings.relay_report_token.get_secret_value(),
     )
     if not applied:

@@ -64,10 +64,17 @@ from nebula_api.provisioning.reconciliation import (
     run_xray_reconciliation,
 )
 from nebula_api.provisioning.revocation import credentials_awaiting_removal
-from nebula_api.relays import RelayHealth, ServerPorts, fill_relay_ports, load_panel_relays
+from nebula_api.relays import (
+    RelayHealth,
+    ServerPorts,
+    fill_relay_ports,
+    load_panel_relays,
+    report_base,
+)
 from nebula_api.retention import PruneSummary, RetentionPolicy, prune_history
 from nebula_api.seed_admin import SeedAdminStatus, seed_initial_admin
 from nebula_api.settings import Settings
+from nebula_api.topology_admin.service import TopologyAdminService
 from nebula_api.topology_seed import (
     EnableCapabilityStatus,
     SeedProtocolResult,
@@ -316,6 +323,10 @@ def build_parser() -> argparse.ArgumentParser:
     commands.add_parser(
         "push-dns-tunnels",
         help="tell every server's agent its DNS tunnel again (the reconcile sweep)",
+    )
+    commands.add_parser(
+        "push-relays",
+        help="tell every relay server what to forward again (the reconcile sweep)",
     )
     enroll_token = commands.add_parser(
         "create-enrollment-token",
@@ -993,6 +1004,27 @@ async def run_push_dns_tunnels() -> int:
     return 0
 
 
+async def run_push_relays() -> int:
+    settings = Settings()
+    engine = _build_engine(settings)
+    try:
+        service = TopologyAdminService(
+            create_session_factory(engine),
+            agent_client_builder=_agents_keeping_counters(settings, engine),
+        )
+        missed = await service.push_all_relays(
+            report_base=report_base(settings),
+            report_token=settings.relay_report_token.get_secret_value(),
+        )
+    finally:
+        await engine.dispose()
+    # As with DNS tunnels: a server out of reach now hears at its check-in.
+    print(
+        "Relays told to every relay server." if not missed else f"Not reached: {', '.join(missed)}"
+    )
+    return 0
+
+
 async def run_create_enrollment_token(*, label: str, minutes: int, rebuild: bool = False) -> int:
     settings = Settings()
     engine = _build_engine(settings)
@@ -1617,6 +1649,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     key_file=arguments.key_file,
                 )
             )
+        if arguments.command == "push-relays":
+            return asyncio.run(run_push_relays())
         if arguments.command == "push-dns-tunnels":
             return asyncio.run(run_push_dns_tunnels())
         if arguments.command == "create-enrollment-token":

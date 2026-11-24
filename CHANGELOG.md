@@ -37,6 +37,9 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   ask for the code. Needs a current browser.
 
 ### Servers
+- A relay server rebuilt from scratch gets its relays back at the next reconcile sweep
+  (`nebula-api push-relays`, every 15 minutes) instead of waiting for someone to add them
+  again; a relay that has not changed is not applied again.
 - Every server gets the DNS tunnel's server; it runs once the server has names, on port 53
   when nothing else uses it. A tunnel set up before moves to the control plane with its
   key on the next installer run.

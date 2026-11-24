@@ -38,9 +38,18 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from nebula_api.db.engine import SessionFactory
+    from nebula_api.settings import Settings
 
 _CODE = r"^[a-z0-9][a-z0-9_-]{0,63}$"
 RELAY_UP_SECONDS = 90
+
+
+def report_base(settings: "Settings") -> str:
+    """Where relay servers report in: the first CDN name, which Iran reaches
+    more often than the API's own address."""
+
+    cdns = [name.strip() for name in settings.cdn_host.split(",") if name.strip()]
+    return f"https://{cdns[0]}" if cdns else str(settings.api_public_url).rstrip("/")
 
 
 def base_profile(code: str) -> str:
@@ -281,12 +290,10 @@ async def relay_reports_up(code: str, request: Request) -> Response:
     service = getattr(request.app.state, "topology_admin_service", None)
     via_id = await _panel_via(request, relay.code)
     if service is not None and via_id is not None:
-        cdns = [name.strip() for name in settings.cdn_host.split(",") if name.strip()]
-        base = f"https://{cdns[0]}" if cdns else str(settings.api_public_url).rstrip("/")
         from nebula_api.topology_admin.service import relay_env
 
         planned = await service.relay_request(
-            via_server_id=via_id, report_base=base, report_token=expected
+            via_server_id=via_id, report_base=report_base(settings), report_token=expected
         )
         if planned is not None:
             return Response(content=relay_env(planned[1]), media_type="text/plain")

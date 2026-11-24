@@ -98,15 +98,20 @@ def _settings(request: Request) -> Settings:
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(enforce_body_size_limit)],
 )
-async def set_relay(
+def set_relay(
     payload: SetRelayRequest, settings: Annotated[Settings, Depends(_settings)]
 ) -> Response:
     path = Path(str(settings.relay_request_file))
+    wanted = relay_env(payload)
+    # The sweep tells every relay again: the same file would only make root
+    # apply it again (the path unit fires on every write).
+    if path.is_file() and path.read_text(encoding="utf-8") == wanted:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + ".tmp")
     # The report token is in it: readable by root and this agent only.
     descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-        handle.write(relay_env(payload))
+        handle.write(wanted)
     temporary.replace(path)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

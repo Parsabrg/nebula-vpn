@@ -51,7 +51,11 @@ check-in (`infrastructure/relay/relay-report.sh`) goes outward through the
 CDN instead, and the control plane answers it with what the relay should be;
 the relay saves that when it changed, and step 2 applies it. A relay that is
 reporting in therefore follows the panel within a minute either way. Its very
-first setup still needs the agent reached once, or the manual commands.
+first setup still needs the agent reached once, or the manual commands. The
+reconcile sweep tells every relay server again every 15 minutes
+(`nebula-api push-relays`), so a relay server reinstalled from scratch gets
+its relays back without anyone adding them again; an unchanged relay is left
+as it is.
 
 A server can carry several panel relays, one per exit ("Germany via Tehran",
 "Netherlands via Tehran"), each on its own ports: Add refuses a port another

@@ -523,6 +523,26 @@ class TopologyAdminService:
             return False
         return True
 
+    async def push_all_relays(self, *, report_base: str, report_token: str) -> list[str]:
+        """Tell every relay server again what to forward (the reconcile
+        sweep): a server rebuilt from scratch has no relay and so no check-in
+        until told. The codes of servers not reached; their check-in, or a
+        later sweep, brings the same settings."""
+
+        async with self._session_factory() as session:
+            vias = list(await session.scalars(select(RelayRoute.via_server_id).distinct()))
+            codes = {
+                server.id: server.code
+                for server in await session.scalars(select(VPNServer).where(VPNServer.id.in_(vias)))
+            }
+        missed = []
+        for via in vias:
+            if not await self.push_relay(
+                via_server_id=via, report_base=report_base, report_token=report_token
+            ):
+                missed.append(codes.get(via, str(via)))
+        return missed
+
     async def choice(self, key: str) -> str | None:
         """What the administrators chose for [key], or None for the default."""
 

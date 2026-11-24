@@ -113,6 +113,15 @@ def test_a_panel_relay_round_trips() -> None:
             assert host == f"agent-thr-{unique}.internal.test"
             assert request.target == exit_ip
             assert request.report_url == f"https://cdn.example.test/v1/relays/{code}/up"
+            # The sweep tells every relay server again (a rebuilt one has none).
+            sent.clear()
+            assert (
+                await service.push_all_relays(
+                    report_base="https://cdn.example.test", report_token="t" * 32
+                )
+                == []
+            )
+            assert (f"agent-thr-{unique}.internal.test", request) in sent
             # One exit per relay server.
             with pytest.raises(ValueError):
                 await service.add_relay(
