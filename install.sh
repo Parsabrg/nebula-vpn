@@ -461,15 +461,19 @@ CERT=/etc/letsencrypt/live/$CERTNAME
 # New installs also serve the panel, API and XHTTP on TCP 443 (nginx picks the
 # site by name) and Hysteria2 on UDP 443. An existing server keeps the ports
 # its apps know (docs/runbooks/port-443.md).
+# A server rebuilt from scratch keeps the port its apps and relays know when
+# given as NEBULA_XRAY_PUBLIC_PORT (e.g. 8445 where a relay forwards 443).
 if [ -f $ETC/agent.env ]; then
   XPORT=$(sed -n 's/^NEBULA_XRAY_PUBLIC_PORT=//p' $ETC/agent.env | tail -1); XPORT=${XPORT:-8445}
 else
-  XPORT=443
+  XPORT=${NEBULA_XRAY_PUBLIC_PORT:-443}
+  [[ $XPORT =~ ^(443|8445)$ ]] || die "NEBULA_XRAY_PUBLIC_PORT is 443 or 8445"
 fi
 if [ "$XPORT" = 443 ]; then WEB=""; else WEB=":8444"; fi
 # The bundle's panel image carries no public address of its own, which only
-# a panel on 443 does without.
-[ -z "$BUNDLE" ] || [ -z "$WEB" ] || die "a bundle installs servers on port 443; this one uses 8444, so install it online"
+# a panel on 443 does without. A joined server has no panel.
+[ -z "$BUNDLE" ] || [ -z "$WEB" ] || [ -n "$JOIN_URL" ] \
+  || die "a bundle installs the first server on port 443; this one uses 8444, so install it online"
 
 step "Administrator"
 ask NEBULA_ADMIN_EMAIL "Admin email$([ -n "$JOIN_URL" ] && echo " (for certificate expiry notices)")"

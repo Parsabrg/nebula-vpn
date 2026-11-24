@@ -12,9 +12,12 @@ downloads, and the agent's Python wheels. Still needed from the network:
 the distribution's packages (`apt`, which has mirrors inside Iran) and the
 certificate (Let's Encrypt, or bring your own).
 
-The bundle is for new installs on amd64, served on port 443
-(`docs/runbooks/port-443.md`). An existing server, an arm64 one, or one on
-8444 installs online as before.
+The bundle is for new installs on amd64. The first server (the one with the
+panel) must be served on port 443 (`docs/runbooks/port-443.md`); a joined
+server may use either. A joined server rebuilt from scratch keeps the port
+its apps and relays know when given `NEBULA_XRAY_PUBLIC_PORT=8445` (needed
+where a relay on that server forwards 443). An existing first server on
+8444, or an arm64 one, installs online as before.
 
 ## Steps
 
