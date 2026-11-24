@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from functools import partial
 from typing import Any, Literal, cast
 from uuid import UUID
 
@@ -24,7 +25,7 @@ from nebula_api.accounts.routes import router as account_request_router
 from nebula_api.accounts.service import AccountRequestService
 from nebula_api.admin_management import AdminManagementService
 from nebula_api.admin_management import router as admin_management_router
-from nebula_api.agent_client.client import AgentClient
+from nebula_api.agent_client.client import AgentClient, AgentClientBuilder
 from nebula_api.api_routes import router as api_routes_router
 from nebula_api.audit.routes import router as audit_log_router
 from nebula_api.audit.service import AuditLogService
@@ -36,11 +37,12 @@ from nebula_api.auth.redis_state import RedisAuthState, RedisClient
 from nebula_api.auth.user_routes import router as user_auth_router
 from nebula_api.auth.user_service import PasswordResetDelivery, UserAuthService
 from nebula_api.client_release import router as client_release_router
-from nebula_api.db.engine import create_database_engine, create_session_factory
+from nebula_api.db.engine import SessionFactory, create_database_engine, create_session_factory
 from nebula_api.db.schema import schema_is_current
 from nebula_api.devices.routes import router as devices_router
 from nebula_api.dns_profiles import ResolverHealth
 from nebula_api.dns_tunnel import router as dns_tunnel_router
+from nebula_api.dns_tunnels import list_tunnels
 from nebula_api.email_deliveries.routes import router as email_delivery_router
 from nebula_api.email_deliveries.service import EmailDeliveryService
 from nebula_api.enrollment.routes import admin_router as enrollment_admin_router
@@ -59,6 +61,7 @@ from nebula_api.servers.routes import router as server_discovery_router
 from nebula_api.servers.service import ServerDiscoveryService
 from nebula_api.settings import Settings, get_settings
 from nebula_api.subscription import router as subscription_router
+from nebula_api.topology_admin.dns_tunnel_routes import router as dns_tunnel_admin_router
 from nebula_api.topology_admin.relays_routes import router as relays_admin_router
 from nebula_api.topology_admin.routes import router as topology_admin_router
 from nebula_api.topology_admin.service import TopologyAdminService
@@ -115,6 +118,8 @@ def create_app(
     effective_provisioning_service = provisioning_service
     effective_server_discovery_service = server_discovery_service
     relay_catalog: RelayCatalog | None = None
+    dns_tunnel_sessions: SessionFactory | None = None
+    dns_tunnel_agents: AgentClientBuilder | None = None
     effective_account_service = account_service
     effective_access_service = access_service
     effective_readiness_check: ReadinessCheck
@@ -243,6 +248,8 @@ def create_app(
                 create_session_factory(database_engine)
             )
         relay_catalog = RelayCatalog(create_session_factory(database_engine))
+        dns_tunnel_sessions = create_session_factory(database_engine)
+        dns_tunnel_agents = agent_client_builder
         effective_usage_service = UsageService(
             create_session_factory(database_engine), key_material
         )
@@ -324,6 +331,13 @@ def create_app(
         RelayHealth(cast(Any, redis_client)) if redis_client is not None else None
     )
     application.state.relay_catalog = relay_catalog
+    # DNS tunnels (dns_tunnels.py): the list apps get, and what the admin
+    # routes change and push to the servers' agents.
+    application.state.dns_tunnel_sessions = dns_tunnel_sessions
+    application.state.dns_tunnel_agents = dns_tunnel_agents
+    application.state.dns_tunnel_source = (
+        partial(list_tunnels, dns_tunnel_sessions) if dns_tunnel_sessions else None
+    )
     application.state.account_service = effective_account_service
     application.state.usage_service = effective_usage_service
     application.state.enrollment_service = effective_enrollment_service
@@ -355,6 +369,7 @@ def create_app(
     application.include_router(account_router)
     application.include_router(subscription_router)
     application.include_router(relay_report_router)
+    application.include_router(dns_tunnel_admin_router)
     application.include_router(relays_admin_router)
     application.include_router(subscription_link_admin_router)
     application.include_router(enrollment_router)

@@ -565,9 +565,10 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
       if (!Platform.isAndroid || !ref.mounted) {
         return;
       }
-      final DnsTunnelDetails? details = await ref
-          .read(dnsTunnelStoreProvider)
-          .read();
+      // Which resolvers answer depends on the network, not the tunnel.
+      final DnsTunnelDetails? details = dnsTunnelFor(
+        await ref.read(dnsTunnelStoreProvider).read(),
+      );
       if (details != null && ref.mounted) {
         await ref.read(dnsTunnelResolversProvider).refreshIfDue(details);
       }

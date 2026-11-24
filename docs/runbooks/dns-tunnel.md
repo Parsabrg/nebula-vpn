@@ -9,87 +9,90 @@ ADR 0004, "2026-11-05 revision"; this page is the server half. The app half
 ## How it fits together
 
 ```
-phone -> ISP resolver -> ... -> NS for nt.<domain> = this server, port 53
-      -> CottenRouter (owns port 53; one rule per name)
-      -> CottenDNS for Nebula on 127.0.0.1:5310 (nebula-cottendns.service)
+phone -> ISP resolver -> ... -> NS for t1.<domain> = this server, port 53
+      -> CottenDNS (nebula-cottendns.service) on port 53 of the server's
+         address, or on 127.0.0.1:5310 behind whatever else owns port 53
       -> 127.0.0.1:8453, this server's VLESS Encryption inbound, only
 ```
 
+- **Per server.** Any server can have its own tunnel, with up to four names
+  (the first is used, the rest are backups, e.g. on another domain). The
+  control plane keeps each server's names and key (`dns_tunnels` table) and
+  tells the server's agent (`POST /v1/dns-tunnel` on the agent); the reconcile
+  sweep tells every agent again (`nebula-api push-dns-tunnels`), so a rebuilt
+  server or a missed push catches up within 15 minutes.
 - **Fixed target.** CottenDNS forwards every connection to the VLESS
   Encryption inbound and nowhere else. The tunnel key alone reaches nothing:
   the app still needs its Nebula credential there, so revocation and
   allowances work as on any other route, and the traffic is encrypted twice.
 - **Encryption.** AES-256-GCM only (`DATA_ENCRYPTION_METHOD = 5`,
-  `ENCRYPTION_AUTO_DETECT = false`); the key is
-  `/etc/nebula/secrets/cottendns_key` (32 hex characters, root:nebula-secrets
-  0640). CottenMax (beta, 8-byte tag) has no server switch: Nebula's client
-  never selects it.
-- **Install.** `install.sh` installs it only when given a name: a pinned
-  CottenDNS release checked by sha256 (`COTTENDNS_VERSION`), its own
-  unprivileged user, a hardened unit, and the agent renders
-  `/etc/nebula/cottendns/server_config.toml` and restarts it. It needs VLESS
-  Encryption turned on (`--configure`). The offline bundle carries it too.
+  `ENCRYPTION_AUTO_DETECT = false`); a 32-hex-character key per server, made
+  by the control plane, written by the agent beside the config
+  (`/etc/nebula/cottendns/key`, group `nebula-cottendns`, 0640). CottenMax
+  (beta, 8-byte tag) has no server switch: Nebula's client never selects it.
+- **Install.** `install.sh` installs CottenDNS on every server: a pinned
+  release checked by sha256 (`COTTENDNS_VERSION`, also in the offline bundle),
+  its own unprivileged user, and a hardened unit whose only capability is
+  binding port 53. It runs once the server has names. Where it listens is
+  decided by the installer: port 53 on the server's address when nothing else
+  has it (the firewall opens 53/udp and 53/tcp), else loopback port 5310
+  behind whatever owns 53, which is left alone. It needs VLESS Encryption on
+  that server (`--configure`).
 
-## Turning it on (owner)
+## Turning it on
 
-The names are settings, never built into the app: the API lists them and the
-app tries each in turn, so a name can be added or moved without an app update.
-For now (2026-11-05) the one name is `nt.my-study-lab.org`; a backup on a
-free EU.org domain is to be added once it is approved. The WhiteDNS
-tunnels (`ct.`, `st.`) share the domain and are left alone.
+**Admin panel:** Servers → Manage → **DNS tunnel**: type the name (for
+example `t1.example.org`) and Save. The dialog then lists the two records to
+add at the DNS provider, with a copy button, and checks them: the name is
+delegated to this server, and something answers on port 53.
 
-1. **DNS records** for `my-study-lab.org` in Cloudflare, both *DNS only* (the
-   grey cloud, never proxied):
+**Admin command** (in the API container), the same:
 
-   | Type | Name | Content |
-   |---|---|---|
-   | A | `ns-nt` (`ns-nt.my-study-lab.org`) | `91.107.170.215` |
-   | NS | `nt` (`nt.my-study-lab.org`) | `ns-nt.my-study-lab.org` |
+```sh
+nebula-api set-dns-tunnel --server-code <code> --domains t1.example.org
+nebula-api set-dns-tunnel --server-code <code> --domains ""   # off
+```
 
-   The nameserver sits beside the delegated name, not inside it: Cloudflare
-   cannot hold glue for a name within a zone it delegates away.
+**Installer:** `NEBULA_COTTENDNS_DOMAINS=t1.example.org` on the first server
+saves the name for that server (once; the panel owns it from then on). A
+tunnel set up before this (names in `agent.env`, key in
+`/etc/nebula/secrets/cottendns_key`) moves to the control plane with its key
+on the next installer run, so apps that hold the key keep working. On a
+joined server the installer points to the panel.
 
-2. **The router rule**, added to `routes` in `/etc/cottenrouter/config.json`,
-   then restart CottenRouter. Nothing else in that file changes:
+**DNS records**, at the DNS provider, both *DNS only* (never proxied):
 
-   ```json
-   {
-     "name": "nebula",
-     "domains": ["nt.my-study-lab.org"],
-     "backend": "127.0.0.1:5310",
-     "tcp_backend": "127.0.0.1:5310"
-   }
-   ```
+| Type | Name | Value |
+|---|---|---|
+| NS | `t1.example.org` | `ns-t1.example.org` |
+| A | `ns-t1.example.org` | the server's address |
 
-   A backup name later goes into the same `domains` list.
+The nameserver sits beside the delegated name, not inside it: a zone cannot
+hold glue for a name it delegates away.
 
-3. **The server**, with VLESS Encryption already on:
+**Port 53 owned by another program** (another DNS tunnel or router): the
+tunnel listens on 127.0.0.1:5310 and that program forwards the tunnel's
+names there. For CottenRouter, a rule in `routes` of
+`/etc/cottenrouter/config.json`:
 
-   ```sh
-   sudo env NEBULA_COTTENDNS_DOMAINS=nt.my-study-lab.org ./install.sh
-   systemctl is-active nebula-cottendns
-   ```
+```json
+{
+  "name": "nebula",
+  "domains": ["t1.example.org"],
+  "backend": "127.0.0.1:5310",
+  "tcp_backend": "127.0.0.1:5310"
+}
+```
 
-   On a server whose nginx was set up by hand (Germany), do the same steps by
-   hand instead of rerunning the installer: binary and hash as in
-   `install.sh`, the user, the key, the unit, and
-   `NEBULA_COTTENDNS_DOMAINS` in `agent.env`, then restart the agent. A
-   second name is added to the comma-separated list.
-
-4. **The API**, in `/etc/nebula/compose.env`, then recreate `api`:
-
-   ```
-   NEBULA_DNS_TUNNEL_DOMAINS=nt.my-study-lab.org
-   NEBULA_DNS_TUNNEL_SERVER=study-lab-1
-   ```
-
-   Signed-in apps then read the names, the key and the server from
-   `GET /v1/dns-tunnel/` and keep them for when the API is out of reach.
+Signed-in apps read every server's names, key and server from
+`GET /v1/dns-tunnel/` (`tunnels`; the first one also at the top level, for
+apps from before there could be several) and keep them for when the API is
+out of reach.
 
 ## The app (Android)
 
-The app keeps the names, key and server from `GET /v1/dns-tunnel/` in secure
-storage. It runs the CottenDNS client (`libcottendns_client.so`, from the same
+The app keeps every server's names, key and server from `GET /v1/dns-tunnel/`
+in secure storage. It runs the CottenDNS client (`libcottendns_client.so`, from the same
 release, pinned in `apps/mobile/third_party_src/vendor_plugin.py`) as a child
 process in TCP mode on a random loopback port; Xray's VLESS Encryption
 outbound to the named server dials that port, so the person's own credential
@@ -118,19 +121,17 @@ and, on a tap, which.
 - A network's list older than a week is retested on connect (at most 30 s),
   and on Wi-Fi when the app opens.
 
-Phone, 2026-11-06: a 7,629-resolver list on MCI found 10 in 21 s and 30 in
-3 min; on Wi-Fi the tunnel connected in 25 s (18 s on reconnect), 70 KB/s,
-Google, Telegram, GitHub and YouTube loading.
-
 ## Checking
 
+The panel's check does both of these from the control plane:
+
 ```sh
-dig +short @127.0.0.1 -p 5310 x.nt.my-study-lab.org TXT   # CottenDNS answers
-dig +short NS nt.my-study-lab.org @1.1.1.1                # the delegation is live
+dig +short NS t1.example.org @1.1.1.1            # the delegation is live
+dig @<server address> x.t1.example.org TXT       # something answers on port 53
 ```
 
-The real test is a phone on MCI, Irancell and home internet with public
-resolvers blocked, compared with the WhiteDNS app on the same server.
+The real test is a phone on each mobile carrier and on home internet with
+public resolvers blocked.
 
-Turning it off: remove the router rule, `systemctl disable --now
-nebula-cottendns`, and empty the two compose settings.
+Turning it off: empty the name in the panel (or `set-dns-tunnel --domains
+""`); the agent stops the server and removes its config and key.

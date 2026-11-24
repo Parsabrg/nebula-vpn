@@ -5,6 +5,7 @@ import asyncio
 import contextlib
 import getpass
 import os
+import re
 import secrets
 import signal
 import sys
@@ -44,6 +45,9 @@ from nebula_api.bootstrap import (
 from nebula_api.db.engine import create_database_engine, create_session_factory
 from nebula_api.db.schema import SCHEMA_HEAD, schema_is_current
 from nebula_api.dns_profiles import ResolverHealth
+from nebula_api.dns_tunnels import clean_names, set_tunnel
+from nebula_api.dns_tunnels import push as push_dns_tunnel
+from nebula_api.dns_tunnels import push_all as push_all_dns_tunnels
 from nebula_api.enrollment.service import EnrollmentService, certificate_hostnames
 from nebula_api.models.topology import VPNServer
 from nebula_api.pki import (
@@ -294,6 +298,24 @@ def build_parser() -> argparse.ArgumentParser:
         "--unmetered",
         action="store_true",
         help="remove the allowance entirely, so the account has no limit",
+    )
+    dns_tunnel = commands.add_parser(
+        "set-dns-tunnel",
+        help="give a server DNS tunnel names (none: no tunnel there), as the panel does",
+    )
+    dns_tunnel.add_argument("--server-code", required=True)
+    dns_tunnel.add_argument(
+        "--domains", default="", help="comma-separated names delegated to the server"
+    )
+    dns_tunnel.add_argument(
+        "--key-file",
+        type=Path,
+        default=None,
+        help="keep this key (a tunnel moved here from a server's own settings)",
+    )
+    commands.add_parser(
+        "push-dns-tunnels",
+        help="tell every server's agent its DNS tunnel again (the reconcile sweep)",
     )
     enroll_token = commands.add_parser(
         "create-enrollment-token",
@@ -918,6 +940,59 @@ def _enrollment_service(settings: Settings, engine: AsyncEngine) -> EnrollmentSe
     )
 
 
+async def run_set_dns_tunnel(*, server_code: str, domains: str, key_file: Path | None) -> int:
+    try:
+        names = clean_names(domains.split(","))
+        key = (
+            (await asyncio.to_thread(key_file.read_text, encoding="utf-8")).strip()
+            if key_file
+            else None
+        )
+    except (ValueError, OSError) as error:
+        print(f"set-dns-tunnel: {error}", file=sys.stderr)
+        return 2
+    if key is not None and not re.fullmatch(r"[0-9a-f]{32}", key):
+        print("set-dns-tunnel: the key file does not hold a 32-character hex key", file=sys.stderr)
+        return 2
+    settings = Settings()
+    engine = _build_engine(settings)
+    try:
+        sessions = create_session_factory(engine)
+        async with sessions() as session:
+            server_id = await session.scalar(
+                select(VPNServer.id).where(VPNServer.code == server_code)
+            )
+        if server_id is None:
+            print(f"set-dns-tunnel: no server {server_code}", file=sys.stderr)
+            return 1
+        await set_tunnel(sessions, server_id=server_id, domains=names, key=key)
+        applied = await push_dns_tunnel(
+            sessions, _agents_keeping_counters(settings, engine), server_id
+        )
+    finally:
+        await engine.dispose()
+    what = ", ".join(names) or "no DNS tunnel"
+    print(f"{server_code}: {what}" + ("" if applied else " (its agent is told at the next sweep)"))
+    return 0
+
+
+async def run_push_dns_tunnels() -> int:
+    settings = Settings()
+    engine = _build_engine(settings)
+    try:
+        missed = await push_all_dns_tunnels(
+            create_session_factory(engine), _agents_keeping_counters(settings, engine)
+        )
+    finally:
+        await engine.dispose()
+    # Not a failure of the sweep: a server out of reach (one in Iran, from
+    # abroad) is told at a later one.
+    print(
+        "DNS tunnels told to every server." if not missed else f"Not reached: {', '.join(missed)}"
+    )
+    return 0
+
+
 async def run_create_enrollment_token(*, label: str, minutes: int, rebuild: bool = False) -> int:
     settings = Settings()
     engine = _build_engine(settings)
@@ -1534,6 +1609,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             return asyncio.run(run_reconcile_wireguard())
         if arguments.command == "reconcile-xray":
             return asyncio.run(run_reconcile_xray())
+        if arguments.command == "set-dns-tunnel":
+            return asyncio.run(
+                run_set_dns_tunnel(
+                    server_code=arguments.server_code,
+                    domains=arguments.domains,
+                    key_file=arguments.key_file,
+                )
+            )
+        if arguments.command == "push-dns-tunnels":
+            return asyncio.run(run_push_dns_tunnels())
         if arguments.command == "create-enrollment-token":
             return asyncio.run(
                 run_create_enrollment_token(

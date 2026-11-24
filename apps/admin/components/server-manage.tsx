@@ -6,8 +6,10 @@ import { label } from "@/lib/labels";
 import {
   renameServer,
   type ServerState,
+  setDnsTunnel,
   setServerState,
 } from "@/lib/topology-actions";
+import { DnsTunnelStatusView } from "./dns-tunnel-status";
 import { ServerForEveryone } from "./everyone-access-button";
 import { MutationButton } from "./mutation-button";
 
@@ -24,8 +26,8 @@ const STATES: readonly ServerState[] = ["active", "maintenance", "disabled"];
 
 /**
  * A server's Manage dialog, as the design has it: the name shown in the
- * app, its state as three described choices, and "Give every user this
- * server". Save renames and changes the state together; the step-up prompt
+ * app, its state as three described choices, "Give every user this
+ * server", and its DNS tunnel. Save applies them together; the step-up prompt
  * and the error, when there is one, come from MutationButton.
  */
 export function ServerManage({
@@ -33,14 +35,19 @@ export function ServerManage({
   code,
   name,
   state,
+  dnsTunnel = [],
 }: {
   serverId: string;
   code: string;
   name: string;
   state: string;
+  /** Its DNS tunnel names; none when it has no tunnel. */
+  dnsTunnel?: string[];
 }) {
   const router = useRouter();
   const [draftName, setDraftName] = useState(name);
+  const saved = dnsTunnel.join(", ");
+  const [draftTunnel, setDraftTunnel] = useState(saved);
   const [draftState, setDraftState] = useState<ServerState>(
     STATES.includes(state as ServerState) ? (state as ServerState) : "active",
   );
@@ -88,6 +95,27 @@ export function ServerManage({
               </label>
             ))}
           </fieldset>
+          <div className="field">
+            <label htmlFor={`server-dns-${serverId}`} className="field__label">
+              DNS tunnel
+            </label>
+            <input
+              id={`server-dns-${serverId}`}
+              value={draftTunnel}
+              placeholder="t1.example.org"
+              maxLength={600}
+              onChange={(event) => setDraftTunnel(event.target.value)}
+            />
+            <p className="field__help">
+              A last-resort route that still works when only DNS gets through
+              (slow). Give it a name under your domain; a second name, comma
+              separated, is a backup. Empty turns it off. Needs VLESS Encryption
+              on this server.
+            </p>
+            {saved && draftTunnel === saved && (
+              <DnsTunnelStatusView serverId={serverId} />
+            )}
+          </div>
           <ServerForEveryone serverId={serverId} name={name} />
         </div>
       }
@@ -95,6 +123,14 @@ export function ServerManage({
         if (draftName.trim() !== name) {
           const renamed = await renameServer(serverId, draftName);
           if (!renamed.ok) return renamed;
+        }
+        if (draftTunnel.trim() !== saved) {
+          const names = draftTunnel
+            .split(",")
+            .map((part) => part.trim())
+            .filter(Boolean);
+          const set = await setDnsTunnel(serverId, names);
+          if (!set.ok) return set;
         }
         if (draftState !== state) {
           const changed = await setServerState(serverId, draftState);

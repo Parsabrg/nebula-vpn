@@ -57,6 +57,27 @@ class DnsTunnelDetails {
     );
   }
 
+  /// Every tunnel in [body]: the server's list, or the single tunnel an
+  /// older server (or an older copy on this device) gave.
+  static List<DnsTunnelDetails> listFromJson(Object? body) {
+    if (body is Map<String, dynamic> && body['tunnels'] is List<Object?>) {
+      return <DnsTunnelDetails>[
+        for (final Object? item in body['tunnels'] as List<Object?>)
+          if (DnsTunnelDetails.fromJson(item) case final DnsTunnelDetails one)
+            one,
+      ];
+    }
+    final DnsTunnelDetails? one = DnsTunnelDetails.fromJson(body);
+    return one == null ? const <DnsTunnelDetails>[] : <DnsTunnelDetails>[one];
+  }
+
+  static Map<String, Object> listToJson(List<DnsTunnelDetails> tunnels) =>
+      <String, Object>{
+        'tunnels': <Map<String, Object>>[
+          for (final DnsTunnelDetails tunnel in tunnels) tunnel.toJson(),
+        ],
+      };
+
   Map<String, Object> toJson() => <String, Object>{
     'domains': domains,
     'key': key,
@@ -65,10 +86,24 @@ class DnsTunnelDetails {
   };
 }
 
-/// The key is a secret, so it lives in the Keystore/DPAPI-backed store.
+/// The tunnel on [serverCode], or the first one when no server is named.
+DnsTunnelDetails? dnsTunnelFor(
+  List<DnsTunnelDetails> tunnels, [
+  String? serverCode,
+]) {
+  for (final DnsTunnelDetails tunnel in tunnels) {
+    if (serverCode == null || tunnel.serverCode == serverCode) {
+      return tunnel;
+    }
+  }
+  return null;
+}
+
+/// The keys are secrets, so they live in the Keystore/DPAPI-backed store.
+/// One tunnel per server at most.
 abstract interface class DnsTunnelStore {
-  Future<DnsTunnelDetails?> read();
-  Future<void> write(DnsTunnelDetails details);
+  Future<List<DnsTunnelDetails>> read();
+  Future<void> write(List<DnsTunnelDetails> tunnels);
   Future<void> clear();
 }
 
@@ -81,40 +116,42 @@ class FlutterDnsTunnelStore implements DnsTunnelStore {
   final FlutterSecureStorage _storage;
 
   @override
-  Future<DnsTunnelDetails?> read() async {
+  Future<List<DnsTunnelDetails>> read() async {
     final String? raw = await _storage.read(key: _key);
     if (raw == null) {
-      return null;
+      return const <DnsTunnelDetails>[];
     }
     try {
-      return DnsTunnelDetails.fromJson(jsonDecode(raw));
+      return DnsTunnelDetails.listFromJson(jsonDecode(raw));
     } on FormatException {
-      return null;
+      return const <DnsTunnelDetails>[];
     }
   }
 
   @override
-  Future<void> write(DnsTunnelDetails details) =>
-      _storage.write(key: _key, value: jsonEncode(details.toJson()));
+  Future<void> write(List<DnsTunnelDetails> tunnels) => _storage.write(
+    key: _key,
+    value: jsonEncode(DnsTunnelDetails.listToJson(tunnels)),
+  );
 
   @override
   Future<void> clear() => _storage.delete(key: _key);
 }
 
 class InMemoryDnsTunnelStore implements DnsTunnelStore {
-  DnsTunnelDetails? details;
+  List<DnsTunnelDetails> tunnels = const <DnsTunnelDetails>[];
 
   @override
-  Future<DnsTunnelDetails?> read() async => details;
+  Future<List<DnsTunnelDetails>> read() async => tunnels;
 
   @override
-  Future<void> write(DnsTunnelDetails value) async {
-    details = value;
+  Future<void> write(List<DnsTunnelDetails> value) async {
+    tunnels = value;
   }
 
   @override
   Future<void> clear() async {
-    details = null;
+    tunnels = const <DnsTunnelDetails>[];
   }
 }
 
@@ -131,21 +168,21 @@ class DnsTunnelSync {
   /// without this a first sign-in listed no DNS tunnel until the next load.
   Future<bool> refresh() async {
     try {
-      final DnsTunnelDetails? before = await _store.read();
+      final List<DnsTunnelDetails> before = await _store.read();
       final Response<dynamic> response = await _dio.get<dynamic>(
         '/v1/dns-tunnel/',
       );
-      final DnsTunnelDetails? details = DnsTunnelDetails.fromJson(
+      final List<DnsTunnelDetails> tunnels = DnsTunnelDetails.listFromJson(
         response.data,
       );
-      if (details != null) {
-        await _store.write(details);
-        return before == null ||
-            jsonEncode(before.toJson()) != jsonEncode(details.toJson());
+      if (tunnels.isNotEmpty) {
+        await _store.write(tunnels);
+        return jsonEncode(DnsTunnelDetails.listToJson(before)) !=
+            jsonEncode(DnsTunnelDetails.listToJson(tunnels));
       }
     } on DioException catch (error) {
       if (error.response?.statusCode == 404) {
-        final bool had = await _store.read() != null;
+        final bool had = (await _store.read()).isNotEmpty;
         await _store.clear();
         return had;
       }

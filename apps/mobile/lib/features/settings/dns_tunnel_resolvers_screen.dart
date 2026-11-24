@@ -90,9 +90,10 @@ class _DnsTunnelResolversScreenState
         newName: text.dnsTunnelResolversNewSetName,
       );
     }
-    final DnsTunnelDetails? details = await ref
-        .read(dnsTunnelStoreProvider)
-        .read();
+    // Which resolvers answer depends on the network, not the tunnel.
+    final DnsTunnelDetails? details = dnsTunnelFor(
+      await ref.read(dnsTunnelStoreProvider).read(),
+    );
     if (details == null) {
       _say(text.dnsTunnelResolversUnavailable, error: true);
     }

@@ -29,6 +29,9 @@ ExecStart=/usr/bin/docker exec nebula-production-api-1 nebula-api reconcile-xray
 # for. Running the prune first would risk revoking a credential the sweep was
 # about to legitimately reclaim.
 ExecStart=/usr/bin/docker exec nebula-production-api-1 nebula-api prune-xray-orphans
+# Each server's DNS tunnel, told again (a missed push, a rebuilt server).
+# Exits 0 when one is out of reach: it is told at a later sweep.
+ExecStart=/usr/bin/docker exec nebula-production-api-1 nebula-api push-dns-tunnels
 # Traffic counters. The `usage` container runs this every fifteen seconds, so
 # allowances are enforced promptly; it runs here as well because this unit is
 # the one that alerts, and a source that cannot be read should still reach

@@ -321,3 +321,13 @@ export async function getVpnServerHealth(): Promise<VpnServerHealthItem[]> {
     peerCount: item.peer_count,
   }));
 }
+
+/** Each server's DNS tunnel names, by server id (servers without one are absent). */
+export async function listDnsTunnels(): Promise<Record<string, string[]>> {
+  const body = await apiFetch<{
+    items: { server_id: string; domains: string[] }[];
+  }>("/v1/admin/dns-tunnels");
+  return Object.fromEntries(
+    body.items.map((item) => [item.server_id, item.domains]),
+  );
+}

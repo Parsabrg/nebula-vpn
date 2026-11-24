@@ -2821,3 +2821,32 @@ h2 {
     white-space: nowrap;
   }
 }
+
+/* A server's DNS tunnel in its Manage dialog. */
+.dns-tunnel-status .compact-table {
+  width: 100%;
+  margin: 8px 0;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.dns-tunnel-status .compact-table th,
+.dns-tunnel-status .compact-table td {
+  padding: 4px 8px 4px 0;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.dns-tunnel-status .mono {
+  font-family: var(--mono);
+}
+.dns-tunnel-status .check-list {
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+.dns-tunnel-status .check-list .is-ok {
+  color: var(--ok);
+}
+.dns-tunnel-status .check-list .is-bad {
+  color: var(--danger-text);
+}

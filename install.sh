@@ -897,34 +897,39 @@ if [ -n "$JOIN_URL" ]; then
   install -m 0644 "$REPO/infrastructure/systemd/nebula-dns.service" /etc/systemd/system/
   systemctl daemon-reload; systemctl enable nebula-dns >/dev/null 2>&1; systemctl restart nebula-dns
 fi
-# The DNS tunnel's server (plan 10, docs/runbooks/dns-tunnel.md): only with a
-# delegated name or names (NEBULA_COTTENDNS_DOMAINS, comma-separated, remembered). It listens on loopback
-# behind the router that owns port 53; whatever runs on 53 is left as it is.
+# The DNS tunnel's server (plan 10, docs/runbooks/dns-tunnel.md), on every
+# server: it runs once the control plane gives this server tunnel names (the
+# admin panel's Servers page, or NEBULA_COTTENDNS_DOMAINS here). Where it
+# listens is decided here: port 53 on this server's own address when nothing
+# else has it; else loopback behind whatever owns 53, which is left as it is.
 COTTENDNS_DOMAIN=${NEBULA_COTTENDNS_DOMAINS:-$(sed -n 's/^NEBULA_COTTENDNS_DOMAINS=//p' "$STATE" 2>/dev/null | tail -1 || true)}
 # A server set up before the answer was saved has it only in agent.env.
 [ -n "$COTTENDNS_DOMAIN" ] || COTTENDNS_DOMAIN=$(envget NEBULA_COTTENDNS_DOMAINS)
-if [ -n "$COTTENDNS_DOMAIN" ]; then
-  remember NEBULA_COTTENDNS_DOMAINS "$COTTENDNS_DOMAIN"
-  if [ "$(cat /usr/local/lib/nebula-cottendns.version 2>/dev/null)" != "$COTTENDNS_VERSION" ]; then
-    cname=CottenDns_Server_Linux_$([ $ARCH = amd64 ] && echo AMD64 || echo ARM64).tar.gz
-    get $WORK/cottendns.tgz "https://github.com/WhiteDNS/CottenDNS/releases/download/v$COTTENDNS_VERSION/$cname"
-    echo "${COTTENDNS_SHA[$ARCH]}  $WORK/cottendns.tgz" | sha256sum -c --quiet || die "CottenDNS download failed its checksum"
-    rm -rf $WORK/cottendns-new; mkdir $WORK/cottendns-new; tar -xzf $WORK/cottendns.tgz -C $WORK/cottendns-new
-    install -m 0755 $WORK/cottendns-new/CottenDns_Server_Linux_*_v"$COTTENDNS_VERSION" /usr/local/bin/cottendns-server
-    # Its licences travel with the binary (THIRD_PARTY_NOTICES.md).
-    install -d /usr/local/share/doc/nebula-cottendns
-    cp $WORK/cottendns-new/*LICENSE* /usr/local/share/doc/nebula-cottendns/ 2>/dev/null || true
-    install -d /usr/local/lib && echo "$COTTENDNS_VERSION" > /usr/local/lib/nebula-cottendns.version
-  fi
-  system_user nebula-cottendns
-  usermod -aG nebula-secrets nebula-cottendns
-  # AES-256-GCM wants 32 characters; CottenDNS keeps a key of the right length.
-  [ -s $SECRETS/cottendns_key ] || (umask 077; openssl rand -hex 16 > $SECRETS/cottendns_key)
-  chown root:nebula-secrets $SECRETS/cottendns_key; chmod 0640 $SECRETS/cottendns_key
-  # setgid: the agent's config file takes this folder's group, which CottenDNS reads.
-  install -d -o nebula-agent -g nebula-cottendns -m 2750 /etc/nebula/cottendns
-  install -m 0644 "$REPO/infrastructure/systemd/nebula-cottendns.service" /etc/systemd/system/
-  systemctl daemon-reload; systemctl enable nebula-cottendns >/dev/null 2>&1
+if [ "$(cat /usr/local/lib/nebula-cottendns.version 2>/dev/null)" != "$COTTENDNS_VERSION" ]; then
+  cname=CottenDns_Server_Linux_$([ $ARCH = amd64 ] && echo AMD64 || echo ARM64).tar.gz
+  get $WORK/cottendns.tgz "https://github.com/WhiteDNS/CottenDNS/releases/download/v$COTTENDNS_VERSION/$cname"
+  echo "${COTTENDNS_SHA[$ARCH]}  $WORK/cottendns.tgz" | sha256sum -c --quiet || die "CottenDNS download failed its checksum"
+  rm -rf $WORK/cottendns-new; mkdir $WORK/cottendns-new; tar -xzf $WORK/cottendns.tgz -C $WORK/cottendns-new
+  install -m 0755 $WORK/cottendns-new/CottenDns_Server_Linux_*_v"$COTTENDNS_VERSION" /usr/local/bin/cottendns-server
+  # Its licences travel with the binary (THIRD_PARTY_NOTICES.md).
+  install -d /usr/local/share/doc/nebula-cottendns
+  cp $WORK/cottendns-new/*LICENSE* /usr/local/share/doc/nebula-cottendns/ 2>/dev/null || true
+  install -d /usr/local/lib && echo "$COTTENDNS_VERSION" > /usr/local/lib/nebula-cottendns.version
+fi
+system_user nebula-cottendns
+# setgid: the agent's config and key files take this folder's group, which CottenDNS reads.
+install -d -o nebula-agent -g nebula-cottendns -m 2750 /etc/nebula/cottendns
+install -m 0644 "$REPO/infrastructure/systemd/nebula-cottendns.service" /etc/systemd/system/
+systemctl daemon-reload; systemctl enable nebula-cottendns >/dev/null 2>&1
+# Port 53's other users: systemd-resolved's stub (127.0.0.53/54), this
+# server's WireGuard resolver and the tunnel itself do not count.
+DNS_OTHERS=$( { ss -Hlnup 'sport = :53'; ss -Hlntp 'sport = :53'; } 2>/dev/null \
+  | grep -vE '127.0.0.5[34]:53|cottendns' | { if [ -n "${WG_ADDR:-}" ]; then grep -vF "${WG_ADDR%/*}:53"; else cat; fi; } || true)
+OWN_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1)}')
+if [ -z "$DNS_OTHERS" ] && [ -n "$OWN_IP" ]; then
+  COTTENDNS_LISTEN="$OWN_IP:53"; DNS_TUNNEL_PORT=1
+else
+  COTTENDNS_LISTEN=127.0.0.1:5310; DNS_TUNNEL_PORT=""
 fi
 ok "Xray $(/usr/local/bin/xray version | awk 'NR==1{print $2}'), Hysteria2, WireGuard"
 
@@ -940,6 +945,7 @@ SSH_PORT=${SSH_PORT:-22}
 ufw allow "$SSH_PORT/tcp" comment ssh >/dev/null
 for p in 80/tcp 8445/tcp 8447/tcp 8448/tcp 8449/tcp 8450/udp "$WGPORT/udp"; do ufw allow $p comment nebula >/dev/null; done
 [ "$XPORT" != 443 ] || { ufw allow 443/tcp comment nebula >/dev/null; ufw allow 443/udp comment nebula >/dev/null; }
+[ -z "$DNS_TUNNEL_PORT" ] || { ufw allow 53/udp comment "nebula dns tunnel" >/dev/null; ufw allow 53/tcp comment "nebula dns tunnel" >/dev/null; }
 if [ -n "$JOIN_URL" ]; then
   # The control plane reaches this agent over the internet; only it may.
   host=${JOIN_URL#https://}; host=${host%%[:/]*}
@@ -1054,7 +1060,16 @@ fi
 # Every setting lives in agent.env, which the agent renders Xray and Hysteria2
 # from: editing Xray's config by hand is overwritten at the next change.
 agentget() { sed -n "s/^$1=//p" $ETC/agent.env | tail -1; }
-agentset() { sed -i "/^$1=/d" $ETC/agent.env; printf '%s=%s\n' "$1" "$2" >> $ETC/agent.env; }
+# Same value: nothing changes (a rerun must leave agent.env as it is); a new
+# one replaces the line in place; a missing one is appended.
+agentset() {
+  if ! grep -q "^$1=" $ETC/agent.env; then
+    printf '%s=%s\n' "$1" "$2" >> $ETC/agent.env
+  elif [ "$(agentget "$1")" != "$2" ]; then
+    awk -v k="$1" -v v="$2" 'index($0, k "=") == 1 { if (seen++) next; $0 = k "=" v } { print }' \
+      $ETC/agent.env > $WORK/agent.env && cat $WORK/agent.env > $ETC/agent.env
+  fi
+}
 # The tunnels' DNS goes to this server's resolver; a redirect already set is
 # kept. A running Xray only loads the new rule when it restarts (below).
 DNS_NEW=""
@@ -1068,14 +1083,9 @@ DNS_NEW=""
 # is kept.
 [ -n "$(agentget NEBULA_XRAY_LIVE_CLIENT_UPDATES)" ] \
   || { agentset NEBULA_XRAY_API_HOST 127.25.41.4; agentset NEBULA_XRAY_LIVE_CLIENT_UPDATES true; }
-# The DNS tunnel forwards only to VLESS Encryption, so it needs that inbound.
-if [ -n "${COTTENDNS_DOMAIN:-}" ]; then
-  if [ "$(agentget NEBULA_XRAY_VLESSENC_ENABLED)" = true ]; then
-    agentset NEBULA_COTTENDNS_DOMAINS "$COTTENDNS_DOMAIN"
-  else
-    warn "the DNS tunnel needs VLESS Encryption: turn it on with --configure, then rerun"
-  fi
-fi
+# Where the DNS tunnel listens (decided above). Its names come from the
+# control plane; it forwards only to VLESS Encryption, which it needs.
+agentset NEBULA_COTTENDNS_LISTEN "$COTTENDNS_LISTEN"
 # A joined server's WireGuard clients are told its gateway (wireguard_dns);
 # a value already set is kept.
 [ -z "$JOIN_URL" ] || [ -n "$(agentget NEBULA_WG_CLIENT_DNS)" ] \
@@ -1322,6 +1332,24 @@ elif [ -n "$CONFIGURE" ]; then
   if [ ${#DISABLE_CODES[@]} -gt 0 ]; then
     warn "on the control plane (in its API container), turn the removed protocols off:"
     for code in "${DISABLE_CODES[@]}"; do echo "    nebula-api disable-server-capability --server-code ${NEBULA_SERVER_CODE:-<this server>} --protocol-profile-code $code"; done
+  fi
+fi
+
+# DNS tunnel names given here go to the control plane, which keeps them (the
+# panel shows and changes them from then on) and tells this server's agent.
+# A tunnel set up before that keeps its key, so apps that hold it keep working.
+if [ -n "$COTTENDNS_DOMAIN" ]; then
+  if [ -z "$JOIN_URL" ]; then
+    keep=(); [ -s $SECRETS/cottendns_key ] && keep=(--key-file /dev/stdin)
+    if api set-dns-tunnel --server-code "$server" --domains "$COTTENDNS_DOMAIN" "${keep[@]}" \
+        < "$( [ ${#keep[@]} -gt 0 ] && echo $SECRETS/cottendns_key || echo /dev/null )"; then
+      sed -i '/^NEBULA_COTTENDNS_DOMAINS=/d' "$STATE" $ETC/agent.env
+      rm -f $SECRETS/cottendns_key
+    else
+      warn "the DNS tunnel was not saved; set it in the admin panel: Servers, DNS tunnel"
+    fi
+  else
+    warn "set this server's DNS tunnel ($COTTENDNS_DOMAIN) in the admin panel: Servers, DNS tunnel"
   fi
 fi
 

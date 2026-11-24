@@ -353,6 +353,15 @@ class RelayPortSpec(BaseModel):
     target: str | None = None
 
 
+class SetDnsTunnelRequest(BaseModel):
+    """The DNS tunnel the agent's server should serve; no names means none."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    domains: list[str] = Field(default_factory=list)
+    key: str = ""
+
+
 class SetRelayRequest(BaseModel):
     """The relay the agent's server should be; no ports means none."""
 
