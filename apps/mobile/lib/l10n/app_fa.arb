@@ -28,6 +28,8 @@
   "splitTunnelingOff": "خاموش · همه از تونل عبور می‌کنند",
   "iranDirect": "سایت‌های ایرانی بدون VPN",
   "iranDirectMeta": "سایت‌های ‎.ir و نشانی‌های ایرانی از اتصال خودتان استفاده می‌کنند",
+  "blockAds": "مسدود کردن تبلیغات",
+  "blockAdsMeta": "تبلیغات و ردیاب‌ها روی همه سرورها و پروتکل‌ها مسدود می‌شوند",
   "bypassDomains": "سایت‌هایی که از VPN عبور نمی‌کنند",
   "bypassDomainsNone": "هیچ",
   "bypassDomainsCount": "{count, plural, =1{۱ سایت} other{{count} سایت}}",

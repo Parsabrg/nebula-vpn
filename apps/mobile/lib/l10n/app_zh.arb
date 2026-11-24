@@ -25,6 +25,8 @@
   "splitTunnelingOff": "关闭 · 全部经过隧道",
   "iranDirect": "伊朗网站不走 VPN",
   "iranDirectMeta": ".ir 网站和伊朗地址使用您自己的连接",
+  "blockAds": "拦截广告",
+  "blockAdsMeta": "在所有服务器和协议上拦截广告和跟踪器",
   "bypassDomains": "不走 VPN 的网站",
   "bypassDomainsNone": "无",
   "bypassDomainsCount": "{count, plural, other{{count} 个网站}}",

@@ -198,6 +198,12 @@ class RoutingSettingsScreen extends ConsumerWidget {
               value: advanced.iranDirect,
               onChanged: (bool on) => controller.setIranDirect(enabled: on),
             ),
+            NebulaSwitchRow(
+              title: text.blockAds,
+              subtitle: text.blockAdsMeta,
+              value: advanced.blockAds,
+              onChanged: (bool on) => controller.setBlockAds(enabled: on),
+            ),
             NebulaRow(
               title: text.splitTunneling,
               subtitle: splitTunnelMeta(

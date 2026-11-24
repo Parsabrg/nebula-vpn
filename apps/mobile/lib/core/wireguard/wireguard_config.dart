@@ -1,5 +1,6 @@
 import '../routing/tunnel_routes.dart';
 import '../servers/server_repository.dart';
+import '../xray/xray_config.dart' show adBlockResolver;
 
 /// Renders a standard WireGuard `.conf` (the same text format both the
 /// Android [Config.parse] call and the Windows `wireguard.exe
@@ -9,12 +10,13 @@ String renderWireGuardConfig({
   required String privateKeyBase64,
   required WireGuardPeerResult peer,
   bool bypassLocalNetwork = false,
+  bool blockAds = false,
 }) {
   final StringBuffer buffer = StringBuffer()
     ..writeln('[Interface]')
     ..writeln('PrivateKey = $privateKeyBase64')
     ..writeln('Address = ${peer.assignedAddress}/32')
-    ..writeln('DNS = ${peer.clientDns}')
+    ..writeln('DNS = ${blockAds ? adBlockResolver : peer.clientDns}')
     ..writeln()
     ..writeln('[Peer]')
     ..writeln('PublicKey = ${peer.serverPublicKey}')

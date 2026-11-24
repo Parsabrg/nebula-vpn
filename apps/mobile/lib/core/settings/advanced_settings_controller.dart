@@ -102,6 +102,10 @@ class AdvancedSettingsController extends Notifier<AdvancedSettings> {
     return _write(state.copyWith(iranDirect: enabled));
   }
 
+  Future<void> setBlockAds({required bool enabled}) {
+    return _write(state.copyWith(blockAds: enabled));
+  }
+
   /// Adds a website that skips the VPN. Returns false for anything that is
   /// not a host name, so the field can say so; an entry already listed is
   /// taken and left as it was.

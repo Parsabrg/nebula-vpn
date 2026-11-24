@@ -434,6 +434,7 @@ mixin _Connecting on _DevicesCore {
               bypassLocalNetwork: ref
                   .read(protectionControllerProvider)
                   .bypassLocalNetwork,
+              blockAds: ref.read(advancedSettingsControllerProvider).blockAds,
             ),
             excludedPackages: _excludedPackages,
             killSwitch: ref

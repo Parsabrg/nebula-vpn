@@ -99,6 +99,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         text.routingEverything,
         text.routingSanctionsOnly,
         text.iranDirect,
+        text.blockAds,
       ])
         _Entry(title, text.sectionRouting, () => go(RoutePaths.homeRouting)),
       _Entry(
