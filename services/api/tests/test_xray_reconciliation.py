@@ -180,6 +180,7 @@ def _session(
     credential: MagicMock,
     profile_code: str = "vless-xhttp-tls",
     agent_profile_code: str | None = None,
+    unserved: bool = False,
 ) -> MagicMock:
     """The Xray pass reads its batch through execute() (a three-column join),
     so this fake answers that separately from the scalar()/scalars() lookups
@@ -199,16 +200,20 @@ def _session(
 
     async def _execute(statement: Any) -> MagicMock:
         result = MagicMock()
-        result.all = MagicMock(return_value=[(client, profile_code, agent_profile_code)])
+        # A retired client is no longer a candidate for the batch.
+        batch = [] if unserved else [(client, profile_code, agent_profile_code)]
+        result.all = MagicMock(return_value=batch)
         return result
 
     async def _scalars(statement: Any) -> MagicMock:
         result = MagicMock()
-        # Healthy fixtures have no orphaned owners; only the server query
-        # should receive a VPNServer row.
-        result.all = MagicMock(
-            return_value=[] if " devices " in " ".join(str(statement).split()) else [_server()]
-        )
+        sql = " ".join(str(statement).split())
+        # Healthy fixtures have no orphaned owners and serve every client's
+        # protocol; only the server query should receive a VPNServer row.
+        if "server_protocol_capabilities" in sql:
+            result.all = MagicMock(return_value=[client] if unserved else [])
+        else:
+            result.all = MagicMock(return_value=[] if " devices " in sql else [_server()])
         return result
 
     async def _scalar(statement: Any) -> object | None:
@@ -638,3 +643,22 @@ def test_a_target_narrows_the_pass_to_that_client() -> None:
     statements = [str(call.args[0]) for call in session.execute.call_args_list]
     batch = next(s for s in statements if "ORDER BY xray_clients.updated_at" in s)
     assert "xray_clients.id = " in batch
+
+
+def test_a_client_of_a_protocol_its_server_no_longer_offers_is_revoked() -> None:
+    # Turned off with install.sh --configure: the agent serves no such inbound
+    # and could only ever answer "ambiguous", so the sweep would fail forever.
+    client = _client(state=ProvisioningState.ACTIVE.value)
+    credential = _credential()
+    agent = FakeXrayAgent(
+        reconcile=ReconcileXrayClientResponse(outcome="ambiguous", observed_generation=None)
+    )
+    session = _session(client=client, credential=credential, unserved=True)
+
+    summary = _run(session, agent)
+
+    assert client.state == ProvisioningState.REVOKED.value
+    assert credential.state == ProvisioningState.REVOKED.value
+    assert client.revoked_at is not None
+    assert agent.reconcile_calls == []
+    assert not summary.had_problems

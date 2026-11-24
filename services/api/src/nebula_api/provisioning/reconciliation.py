@@ -64,10 +64,11 @@ from nebula_api.models.provisioning import (
     WireGuardPeer,
     XrayClient,
 )
-from nebula_api.models.topology import ProtocolProfile, VPNServer
+from nebula_api.models.topology import ProtocolProfile, ServerProtocolCapability, VPNServer
 from nebula_api.models.types import (
     RUNNING_SERVER_STATES,
     AccountState,
+    CapabilityState,
     LifecycleState,
     OperationState,
     ProvisioningState,
@@ -708,6 +709,7 @@ async def run_xray_reconciliation(
 
     summary = ReconciliationSummary()
     await _mark_orphaned_revoking(session_factory, XrayClient, clock)
+    await _retire_unserved_xray_clients(session_factory, clock)
     async with session_factory() as session:
         rows = (
             await session.execute(
@@ -754,6 +756,70 @@ async def run_xray_reconciliation(
             summary.errored += 1
             _LOGGER.exception("reconciliation failed unexpectedly for xray client %s", client.id)
     return summary
+
+
+async def _retire_unserved_xray_clients(session_factory: SessionFactory, clock: Clock) -> int:
+    """Revoke the clients of a protocol their server no longer offers.
+
+    Turning a protocol off on a server (install.sh --configure) disables its
+    capability; the agent then serves no such inbound, so asking it about
+    these clients can only ever answer "ambiguous" -- every sweep, for good.
+    Nothing can serve them, so they are revoked here without asking: a
+    device that wants the protocol again gets a fresh credential once the
+    protocol is back on. Only ever narrows access, like the orphan rule.
+    """
+
+    now = _now(clock)
+    offered = (
+        select(ServerProtocolCapability.id)
+        .where(
+            ServerProtocolCapability.vpn_server_id == XrayClient.vpn_server_id,
+            ServerProtocolCapability.protocol_profile_id == XrayClient.protocol_profile_id,
+            ServerProtocolCapability.state == CapabilityState.ENABLED.value,
+        )
+        .exists()
+    )
+    async with session_factory() as session:
+        clients = (
+            await session.scalars(
+                select(XrayClient)
+                .where(XrayClient.state.in_(_CANDIDATE_STATES), ~offered)
+                .with_for_update(of=XrayClient)
+            )
+        ).all()
+        for client in clients:
+            client.state = ProvisioningState.REVOKED.value
+            client.revoked_at = now
+            client.updated_at = now
+            credential = await session.scalar(
+                select(DeviceProtocolCredential)
+                .where(DeviceProtocolCredential.id == client.credential_id)
+                .with_for_update()
+            )
+            if credential is not None:
+                credential.state = ProvisioningState.REVOKED.value
+                credential.revoked_at = now
+            operation = await _running_xray_operation(session, client.id)
+            if operation is not None:
+                operation.state = OperationState.SUCCEEDED.value
+                operation.finished_at = now
+            add_audit_event(
+                session,
+                actor_kind="system",
+                actor_id=None,
+                target_kind="xray_client",
+                target_id=client.id,
+                event_code="peer_changed",
+                outcome="succeeded",
+                request_id=uuid4(),
+                reason_code="protocol_not_offered",
+            )
+        await session.commit()
+    if clients:
+        _LOGGER.info(
+            "revoked %d xray client(s) of protocols their server no longer offers", len(clients)
+        )
+    return len(clients)
 
 
 async def _reconcile_one_xray_client(

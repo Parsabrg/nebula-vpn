@@ -30,6 +30,8 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   ask for the code. Needs a current browser.
 
 ### Servers
+- Turning a protocol off now revokes its clients at the next reconcile sweep, instead of
+  leaving them to fail the sweep (and alert) every 15 minutes.
 - A relay's server can be disabled as an exit and keep relaying: the usage poll still
   asks a disabled relay server for its relay check (and nothing else), and Server health
   shows it as "Disabled (relay only)".
