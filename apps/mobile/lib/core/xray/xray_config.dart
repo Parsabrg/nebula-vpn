@@ -106,7 +106,7 @@ String renderWireGuardDelayProbeConfigJson({
 /// v26.3.27 build this deployment runs), identified by the bearer `auth`
 /// string rather than a VLESS `id`.
 ///
-/// [XrayClientResult.adBlock] blocks in two independent layers, because
+/// [blocksAds] blocks in two independent layers, because
 /// either one alone leaks.
 ///
 /// The `dns` module points at AdGuard's filtering resolver, which is the
@@ -259,12 +259,12 @@ String renderXrayClientConfigJson(
         fragmentOutbound(settings.fragment),
       if (reachesServerThroughWarp(result, settings))
         _aetherSocksOutbound(_warpEntryTag, warpPortFor(localProxy)),
-      if (result.adBlock)
+      if (blocksAds(result, settings))
         <String, dynamic>{'tag': 'ad-block', 'protocol': 'blackhole'},
       if (routesAnythingDirect(result, settings))
         <String, dynamic>{'tag': 'direct', 'protocol': 'freedom'},
     ],
-    if (result.adBlock || routesAnythingDirect(result, settings))
+    if (blocksAds(result, settings) || routesAnythingDirect(result, settings))
       'routing': <String, dynamic>{
         // No 'IPIfNonMatch': it looked every new name up through the tunnel
         // before routing it, a round trip per site that on a slow route
@@ -279,7 +279,7 @@ String renderXrayClientConfigJson(
               'outboundTag': 'proxy',
               'domain': <String>[for (final String h in apiHosts) 'full:$h'],
             },
-          if (result.adBlock)
+          if (blocksAds(result, settings))
             <String, dynamic>{
               'type': 'field',
               'outboundTag': 'ad-block',
@@ -724,8 +724,11 @@ const List<String> _adBlockDomains = <String>[
 /// blocks ads, trackers, and known malware/phishing domains at resolution
 /// time.
 /// IPv4 only, deliberately -- see [_plainDnsModule] for why.
+/// AdGuard's filtering resolver; WireGuard uses it too when ads are blocked.
+const String adBlockResolver = '94.140.14.14';
+
 const Map<String, dynamic> _adBlockDnsModule = <String, dynamic>{
-  'servers': <String>['94.140.14.14'],
+  'servers': <String>[adBlockResolver],
 };
 
 /// AdGuard's explicitly non-filtering resolver, for profiles that are not
@@ -993,7 +996,7 @@ Map<String, dynamic> dnsModuleFor(
   // network's own, which on the networks this app exists for both observes
   // and forges it. That is the worse outcome of the two, so a list that was
   // entirely IPv6 is treated as no choice rather than as a choice of nothing.
-  if (result.adBlock) {
+  if (blocksAds(result, settings)) {
     return _adBlockDnsModule;
   }
   // Then the deployment's own choice, made by its operator at install. The
@@ -1029,7 +1032,7 @@ bool sniffingEnabledFor(XrayClientResult result, AdvancedSettings settings) {
   return switch (settings.sniffing) {
     SniffingMode.always => true,
     SniffingMode.never => false,
-    SniffingMode.whenRoutingNeedsIt => result.adBlock,
+    SniffingMode.whenRoutingNeedsIt => blocksAds(result, settings),
   };
 }
 
@@ -1047,6 +1050,7 @@ bool routesAnythingDirect(XrayClientResult result, AdvancedSettings settings) {
 bool routingChanged(AdvancedSettings before, AdvancedSettings after) =>
     before.routingMode != after.routingMode ||
     before.iranDirect != after.iranDirect ||
+    before.blockAds != after.blockAds ||
     !listEquals(before.bypassDomains, after.bypassDomains);
 
 /// A setting that changes how a connection behaves, shown with it.
@@ -1098,7 +1102,7 @@ Set<ConnectionTrait> connectionTraits(
         !encrypted &&
         <String>{'vless', 'trojan'}.contains(result.protocol))
       ConnectionTrait.mux,
-    if (result.adBlock) ConnectionTrait.adBlock,
+    if (blocksAds(result, settings)) ConnectionTrait.adBlock,
   };
 }
 
@@ -1337,3 +1341,8 @@ Map<String, dynamic> logModuleFor(AdvancedSettings settings) {
 /// The transports that can cross a CDN, and so the only ones a clean
 /// Cloudflare address applies to.
 const Set<String> cdnTransports = <String>{'xhttp', 'websocket', 'grpc'};
+
+/// Whether ads are blocked: the Settings switch, or a server's own
+/// "(Ad-block)" profile connected before the switch existed.
+bool blocksAds(XrayClientResult result, AdvancedSettings settings) =>
+    settings.blockAds || result.adBlock;

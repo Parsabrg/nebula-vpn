@@ -8,6 +8,9 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 ## Unreleased
 
 ### Apps
+- "Block ads" in Settings (Routing) blocks ads and trackers on every server and protocol;
+  the servers' separate "(Ad-block)" profiles are no longer listed. Someone who had picked
+  one finds the switch already on.
 - In-app updates (Android and Windows): tapping the update row downloads the release,
   checks `SHA256SUMS.txt.sig` against the release key built into the app and the
   file's hash against that list, then opens the system installer. A file that does

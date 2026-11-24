@@ -99,6 +99,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         text.routingEverything,
         text.routingSanctionsOnly,
         text.iranDirect,
+        text.blockAds,
       ])
         _Entry(title, text.sectionRouting, () => go(RoutePaths.homeRouting)),
       _Entry(
@@ -262,9 +263,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               NebulaRow(
                 icon: Icons.alt_route,
                 title: text.sectionRouting,
-                subtitle: advanced.routingMode == RoutingMode.sanctionedOnly
-                    ? text.routingSanctionsOnly
-                    : text.routingEverything,
+                subtitle: <String>[
+                  advanced.routingMode == RoutingMode.sanctionedOnly
+                      ? text.routingSanctionsOnly
+                      : text.routingEverything,
+                  if (advanced.blockAds) text.traitAdBlock,
+                ].join(' · '),
                 trailing: NebulaRowTrailing.chevron(context),
                 onTap: () => go(RoutePaths.homeRouting),
               ),

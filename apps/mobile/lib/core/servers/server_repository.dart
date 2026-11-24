@@ -37,9 +37,8 @@ class AvailableProfile {
   /// paths.
   final String protocolCode;
 
-  /// True for a profile's ad-blocking sibling (e.g. "VLESS XHTTP (Ad-block)"
-  /// next to plain "VLESS XHTTP") -- a separate, manually-selectable picker
-  /// entry, not a toggle.
+  /// True for a profile's ad-blocking sibling (e.g. "VLESS XHTTP (Ad-block)").
+  /// The server list leaves these out; Settings' "Block ads" replaces them.
   final bool adBlock;
 
   /// Where this profile is reached, so a server can be measured before it is
@@ -346,19 +345,23 @@ class DioServerRepository implements ServerRepository {
         displayName: item['display_name'] as String,
         publicHost: item['public_host'] as String,
         maintenance: (item['maintenance'] as bool?) ?? false,
-        profiles: rawProfiles.cast<Map<String, dynamic>>().map((
-          Map<String, dynamic> profile,
-        ) {
-          return AvailableProfile(
-            code: profile['code'] as String,
-            displayName: profile['display_name'] as String,
-            protocolId: profile['protocol_id'] as String,
-            protocolCode: profile['protocol_code'] as String,
-            adBlock: profile['ad_block'] as bool,
-            requiredPort: profile['required_port'] as int?,
-            requiresUdp: (profile['requires_udp'] as bool?) ?? false,
-          );
-        }).toList(),
+        // A server's "(Ad-block)" duplicates are left out: the Settings
+        // switch blocks ads on every profile instead.
+        profiles: rawProfiles
+            .cast<Map<String, dynamic>>()
+            .where((Map<String, dynamic> p) => p['ad_block'] != true)
+            .map((Map<String, dynamic> profile) {
+              return AvailableProfile(
+                code: profile['code'] as String,
+                displayName: profile['display_name'] as String,
+                protocolId: profile['protocol_id'] as String,
+                protocolCode: profile['protocol_code'] as String,
+                adBlock: profile['ad_block'] as bool,
+                requiredPort: profile['required_port'] as int?,
+                requiresUdp: (profile['requires_udp'] as bool?) ?? false,
+              );
+            })
+            .toList(),
       );
     }).toList();
   }

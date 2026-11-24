@@ -25,6 +25,8 @@
   "splitTunnelingOff": "uit · alles via de tunnel",
   "iranDirect": "Iraanse sites zonder VPN",
   "iranDirectMeta": ".ir-sites en Iraanse adressen gebruiken je eigen verbinding",
+  "blockAds": "Advertenties blokkeren",
+  "blockAdsMeta": "Advertenties en trackers worden op elke server en elk protocol geblokkeerd",
   "bypassDomains": "Websites zonder VPN",
   "bypassDomainsNone": "geen",
   "bypassDomainsCount": "{count, plural, =1{1 website} other{{count} websites}}",

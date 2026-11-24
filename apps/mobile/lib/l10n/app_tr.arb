@@ -25,6 +25,8 @@
   "splitTunnelingOff": "kapalı · her şey tünelden geçer",
   "iranDirect": "İran siteleri VPN kullanmaz",
   "iranDirectMeta": ".ir siteleri ve İran adresleri kendi bağlantınızı kullanır",
+  "blockAds": "Reklamları engelle",
+  "blockAdsMeta": "Reklamlar ve izleyiciler tüm sunucu ve protokollerde engellenir",
   "bypassDomains": "VPN'i atlayan web siteleri",
   "bypassDomainsNone": "yok",
   "bypassDomainsCount": "{count, plural, =1{1 web sitesi} other{{count} web sitesi}}",

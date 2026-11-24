@@ -25,6 +25,8 @@
   "splitTunnelingOff": "متوقف · كل شيء عبر النفق",
   "iranDirect": "المواقع الإيرانية دون VPN",
   "iranDirectMeta": "مواقع ‎.ir والعناوين الإيرانية تستخدم اتصالك أنت",
+  "blockAds": "حجب الإعلانات",
+  "blockAdsMeta": "تُحجب الإعلانات وأدوات التتبع على كل الخوادم والبروتوكولات",
   "bypassDomains": "مواقع تتجاوز VPN",
   "bypassDomainsNone": "لا شيء",
   "bypassDomainsCount": "{count, plural, =1{موقع واحد} other{{count} مواقع}}",

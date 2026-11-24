@@ -25,6 +25,8 @@
   "splitTunnelingOff": "выкл · весь трафик в туннеле",
   "iranDirect": "Иранские сайты без VPN",
   "iranDirectMeta": "сайты .ir и иранские адреса идут через ваше собственное подключение",
+  "blockAds": "Блокировать рекламу",
+  "blockAdsMeta": "Реклама и трекеры блокируются на всех серверах и протоколах",
   "bypassDomains": "Сайты без VPN",
   "bypassDomainsNone": "нет",
   "bypassDomainsCount": "{count, plural, =1{1 сайт} few{{count} сайта} many{{count} сайтов} other{{count} сайта}}",

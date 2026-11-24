@@ -25,6 +25,8 @@
   "splitTunnelingOff": "aus · alles durch den Tunnel",
   "iranDirect": "Iranische Seiten ohne VPN",
   "iranDirectMeta": ".ir-Seiten und iranische Adressen nutzen Ihre eigene Verbindung",
+  "blockAds": "Werbung blockieren",
+  "blockAdsMeta": "Werbung und Tracker werden auf jedem Server und Protokoll blockiert",
   "bypassDomains": "Websites ohne VPN",
   "bypassDomainsNone": "keine",
   "bypassDomainsCount": "{count, plural, =1{1 Website} other{{count} Websites}}",

@@ -30,6 +30,7 @@ class AdvancedSettings {
     this.localProxyPort = defaultLocalProxyPort,
     this.bypassDomains = const <String>[],
     this.iranDirect = false,
+    this.blockAds = false,
     this.cleanIp,
     this.cleanIpHost,
     this.warp = WarpSettings.defaults,
@@ -109,6 +110,11 @@ class AdvancedSettings {
   /// [bypassDomains].
   final bool iranDirect;
 
+  /// Ads and trackers are blocked on every server and protocol: by a
+  /// filtering resolver, and on Xray profiles also by the names Xray sees.
+  /// Replaces picking a server's separate "(Ad-block)" profile.
+  final bool blockAds;
+
   /// The Cloudflare address the CDN route is dialled at, chosen by a scan
   /// (see core/cdn/clean_ip.dart), and the route name it was chosen for.
   /// Used only while that is still the route's name: a scan for one
@@ -147,6 +153,7 @@ class AdvancedSettings {
     int? localProxyPort,
     List<String>? bypassDomains,
     bool? iranDirect,
+    bool? blockAds,
     String? Function()? cleanIp,
     String? Function()? cleanIpHost,
     WarpSettings? warp,
@@ -163,6 +170,7 @@ class AdvancedSettings {
       localProxyPort: localProxyPort ?? this.localProxyPort,
       bypassDomains: bypassDomains ?? this.bypassDomains,
       iranDirect: iranDirect ?? this.iranDirect,
+      blockAds: blockAds ?? this.blockAds,
       cleanIp: cleanIp == null ? this.cleanIp : cleanIp(),
       cleanIpHost: cleanIpHost == null ? this.cleanIpHost : cleanIpHost(),
       warp: warp ?? this.warp,
@@ -191,6 +199,7 @@ class AdvancedSettings {
         other.localProxyPort == localProxyPort &&
         _sameList(other.bypassDomains, bypassDomains) &&
         other.iranDirect == iranDirect &&
+        other.blockAds == blockAds &&
         other.cleanIp == cleanIp &&
         other.cleanIpHost == cleanIpHost &&
         other.warp == warp;
@@ -209,6 +218,7 @@ class AdvancedSettings {
     localProxyPort,
     Object.hashAll(bypassDomains),
     iranDirect,
+    blockAds,
     cleanIp,
     cleanIpHost,
     warp,
@@ -394,6 +404,7 @@ class SharedPreferencesAdvancedSettingsStore implements AdvancedSettingsStore {
   static const String _localProxyPortKey = 'nebula.local_proxy_port';
   static const String _bypassDomainsKey = 'nebula.bypass_domains';
   static const String _iranDirectKey = 'nebula.iran_direct';
+  static const String _blockAdsKey = 'nebula.block_ads';
   static const String _cleanIpKey = 'nebula.clean_ip';
   static const String _cleanIpHostKey = 'nebula.clean_ip_host';
   static const String _warpKey = 'nebula.warp';
@@ -437,6 +448,14 @@ class SharedPreferencesAdvancedSettingsStore implements AdvancedSettingsStore {
               .where((String d) => normalizeBypassEntry(d) == d)
               .toList(),
       iranDirect: _preferences.getBool(_iranDirectKey) ?? false,
+      // Never set: on for someone who had picked an "(Ad-block)" profile,
+      // which the server list no longer shows.
+      blockAds:
+          _preferences.getBool(_blockAdsKey) ??
+          (_preferences
+                  .getString('nebula.selected_profile_code')
+                  ?.endsWith('-adblock') ??
+              false),
       cleanIp: _readCleanIp(_preferences.getString(_cleanIpKey)),
       cleanIpHost: _preferences.getString(_cleanIpHostKey),
       warp: WarpSettings.fromJsonString(_preferences.getString(_warpKey)),
@@ -526,6 +545,7 @@ class SharedPreferencesAdvancedSettingsStore implements AdvancedSettingsStore {
     await _preferences.setInt(_localProxyPortKey, settings.localProxyPort);
     await _preferences.setStringList(_bypassDomainsKey, settings.bypassDomains);
     await _preferences.setBool(_iranDirectKey, settings.iranDirect);
+    await _preferences.setBool(_blockAdsKey, settings.blockAds);
     // The route name is kept on its own: it is learned while connected and
     // scanned for later, with nothing chosen yet.
     final String? cleanIp = settings.cleanIp;
