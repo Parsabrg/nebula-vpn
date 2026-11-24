@@ -925,10 +925,12 @@ system_user nebula-cottendns
 install -d -o nebula-agent -g nebula-cottendns -m 2750 /etc/nebula/cottendns
 install -m 0644 "$REPO/infrastructure/systemd/nebula-cottendns.service" /etc/systemd/system/
 systemctl daemon-reload; systemctl enable nebula-cottendns >/dev/null 2>&1
-# Port 53's other users: systemd-resolved's stub (127.0.0.53/54), this
-# server's WireGuard resolver and the tunnel itself do not count.
+# Port 53's other users: systemd-resolved's stub (127.0.0.53/54; ss writes
+# it 127.0.0.53%lo:53), this server's WireGuard resolver and the tunnel
+# itself do not count.
 DNS_OTHERS=$( { ss -Hlnup 'sport = :53'; ss -Hlntp 'sport = :53'; } 2>/dev/null \
-  | grep -vE '127.0.0.5[34]:53|cottendns' | { if [ -n "${WG_ADDR:-}" ]; then grep -vF "${WG_ADDR%/*}:53"; else cat; fi; } || true)
+  | grep -vE '127\.0\.0\.5[34](%[^ :]*)?:53|"systemd-resolve"|cottendns' \
+  | { if [ -n "${WG_ADDR:-}" ]; then grep -vF "${WG_ADDR%/*}:53"; else cat; fi; } || true)
 OWN_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1)}')
 if [ -z "$DNS_OTHERS" ] && [ -n "$OWN_IP" ]; then
   COTTENDNS_LISTEN="$OWN_IP:53"; DNS_TUNNEL_PORT=1
