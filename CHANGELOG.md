@@ -39,6 +39,8 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 ### Servers
 - The installer's DNS check gives up on DNS over HTTPS after 8 seconds and uses the system
   resolver; where DoH is filtered it could hang for up to 40 minutes.
+- A joined server rebuilt with `NEBULA_XRAY_PUBLIC_PORT=8445` also keeps Hysteria2 off UDP 443
+  (on 8450), so a relay on it that forwards 443 is applied again.
 - A relay server rebuilt from scratch gets its relays back at the next reconcile sweep
   (`nebula-api push-relays`, every 15 minutes) instead of waiting for someone to add them
   again; a relay that has not changed is not applied again.
