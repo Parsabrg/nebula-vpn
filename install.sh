@@ -22,6 +22,9 @@
 #   sudo ./install.sh --restore nebula-backup-<time>.tar.gz.age
 # It asks for the backup key (or reads NEBULA_BACKUP_KEY_FILE) and nothing else.
 #
+# A lost or exposed backup key: a new one for backups from now on (shown once):
+#   sudo ./install.sh --new-backup-key
+#
 # Updating to the newest release (a v* tag; or name one), then a rerun:
 #   sudo ./install.sh --update [v0.1.34]
 # (a joined server does this by itself once a day: nebula-update.timer)
@@ -129,6 +132,36 @@ confirm() {
 remember() {
   touch "$STATE"; chmod 0600 "$STATE"
   sed -i "/^$1=/d" "$STATE"; printf '%s=%q\n' "$1" "$2" >> "$STATE"
+}
+
+# A new backup key, shown once and deleted from the server when the operator
+# has stored it elsewhere: a copy here would open every backup to whoever
+# takes the server. Without a terminal it is kept in $ETC/backup-key.txt, so
+# it is not lost, until a rerun shows it.
+hand_over_key() {
+  local key=$1 saved=""
+  if [ "$key" != $ETC/backup-key.txt ]; then
+    install -m 0600 "$key" $ETC/backup-key.txt; rm -f "$key"; key=$ETC/backup-key.txt
+  fi
+  if [ -t 0 ]; then
+    cat <<EOF
+
+${yellow}${bold}One thing only you can do: save the backup key.${reset}
+Backups are encrypted with it, and it is the only way to open them. Keep it in
+two places other than this server (a password manager and a printout).
+
+  $(grep '^AGE-SECRET-KEY' "$key")
+
+It is then deleted from this server.
+EOF
+    read -rp "Type 'saved' once it is stored elsewhere: " saved
+    if [ "$saved" = saved ]; then
+      shred -u "$key" 2>/dev/null || rm -f "$key"
+      ok "backup key deleted from this server"
+      return
+    fi
+  fi
+  warn "the backup key is in $ETC/backup-key.txt; copy it off this server, then rerun ./install.sh to delete it"
 }
 
 compose() { docker compose -p "$PROJECT" --env-file "$ETC/compose.env" -f "$COMPOSE_FILE" "$@"; }
@@ -321,6 +354,23 @@ if [ "${1:-}" = --uninstall ]; then
   # userdel leaves a user's group while another user is in it.
   for g in nebula-agent nebula-xray nebula-cottendns nebula-secrets; do groupdel "$g" >/dev/null 2>&1 || true; done
   ok "Nebula removed. To install again: sudo ./install.sh (or --join, or --restore <backup>)"
+  exit 0
+fi
+if [ "${1:-}" = --new-backup-key ]; then
+  # A lost or exposed backup key: backups from now on use a new one. Older
+  # backups still open only with the key they were made with.
+  grep -qs '^NEBULA_BACKUP_AGE_RECIPIENT=' $ETC/backup.env \
+    || die "this server takes no backups (a joined server's are on the first server)"
+  [ -f $ETC/backup-key.txt ] \
+    && die "$ETC/backup-key.txt holds a key not saved yet; rerun sudo ./install.sh to save it first"
+  step "New backup key"
+  key=$(mktemp -d)/backup-key.txt
+  (umask 077; age-keygen -o "$key" 2>/dev/null)
+  sed -i '/^NEBULA_BACKUP_AGE_RECIPIENT=/d' $ETC/backup.env
+  printf 'NEBULA_BACKUP_AGE_RECIPIENT=%s\n' "$(age-keygen -y "$key")" >> $ETC/backup.env
+  systemctl start nebula-backup.service || warn "the backup failed: journalctl -u nebula-backup.service"
+  ok "backups from now on open only with the new key; older ones with the key they were made with"
+  hand_over_key "$key"
   exit 0
 fi
 RESTORE_DIR=""
@@ -1369,31 +1419,6 @@ echo "  To rebuild after losing this server:  sudo ./install.sh --restore <backu
 [ -n "$RESTORE_DIR" ] && rm -rf "$RESTORE_DIR"
 
 LEFT_KEY=${NEW_BACKUP_KEY:-}
-[ -z "$LEFT_KEY" ] && [ -f $ETC/backup-key.txt ] && LEFT_KEY=$ETC/backup-key.txt
-if [ -n "$LEFT_KEY" ] && [ -t 0 ]; then
-  cat <<EOF
-
-${yellow}${bold}One thing only you can do: save the backup key.${reset}
-Backups are encrypted with it, and it is the only way to open them. Keep it in
-two places other than this server (a password manager and a printout).
-
-  $(grep '^AGE-SECRET-KEY' "$LEFT_KEY")
-
-It is then deleted from this server: a copy here would open every backup to
-whoever takes the server.
-EOF
-  read -rp "Type 'saved' once it is stored elsewhere: " saved
-  if [ "$saved" = saved ]; then
-    shred -u "$LEFT_KEY" 2>/dev/null || rm -f "$LEFT_KEY"
-    ok "backup key deleted from this server"
-  else
-    [ "$LEFT_KEY" = $ETC/backup-key.txt ] || install -m 0600 "$LEFT_KEY" $ETC/backup-key.txt
-    [ "$LEFT_KEY" = $ETC/backup-key.txt ] || rm -f "$LEFT_KEY"
-    warn "the backup key stays in $ETC/backup-key.txt; rerun ./install.sh to save and delete it"
-  fi
-elif [ -n "${NEW_BACKUP_KEY:-}" ] && [ "$NEW_BACKUP_KEY" != $ETC/backup-key.txt ]; then
-  # No terminal to show it on: kept, so it is not lost, until a rerun.
-  install -m 0600 "$NEW_BACKUP_KEY" $ETC/backup-key.txt; rm -f "$NEW_BACKUP_KEY"
-  warn "the backup key is in $ETC/backup-key.txt; copy it off this server, then rerun ./install.sh to delete it"
-fi
+[ -z "$LEFT_KEY" ] && [ -f $ETC/backup-key.txt ] && [ -t 0 ] && LEFT_KEY=$ETC/backup-key.txt
+[ -n "$LEFT_KEY" ] && hand_over_key "$LEFT_KEY"
 rm -rf "$WORK"

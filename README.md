@@ -126,7 +126,8 @@ the way the app does and fetches a page.
 - **Backups:** kept encrypted in `/var/backups/nebula`. The installer shows
   the backup key once; keep it off the server. On a new server,
   `sudo ./install.sh --restore <backup file>` brings everything back: users,
-  devices, keys and the server's identity.
+  devices, keys and the server's identity. A lost or exposed key:
+  `sudo ./install.sh --new-backup-key` makes a new one for backups from then on.
 - **Protocols and ports:** `sudo ./install.sh --configure` turns protocols
   on or off (including Shadowsocks-2022, VLESS Encryption and VMess) and
   changes their ports; the firewall, nginx, WireGuard and the server's offer
