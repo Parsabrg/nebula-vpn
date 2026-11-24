@@ -80,3 +80,17 @@ def test_anything_but_a_relay_is_refused(
 ) -> None:
     assert client.post("/v1/relay", json=body).status_code == 422
     assert not relay_file.exists()
+
+
+def test_the_same_relay_again_leaves_the_file_alone(client: TestClient, relay_file: Path) -> None:
+    body = {"target": "203.0.113.10", "ports": [{"here": 2053, "proto": "tcp", "there": 8449}]}
+    assert client.post("/v1/relay", json=body).status_code == 204
+    os.utime(relay_file, (1_000_000, 1_000_000))
+
+    # The reconcile sweep sends it every time; root's path unit fires on a write.
+    assert client.post("/v1/relay", json=body).status_code == 204
+    assert relay_file.stat().st_mtime == 1_000_000
+
+    body["ports"] = [{"here": 2053, "proto": "tcp", "there": 8448}]
+    assert client.post("/v1/relay", json=body).status_code == 204
+    assert relay_file.stat().st_mtime != 1_000_000

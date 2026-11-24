@@ -32,6 +32,9 @@ ExecStart=/usr/bin/docker exec nebula-production-api-1 nebula-api prune-xray-orp
 # Each server's DNS tunnel, told again (a missed push, a rebuilt server).
 # Exits 0 when one is out of reach: it is told at a later sweep.
 ExecStart=/usr/bin/docker exec nebula-production-api-1 nebula-api push-dns-tunnels
+# Each relay server's forwards, told again: a rebuilt one has no relay, and
+# so no check-in, until told. Exits 0 when one is out of reach.
+ExecStart=/usr/bin/docker exec nebula-production-api-1 nebula-api push-relays
 # Traffic counters. The `usage` container runs this every fifteen seconds, so
 # allowances are enforced promptly; it runs here as well because this unit is
 # the one that alerts, and a source that cannot be read should still reach
