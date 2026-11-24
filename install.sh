@@ -377,7 +377,9 @@ RESTORE_DIR=""
 if [ "${1:-}" = --restore ]; then
   backup=${2:?usage: sudo ./install.sh --restore <backup file>}
   [ -f "$backup" ] || die "no backup at $backup"
-  [ -f $ETC/compose.env ] && die "this server already has an installation; restore onto a fresh one"
+  # Configuration without a database is a restore that stopped: run it again.
+  [ -f $ETC/compose.env ] && docker volume inspect ${PROJECT}_postgres-data >/dev/null 2>&1 \
+    && die "this server already has an installation; restore onto a fresh one"
   step "Unpacking the backup"
   apt-get -qq update && apt-get -qq install -y age >/dev/null
   key=${NEBULA_BACKUP_KEY_FILE:-}
@@ -416,7 +418,10 @@ GIVEN_EMAIL_MODE=${NEBULA_EMAIL_MODE:-}
 if [ -f "$STATE" ]; then
   while IFS= read -r line; do
     name=${line%%=*}
-    [[ $name =~ ^NEBULA_[A-Z_]+$ ]] && [ -z "${!name:-}" ] && eval "$line"
+    if [[ $name =~ ^NEBULA_[A-Z_]+$ ]] && [ -z "${!name:-}" ]; then
+      # Written with %q; a file written by hand may hold an unquoted space.
+      words=(); eval "words=(${line#*=})"; printf -v "$name" '%s' "${words[*]}"
+    fi
   done < "$STATE"
 fi
 
@@ -1343,6 +1348,19 @@ ${green}${bold}This server has joined.${reset}
 EOF
   exit 0
 fi
+
+# --- Upkeep --------------------------------------------------------------------
+# Every 15 minutes each server's WireGuard peers and Xray clients are matched
+# to the database (a revoked device loses access, a rebuilt server gets its
+# clients back) and usage is collected; once a week old history is pruned.
+
+step "Upkeep"
+for unit in nebula-reconcile.service nebula-reconcile.timer nebula-prune.service nebula-prune.timer; do
+  sed "s#/opt/nebula#$REPO#g" "$REPO/infrastructure/systemd/$unit" > /etc/systemd/system/$unit
+done
+systemctl daemon-reload; systemctl enable --now nebula-reconcile.timer nebula-prune.timer >/dev/null 2>&1
+systemctl start nebula-reconcile.service || warn "the first sweep failed: journalctl -u nebula-reconcile.service"
+ok "reconciled every 15 minutes, pruned weekly"
 
 # --- Backups -------------------------------------------------------------------
 
