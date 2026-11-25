@@ -37,6 +37,8 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   ask for the code. Needs a current browser.
 
 ### Servers
+- `install.sh --update` on a server already past the newest release (a checkout of main) says
+  there is nothing newer instead of failing, so the daily update no longer shows as failed.
 - Firewall reloads no longer stack copies of Nebula's NAT rules, and an old Hysteria2 port-hop
   rule left by an earlier install no longer stays live beside the new one (it sent Hysteria2 to a
   port nothing listened on until a reboot). The hop rule now follows a moved Hysteria2 port.
