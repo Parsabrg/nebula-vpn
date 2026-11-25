@@ -582,6 +582,14 @@ mixin _HealthChecks on _DevicesCore {
         }
         final bool moves = await moving;
         _mark('traffic data: ${moves ? 'moved' : 'stalled'}');
+        if (!moves &&
+            _dataOnlyProfile == null &&
+            await ref.read(tunnelMovesBulkDataProvider)(
+              viaProxy ? _tunnelProxy : null,
+            )) {
+          _dataOnlyProfile = state.activeProfileCode;
+          _mark('traffic data: bulk only ($_dataOnlyProfile kept)');
+        }
         return moves;
       }
     }

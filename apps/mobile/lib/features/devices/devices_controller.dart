@@ -226,6 +226,12 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
   /// for real data to move before it counts (see _tunnelCarriesTraffic).
   bool _choosingAutomatically = false;
 
+  /// While Automatic is choosing: the first protocol that moved Cloudflare's
+  /// data but not YouTube's page. A server whose own exit cannot reach
+  /// YouTube (one inside Iran) fails the full check on every protocol; this
+  /// is the one Automatic settles on then, instead of "nothing worked".
+  String? _dataOnlyProfile;
+
   /// The local proxy of the tunnel this app last started, which the traffic
   /// check asks through. Null for one picked back up after a restart.
   LocalProxy? _tunnelProxy;
@@ -845,6 +851,19 @@ final tunnelMovesDataProvider =
         ]);
         return both.every((bool ok) => ok);
       },
+    );
+
+/// The Cloudflare half of [tunnelMovesDataProvider] alone: asked only when
+/// the whole check failed while Automatic was choosing.
+final tunnelMovesBulkDataProvider =
+    Provider<Future<bool> Function(LocalProxy? through)>(
+      (Ref ref) =>
+          (LocalProxy? through) => _fetches(
+            through,
+            host: 'speed.cloudflare.com',
+            path: '/__down?bytes=$dataProbeBytes',
+            bytes: dataProbeBytes,
+          ),
     );
 
 /// A GET of [host][path] through the tunnel: answered, and at least [bytes]
