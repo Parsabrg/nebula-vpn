@@ -15,10 +15,12 @@ import 'core/network/public_roots.dart';
 import 'core/pairing/pairing.dart';
 import 'core/pairing/pairing_providers.dart';
 import 'core/pairing/pairing_store.dart';
+import 'core/settings/locale_controller.dart';
 import 'core/storage/storage_providers.dart';
 import 'core/tunnel/windows_temp_sweep.dart';
 import 'core/window/desktop_tray_manager.dart';
 import 'core/window/login_item.dart';
+import 'l10n/app_localizations.dart';
 import 'src/nebula_app.dart';
 
 DesktopTrayManager? _trayManager;
@@ -58,7 +60,7 @@ Future<void> main(List<String> arguments) async {
       });
 
       _trayManager = DesktopTrayManager(
-        onShowWindow: _showWindow,
+        onShowWindow: () => _showWindow(window),
         onExit: () async {
           await stopStaleProbes();
           await _trayManager?.dispose();
@@ -114,6 +116,18 @@ Future<void> main(List<String> arguments) async {
   // bootstrap attempt per process start, independent of widget rebuilds.
   unawaited(container.read(authNotifierProvider.notifier).bootstrap());
 
+  // The tray menu in the app's language, following a change made in Settings.
+  final DesktopTrayManager? tray = _trayManager;
+  if (tray != null) {
+    void label(AppText text) =>
+        tray.setLabels(open: text.trayOpen, quit: text.trayQuit);
+    label(container.read(appTextProvider));
+    container.listen<AppText>(
+      appTextProvider,
+      (_, AppText text) => label(text),
+    );
+  }
+
   runApp(
     UncontrolledProviderScope(container: container, child: const NebulaApp()),
   );
@@ -123,9 +137,11 @@ Future<void> main(List<String> arguments) async {
 /// and opened from the tray, the window stayed white: Flutter had not drawn
 /// into it while it was hidden. A forced frame
 /// and a one-pixel size nudge make it draw.
-Future<void> _showWindow() async {
-  final Window? window = WindowManager.instance.getCurrent();
-  if (window == null) return;
+///
+/// The window is the one found at start: `getCurrent()` means the active
+/// window, and a hidden one is not, so asking again from the tray found none
+/// and the tray icon did nothing.
+Future<void> _showWindow(Window window) async {
   window.show();
   window.focus();
   WidgetsBinding.instance.scheduleForcedFrame();

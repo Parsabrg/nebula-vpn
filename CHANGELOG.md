@@ -12,6 +12,10 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   and connects with the new choice. It used to keep the old connection running.
 - Automatic connects to a server whose own exit cannot reach YouTube (one inside Iran) instead of
   trying every protocol and saying the network blocks them: it settles on a protocol that moves data.
+- Windows: clicking the tray icon, or Open in its menu, opens the window again; after the
+  window was closed to the tray it did nothing. The tray menu follows the app's language, and
+  the app always ends when its window is gone (one was found idle with no window, so every
+  later launch did nothing).
 - Connecting to a server far from the control plane no longer fails with "An Xray operation is
   already in progress": when the server is still setting the connection up, the app waits for it.
 - Test builds (`NEBULA_DEBUG_LOGS=true`) log every API call, each connect step and all engines
