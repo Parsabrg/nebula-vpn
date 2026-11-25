@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import '../diagnostics/debug_log.dart';
 import '../tunnel/tunnel_traffic.dart';
 import 'linux_tunnel_config.dart';
 
@@ -507,6 +508,7 @@ Future<void> startLinuxVpnHelper({
   unawaited(helper.stderr.drain<void>());
 
   final String out = linuxSessionOutputs(state.path);
+  debugLog('engine log: $out/engine.err (kept a day)');
   // Up to two minutes: the password prompt is in front of the person.
   final DateTime deadline = DateTime.now().add(const Duration(minutes: 2));
   while (DateTime.now().isBefore(deadline)) {

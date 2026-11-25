@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../diagnostics/debug_log.dart';
 import '../network/dns_tunnel_engine.dart';
 import '../routing/tunnel_routes.dart';
 import '../tunnel/tunnel_traffic.dart';
@@ -697,6 +698,7 @@ class WindowsXrayRuntime {
 
   Future<bool> _nativeTunIsReady(Directory state) async {
     final String out = windowsSessionOutputs(state.path);
+    debugLog('engine log: $out\\engine.err (kept a day)');
     final DateTime deadline = DateTime.now().add(const Duration(seconds: 50));
     while (DateTime.now().isBefore(deadline)) {
       final File failure = File('$out\\startup.error');

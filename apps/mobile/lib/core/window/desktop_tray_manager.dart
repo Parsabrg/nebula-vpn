@@ -33,9 +33,10 @@ class DesktopTrayManager {
 
     icon.icon = ImageAsset.fromAsset('assets/app_icon.ico');
     icon.setTooltip('Nebula VPN');
-    _addItem(menu, 'Show Nebula VPN', onShowWindow);
+    // English until [setLabels] gives the app's language.
+    _open = _addItem(menu, 'Open Nebula VPN', onShowWindow);
     menu.addSeparator();
-    _addItem(menu, 'Exit', onExit);
+    _quit = _addItem(menu, 'Quit Nebula VPN', onExit);
     icon.setContextMenu(menu);
     icon.setContextMenuTrigger(ContextMenuTrigger.rightClicked);
     icon.addListener((TrayIconEvent event) {
@@ -44,21 +45,27 @@ class DesktopTrayManager {
     icon.setVisible(true);
   }
 
-  static void _addItem(Menu menu, String label, VoidCallback onClick) {
+  // Held like the icon, so the labels can change with the app's language.
+  MenuItem? _open;
+  MenuItem? _quit;
+
+  /// The menu in the language the app shows.
+  void setLabels({required String open, required String quit}) {
+    _open?.label = open;
+    _quit?.label = quit;
+  }
+
+  static MenuItem? _addItem(Menu menu, String label, VoidCallback onClick) {
     final MenuItem? item = MenuItem.createWithLabelAndType(
       label,
       MenuItemType.normal,
     );
-    if (item == null) return;
+    if (item == null) return null;
     item.addListener((MenuEvent event) {
       if (event is MenuItemClickedEvent) onClick();
     });
     menu.addItem(item);
-  }
-
-  /// Updates the tooltip, e.g. to show connection status.
-  Future<void> updateTooltip(String text) async {
-    _icon?.setTooltip(text);
+    return item;
   }
 
   /// Removes the tray icon. Call before the app exits.

@@ -76,6 +76,14 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     return 0;
   }
 
+  // The last message a window gets: whatever destroyed it, the app ends with
+  // it. A copy was found idle with no window, still holding the
+  // single-instance name, so every later launch quietly did nothing. Here,
+  // ahead of the plugins, so none of them can keep it from being seen.
+  if (message == WM_NCDESTROY) {
+    PostQuitMessage(0);
+  }
+
   // Shown again after being hidden -- from the tray, by a second launch
   // (main.cpp shows the running window directly), or at sign-in -- Flutter
   // had not drawn into the hidden window and it stayed white until resized

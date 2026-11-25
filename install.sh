@@ -1154,8 +1154,13 @@ systemctl daemon-reload; systemctl enable --now nebula-relay-apply.path >/dev/nu
 # A joined server follows the releases by itself: once a day it installs the
 # newest signed release, if there is one (--update checks the signature and
 # never goes backwards). The first server, which holds the database, is
-# updated by hand.
-if [ ! -f $ETC/compose.env ]; then
+# updated by hand. So is one installed from the offline bundle: --update
+# works from a git checkout only, and such a server takes the next bundle.
+if [ ! -f $ETC/compose.env ] && ! git -c safe.directory="$REPO" -C "$REPO" rev-parse --git-dir >/dev/null 2>&1; then
+  systemctl disable --now nebula-update.timer >/dev/null 2>&1 || true
+  rm -f /etc/systemd/system/nebula-update.service /etc/systemd/system/nebula-update.timer
+  systemctl daemon-reload
+elif [ ! -f $ETC/compose.env ]; then
   cat > /etc/systemd/system/nebula-update.service <<UNIT
 [Unit]
 Description=Install the newest signed Nebula release

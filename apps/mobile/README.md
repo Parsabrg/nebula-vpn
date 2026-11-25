@@ -122,7 +122,10 @@ A build for testing on a phone adds `--dart-define=NEBULA_DEBUG_LOGS=true`:
 the app logs each API call (method, path, status, time, error detail; never
 bodies or headers) and each change of the connect screen, and Xray,
 Hysteria2 and tun2socks log at their most verbose. Read it with
-`adb logcat -s flutter GoLog Hysteria`. Releases leave it off.
+`adb logcat -s flutter GoLog Hysteria`. Releases leave it off. On Windows,
+Linux and macOS the same define applies: start the app from a terminal to
+see its lines; at each connect it names the engine's own log file (kept for a
+day).
 
 Do not use `--split-per-abi`: it
 gives each ABI its own versionCode, and a phone that installed a split could

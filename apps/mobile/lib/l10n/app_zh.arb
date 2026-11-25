@@ -609,5 +609,9 @@
   "traitAdBlock": "广告拦截",
   "@traitAdBlock": {"description": "After the protocol on Connect: the ad-block profile."},
   "traitSitesSkip": "{count, plural, other{{count} 个网站绕过}}",
-  "@traitSitesSkip": {"description": "After the protocol on Connect: how many listed websites skip the VPN.", "placeholders": {"count": {"type": "int"}}}
+  "@traitSitesSkip": {"description": "After the protocol on Connect: how many listed websites skip the VPN.", "placeholders": {"count": {"type": "int"}}},
+  "trayOpen": "打开 Nebula VPN",
+  "@trayOpen": {"description": "Windows/Linux tray menu: shows the app window."},
+  "trayQuit": "退出 Nebula VPN",
+  "@trayQuit": {"description": "Windows/Linux tray menu: ends the app, which also disconnects the VPN."}
 }
