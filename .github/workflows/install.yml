@@ -96,6 +96,8 @@ jobs:
           sudo sh -c 'sha256sum /etc/nebula/*.env /etc/nebula/secrets/* /etc/wireguard/wg0.conf \
             /etc/ufw/before.rules /etc/nginx/sites-available/nebula' > /tmp/after.txt
           diff /tmp/before.txt /tmp/after.txt
+          # ufw reload adds before.rules' nat rules beside the live ones: none twice.
+          dup=$(sudo iptables -t nat -S | sort | uniq -d); [ -z "$dup" ] || { echo "$dup"; exit 1; }
       - name: Services are up
         run: |
           set -eu
@@ -194,6 +196,7 @@ jobs:
           sudo -E ./install.sh </dev/null >/dev/null
           ! sudo iptables -t nat -S | grep -q 192.0.2.10
           ! sudo grep -q NEBULA_RELAY_CHECK_TARGETS /etc/nebula/agent.env
+          dup=$(sudo iptables -t nat -S | sort | uniq -d); [ -z "$dup" ] || { echo "$dup"; exit 1; }
           systemctl is-active nebula-vpn-agent
       - name: Logs on failure
         if: failure()
