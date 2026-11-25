@@ -302,6 +302,10 @@ if [ "${1:-}" = --update ]; then
   # Already there: nothing to do (the daily update on joined servers).
   [ "$(g rev-parse HEAD)" != "$(g rev-parse "refs/tags/$tag^{commit}")" ]     || { echo "Already on $tag"; exit 0; }
   # Never backwards: older code than the database's migrations would not start.
+  # Ahead of it already (a checkout of main): nothing newer, not a failure,
+  # or the daily update unit shows failed until the next release.
+  ! g merge-base --is-ancestor "refs/tags/$tag" HEAD \
+    || { echo "Already past $tag ($(g describe --tags --always)): nothing newer"; exit 0; }
   g merge-base --is-ancestor HEAD "refs/tags/$tag" \
     || die "$tag is not newer than this checkout ($(g describe --tags --always)); wait for the next release"
   step "Updating $(g describe --tags --always) to $tag"
