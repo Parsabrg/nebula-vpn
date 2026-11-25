@@ -47,6 +47,10 @@ joined server works the same way: `--bundle <file> --join <address> --token
 Do not skip the first check: the copy you run `install.sh` from comes out of
 the bundle, so only the signature tells you it is the release.
 
+A server installed this way does not update itself (`--update` needs a git
+checkout and GitHub): update it with the next release's bundle, the same
+steps over the existing install.
+
 ## Testing
 
 CI (`install.yml`, job `bundle`) builds a bundle, signs it with a key made

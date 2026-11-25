@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../diagnostics/debug_log.dart';
 import '../routing/tunnel_routes.dart';
 import '../tunnel/tunnel_traffic.dart';
 import 'linux_vpn_supervisor.dart' show linuxPrivateTemp;
@@ -173,6 +174,7 @@ class MacosXrayRuntime {
               : 'The VPN did not start (administrator access was not given).',
         );
       }
+      debugLog('engine log: ${macosSessionOutputs(state.path)}/xray.log');
       _startTrafficMonitoring();
     } catch (_) {
       await stop();
