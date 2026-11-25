@@ -179,6 +179,7 @@ _harness({
   Duration? trafficInterval,
   Duration? trafficRecheck,
   Future<bool> Function(LocalProxy?)? tunnelMovesData,
+  Future<bool> Function(LocalProxy?)? tunnelMovesBulkData,
   Duration? deadWindow,
   Future<bool?> Function()? hasNetwork,
   bool stillSignedIn = false,
@@ -286,6 +287,9 @@ _harness({
       // No real download in a unit test.
       tunnelMovesDataProvider.overrideWithValue(
         tunnelMovesData ?? (_) async => true,
+      ),
+      tunnelMovesBulkDataProvider.overrideWithValue(
+        tunnelMovesBulkData ?? (_) async => false,
       ),
       // No app lifecycle in a unit test.
       trafficCheckMeaningfulProvider.overrideWithValue(
@@ -1964,6 +1968,47 @@ void main() {
         );
         expect(harness.xrayTunnel.connectCalls, 1);
         expect(state.activeProfileCode, 'vless-xhttp-tls');
+      });
+
+      // A server inside Iran: data moves on every protocol but YouTube never
+      // does. Automatic connected none and said the network blocked them.
+      test(
+        'settles on a protocol that moves data when YouTube never answers',
+        () async {
+          final harness = _harness(
+            tunnelCarries: (_, {bool slow = false}) async => true,
+            tunnelMovesData: (_) async => false,
+            tunnelMovesBulkData: (_) async => true,
+          );
+          addTearDown(harness.container.dispose);
+          final DevicesController notifier = await setUpAutomatic(harness);
+
+          await notifier.connect(_deviceId);
+
+          final DevicesState state = harness.container.read(
+            devicesControllerProvider,
+          );
+          expect(state.tunnelEstablished, isTrue);
+          expect(state.actionErrorMessage, isNull);
+          expect(state.selectedProfileCode, automaticProfileCode);
+        },
+      );
+
+      test('still says none worked when no protocol moves data', () async {
+        final harness = _harness(
+          tunnelCarries: (_, {bool slow = false}) async => true,
+          tunnelMovesData: (_) async => false,
+        );
+        addTearDown(harness.container.dispose);
+        final DevicesController notifier = await setUpAutomatic(harness);
+
+        await notifier.connect(_deviceId);
+
+        final DevicesState state = harness.container.read(
+          devicesControllerProvider,
+        );
+        expect(state.tunnelEstablished, isFalse);
+        expect(state.actionErrorMessage, isNotNull);
       });
 
       // One protocol carrying nothing is no reason to give up: blocked on

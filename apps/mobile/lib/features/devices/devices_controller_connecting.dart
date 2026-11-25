@@ -200,6 +200,7 @@ mixin _Connecting on _DevicesCore {
 
     final AppText text = ref.read(appTextProvider);
     _choosingAutomatically = true;
+    _dataOnlyProfile = null;
     try {
       for (final AvailableProfile profile in order) {
         if (!ref.mounted || _cancelled(attempt)) {
@@ -232,6 +233,22 @@ mixin _Connecting on _DevicesCore {
       }
     } finally {
       _choosingAutomatically = false;
+    }
+    // None passed the whole check, but one carried data: its exit cannot
+    // reach YouTube (a server inside Iran), which no protocol changes.
+    final String? dataOnly = _dataOnlyProfile;
+    _dataOnlyProfile = null;
+    if (dataOnly != null && ref.mounted && !_cancelled(attempt)) {
+      state = state.copyWith(actionErrorMessage: () => null);
+      await _connectProfile(
+        attempt: attempt,
+        deviceId: deviceId,
+        serverCode: serverCode,
+        profileCode: dataOnly,
+      );
+      if (!ref.mounted || _cancelled(attempt) || state.tunnelEstablished) {
+        return;
+      }
     }
     if (ref.mounted && !_cancelled(attempt)) {
       state = state.copyWith(
