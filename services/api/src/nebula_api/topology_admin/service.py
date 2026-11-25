@@ -7,6 +7,7 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Literal
 from uuid import UUID, uuid4
 
 from sqlalchemy import ColumnElement, func, select, union_all
@@ -40,6 +41,7 @@ from nebula_api.models.topology import (
 from nebula_api.models.types import CapabilityState, ProtocolEngine, ServerState
 from nebula_api.models.usage import CredentialUsage
 from nebula_api.provisioning.reconciliation import ReconciliationSummary
+from nebula_api.topology_seed import SS2022_PROFILE_CODE
 
 Clock = Callable[[], datetime]
 
@@ -482,7 +484,7 @@ class TopologyAdminService:
         ports = [
             RelayPortSpec(
                 here=here,
-                proto="udp" if udp else "tcp",
+                proto=proto,
                 there=there,
                 # The first relay's exit is the file's default target; the
                 # others name theirs on each port.
@@ -494,6 +496,7 @@ class TopologyAdminService:
             for code, here in route.ports.items()
             for there, udp in (profiles.get(code, (None, False)),)
             if there is not None
+            for proto in _transports(code, udp)
         ]
         return via, SetRelayRequest(
             target=first,
@@ -833,6 +836,15 @@ class TopologyAdminService:
             interface_up=response.interface_up,
             peer_count=response.peer_count,
         )
+
+
+def _transports(code: str, udp: bool) -> tuple[Literal["tcp", "udp"], ...]:
+    """What a relay forwards for [code]: Shadowsocks-2022 carries UDP on the
+    same port as TCP, so both; the others one."""
+
+    if udp:
+        return ("udp",)
+    return ("tcp", "udp") if code == SS2022_PROFILE_CODE else ("tcp",)
 
 
 async def _ipv4_of(host: str) -> str | None:

@@ -568,3 +568,12 @@ def test_a_usage_pass_records_busy_ports_and_gives_relay_ports(
     assert recorded == [summary.busy]
     assert "relay port given: thr 2053" in capsys.readouterr().out
     redis.aclose.assert_awaited_once_with()
+
+
+def test_a_relay_forwards_shadowsocks_over_both_transports() -> None:
+    from nebula_api.topology_admin.service import _transports
+
+    # Shadowsocks-2022 carries UDP on its TCP port; without it UDP apps fail via the relay.
+    assert _transports("shadowsocks-2022", False) == ("tcp", "udp")
+    assert _transports("hysteria2", True) == ("udp",)
+    assert _transports("vless-tcp-tls", False) == ("tcp",)

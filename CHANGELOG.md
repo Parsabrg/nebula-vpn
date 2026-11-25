@@ -37,6 +37,8 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   ask for the code. Needs a current browser.
 
 ### Servers
+- A relay forwards Shadowsocks-2022 over UDP as well as TCP, so UDP apps (calls, games, QUIC)
+  work through it.
 - `install.sh --update` on a server already past the newest release (a checkout of main) says
   there is nothing newer instead of failing, so the daily update no longer shows as failed.
 - Firewall reloads no longer stack copies of Nebula's NAT rules, and an old Hysteria2 port-hop
