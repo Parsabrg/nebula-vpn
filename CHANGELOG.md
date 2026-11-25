@@ -8,6 +8,8 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 ## Unreleased
 
 ### Apps
+- Picking another protocol or server while connected now switches to it: the app disconnects
+  and connects with the new choice. It used to keep the old connection running.
 - Automatic connects to a server whose own exit cannot reach YouTube (one inside Iran) instead of
   trying every protocol and saying the network blocks them: it settles on a protocol that moves data.
 - Connecting to a server far from the control plane no longer fails with "An Xray operation is

@@ -2801,6 +2801,61 @@ void _selectionMemoryTests() {
       expect(state.sanctionsOnly, isTrue);
     });
 
+    test('picking another protocol while connected moves to it', () async {
+      // It was only stored: the old protocol kept running until the person
+      // disconnected and connected again.
+      final harness = _harness();
+      addTearDown(harness.container.dispose);
+      harness.repository.servers = <AvailableServer>[_manyXrayServer];
+      await harness.container.read(devicesControllerProvider.notifier).load();
+      final DevicesController notifier = harness.container.read(
+        devicesControllerProvider.notifier,
+      );
+      notifier.choose('ams-5', 'vless-a-tls');
+      harness.repository.requestXrayClientResult = _xrayClientResult();
+      await notifier.connect(_deviceId);
+      expect(harness.xrayTunnel.connectCalls, 1);
+
+      // The same choice again changes nothing.
+      notifier.choose('ams-5', 'vless-a-tls');
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      expect(harness.xrayTunnel.connectCalls, 1);
+
+      notifier.choose('ams-5', 'vless-c-tls');
+      for (int i = 0; i < 40 && harness.xrayTunnel.connectCalls < 2; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      for (int i = 0; i < 40; i++) {
+        if (harness.container.read(devicesControllerProvider).isConnected) {
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+
+      expect(harness.xrayTunnel.connectCalls, 2);
+      final DevicesState state = harness.container.read(
+        devicesControllerProvider,
+      );
+      expect(state.isConnected, isTrue);
+      expect(state.activeProfileCode, 'vless-c-tls');
+    });
+
+    test('picking a protocol while disconnected does not connect', () async {
+      final harness = _harness();
+      addTearDown(harness.container.dispose);
+      harness.repository.servers = <AvailableServer>[_manyXrayServer];
+      await harness.container.read(devicesControllerProvider.notifier).load();
+      harness.container
+          .read(devicesControllerProvider.notifier)
+          .choose('ams-5', 'vless-b-tls');
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      expect(harness.xrayTunnel.connectCalls, 0);
+      expect(
+        harness.container.read(devicesControllerProvider).selectedProfileCode,
+        'vless-b-tls',
+      );
+    });
+
     test('records whether the connection goes through WARP', () async {
       // The Connect screen's "through WARP": from the config the tunnel
       // was built with, and nothing at all with the setting off.

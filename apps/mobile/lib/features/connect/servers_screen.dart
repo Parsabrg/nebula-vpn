@@ -109,13 +109,9 @@ class _ServersScreenState extends ConsumerState<ServersScreen> {
         onPressed: server == null
             ? null
             : () {
-                final DevicesController controller = ref.read(
-                  devicesControllerProvider.notifier,
-                );
-                controller.selectServer(server.code);
-                if (profileCode != null) {
-                  controller.selectProfile(profileCode);
-                }
+                ref
+                    .read(devicesControllerProvider.notifier)
+                    .choose(server.code, profileCode);
                 Navigator.of(context).maybePop();
               },
       ),
