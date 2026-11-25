@@ -261,9 +261,43 @@ abstract interface class ServerRepository {
 }
 
 class DioServerRepository implements ServerRepository {
-  DioServerRepository(this._dio, {this.preferences, this.dnsTunnel});
+  DioServerRepository(
+    this._dio, {
+    this.preferences,
+    this.dnsTunnel,
+    this.applyWait = const Duration(seconds: 4),
+  });
 
   final Dio _dio;
+
+  /// Between asks while the server is still putting this device's
+  /// credential on a server (409).
+  final Duration applyWait;
+
+  /// 409 means the credential is still being put on the server: a server
+  /// far from the control plane can take longer than the request's timeout,
+  /// so the repeat over another route arrives while the first is still
+  /// applying. Wait for it instead of failing the connect. Each ask counts
+  /// against the provisioning allowance, hence a few only.
+  Future<Response<dynamic>> _postXrayClient(
+    String deviceId,
+    Map<String, dynamic> body,
+  ) async {
+    for (int attempt = 1; ; attempt++) {
+      try {
+        return await _dio.post<dynamic>(
+          '/v1/devices/$deviceId/xray-client',
+          data: body,
+          // The server hands back the credential this device already holds,
+          // so asking again over another route changes nothing.
+          options: Options(extra: <String, dynamic>{kRepeatable: true}),
+        );
+      } on DioException catch (error) {
+        if (error.response?.statusCode != 409 || attempt >= 5) rethrow;
+        await Future<void>.delayed(applyWait);
+      }
+    }
+  }
 
   /// The DNS tunnel's details, where this platform runs it (Android).
   final Future<List<DnsTunnelDetails>> Function()? dnsTunnel;
@@ -423,15 +457,12 @@ class DioServerRepository implements ServerRepository {
     required String protocolProfileCode,
   }) async {
     try {
-      final Response<dynamic> response = await _dio.post<dynamic>(
-        '/v1/devices/$deviceId/xray-client',
-        data: <String, dynamic>{
+      final Response<dynamic> response = await _postXrayClient(
+        deviceId,
+        <String, dynamic>{
           'server_code': serverCode,
           'protocol_profile_code': credentialProfileCode(protocolProfileCode),
         },
-        // The server hands back the credential this device already holds,
-        // so asking again over another route changes nothing.
-        options: Options(extra: <String, dynamic>{kRepeatable: true}),
       );
       final Map<String, dynamic> data = response.data as Map<String, dynamic>;
       return XrayClientResult(

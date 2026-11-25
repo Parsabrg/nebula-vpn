@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/account/account_repository.dart';
 import '../../core/auth/auth_notifier.dart';
 import '../../core/auth/auth_state.dart';
+import '../../core/diagnostics/debug_log.dart';
 import '../../core/diagnostics/server_reach.dart';
 import '../../core/free/free_mode.dart';
 import '../../core/network/api_client.dart';
@@ -138,6 +139,25 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
   void _mark(String step) {
     debugPrint('nebula-connect +${_connectClock.elapsedMilliseconds} ms $step');
   }
+
+  /// Test builds: each change of what the connect screen shows.
+  @override
+  set state(DevicesState value) {
+    if (kDebugLogs && stateOrNull != null) {
+      final DevicesState was = state;
+      final String now = _summary(value);
+      if (_summary(was) != now) debugLog('state $now');
+    }
+    super.state = value;
+  }
+
+  static String _summary(DevicesState s) =>
+      'server=${s.selectedServerCode} profile=${s.selectedProfileCode} '
+      'connected=${s.connectedServerCode}/${s.activeProfileCode} '
+      'tunnel=${s.tunnelEstablished} submitting=${s.isSubmitting} '
+      'load=${s.loadStatus.name}'
+      '${s.actionErrorMessage == null ? '' : ' error="${s.actionErrorMessage}"'}'
+      '${s.loadErrorMessage == null ? '' : ' loadError="${s.loadErrorMessage}"'}';
 
   late ServerRepository _repository;
 

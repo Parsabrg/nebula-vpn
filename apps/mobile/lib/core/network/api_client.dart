@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../diagnostics/debug_log.dart';
 import '../pairing/pairing.dart';
 import '../pairing/pairing_providers.dart';
 import '../storage/storage_providers.dart';
@@ -39,6 +40,7 @@ final dioProvider = Provider<Dio>((Ref ref) {
     preferences: () => ref.read(sharedPreferencesProvider),
   );
   dio.httpClientAdapter = adapterFor(pairing);
+  if (kDebugLogs) dio.interceptors.add(DebugLogInterceptor());
   dio.interceptors.add(routes);
   dio.interceptors.add(AuthInterceptor(ref));
   ref.listen<Pairing?>(pairingProvider, (Pairing? previous, Pairing? next) {
