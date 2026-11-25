@@ -182,6 +182,24 @@ wireguard_routing() {
     /^-A ufw-before-input -i lo -j ACCEPT/ && !done { printf "%s", fwd; done = 1 }
     { print }' "$file" > "$file.nebula" && cat "$file.nebula" > "$file" && rm -f "$file.nebula"
 }
+# ufw reload adds the nat rules of before.rules again without taking out the
+# live ones, so every reload (this script's, relay-apply's) doubled them and a
+# rule the file no longer has stayed live until a reboot. Run on the file as
+# it is before changing it, and again before reloading: one copy each.
+nat_live_clear() {
+  command -v iptables >/dev/null || return 0
+  awk 'prev ~ /^# nebula-/ && /^\*nat/ { n = 1 } n && /^-A / { print } n && /^COMMIT/ { n = 0 } { prev = $0 }' "$1" \
+    | sort -u | while read -r rule; do
+      # shellcheck disable=SC2086 # the rule's words, as written in the file
+      while iptables -t nat -D ${rule#-A } 2>/dev/null; do :; done
+    done
+}
+# The blocks marked [mark] ("# nebula-hysteria-hop..." through COMMIT), to be
+# written again with what is set now.
+drop_nat_blocks() {
+  awk -v m="# $2" 'index($0, m) == 1 { skip = 1 } !skip { print } skip && /^COMMIT/ { skip = 0 }' "$1" \
+    > "$1.nebula" && cat "$1.nebula" > "$1" && rm -f "$1.nebula"
+}
 # Hysteria2 port hopping: UDP to any port of [hop] ("20000-50000") is
 # redirected to Hysteria2's own port. Filtering sees the redirected port,
 # which is already open, so the range opens nothing else.
@@ -337,6 +355,8 @@ if [ "${1:-}" = --uninstall ]; then
     while n=$(ufw status numbered | grep -E '# nebula' | head -1 | sed -E 's/^\[ *([0-9]+)\].*/\1/'); [ -n "$n" ]; do
       ufw --force delete "$n" >/dev/null || break
     done
+    # The live nat rules first: ufw reload does not take them out.
+    [ -f /etc/ufw/before.rules ] && nat_live_clear /etc/ufw/before.rules
     for f in /etc/ufw/before.rules /etc/ufw/before6.rules; do
       [ -f "$f" ] || continue
       cp "$f" "$f.before-nebula-uninstall"
@@ -997,8 +1017,9 @@ else
   # Off 443 with the rest where a relay on this server forwards it (8445).
   HOP=20000-50000 HYPORT=443; [ "$XPORT" = 443 ] || HYPORT=8450
 fi
-# ponytail: IPv4 only, and the redirect keeps the port it was made with; a
-# Hysteria2 port moved later with --configure needs the rule edited.
+# ponytail: IPv4 only. Written again each run, so a moved port follows.
+nat_live_clear /etc/ufw/before.rules
+drop_nat_blocks /etc/ufw/before.rules nebula-hysteria-hop
 [ -z "$HOP" ] || hysteria_hop "$WAN" /etc/ufw/before.rules "$HOP" "${HYPORT:-8450}"
 # Relays forward Hysteria2 to the protocol's usual port (8450); a server
 # whose Hysteria2 is elsewhere answers there too.
@@ -1009,6 +1030,7 @@ printf 'net.ipv4.ip_forward=1\n' > /etc/sysctl.d/99-nebula-forward.conf
 sysctl -q -p /etc/sysctl.d/99-nebula-forward.conf
 sed -i 's|^#\?net/ipv4/ip_forward=.*|net/ipv4/ip_forward=1|' /etc/ufw/sysctl.conf
 ufw route allow in on "$WGIF" out on "$WAN" comment nebula-wireguard >/dev/null
+nat_live_clear /etc/ufw/before.rules
 ufw --force enable >/dev/null; ufw reload >/dev/null
 if [ -n "$JOIN_URL" ]; then opened="9443 from $CONTROL_IP"; else opened="8444"; fi
 [ "$XPORT" != 443 ] || opened="443, 443/udp, $opened"
@@ -1295,7 +1317,7 @@ for p in "${OPEN_PORTS[@]}"; do
     ufw allow "$one" comment nebula >/dev/null
   done
 done
-[ -n "$CONFIGURE" ] && { nginx -t >/dev/null 2>&1 && systemctl reload-or-restart nginx; ufw reload >/dev/null; }
+[ -n "$CONFIGURE" ] && { nginx -t >/dev/null 2>&1 && systemctl reload-or-restart nginx; nat_live_clear /etc/ufw/before.rules; ufw reload >/dev/null; }
 systemctl enable nebula-vpn-agent >/dev/null 2>&1; systemctl restart nebula-vpn-agent
 for _ in $(seq 1 30); do [ -f /etc/nebula/xray/config.json ] && break; sleep 1; done
 systemctl enable --now nebula-xray nebula-hysteria >/dev/null 2>&1

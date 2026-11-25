@@ -102,6 +102,12 @@ else
   rm -f /etc/modules-load.d/nebula-relay.conf /etc/sysctl.d/99-nebula-relay.conf
 fi
 if command -v ufw > /dev/null && ufw status | grep -q '^Status: active'; then
+  # The installer's nat blocks would be added again beside the live ones.
+  awk 'prev ~ /^# nebula-/ && /^\*nat/ { n = 1 } n && /^-A / { print } n && /^COMMIT/ { n = 0 } { prev = $0 }' "$FILE" \
+    | sort -u | while read -r rule; do
+      # shellcheck disable=SC2086 # the rule's words, as written in the file
+      while iptables -t nat -D ${rule#-A } 2> /dev/null; do :; done
+    done
   ufw reload > /dev/null
 fi
 

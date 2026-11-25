@@ -37,6 +37,9 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   ask for the code. Needs a current browser.
 
 ### Servers
+- Firewall reloads no longer stack copies of Nebula's NAT rules, and an old Hysteria2 port-hop
+  rule left by an earlier install no longer stays live beside the new one (it sent Hysteria2 to a
+  port nothing listened on until a reboot). The hop rule now follows a moved Hysteria2 port.
 - The installer's DNS check gives up on DNS over HTTPS after 8 seconds and uses the system
   resolver; where DoH is filtered it could hang for up to 40 minutes.
 - A joined server rebuilt with `NEBULA_XRAY_PUBLIC_PORT=8445` also keeps Hysteria2 off UDP 443
