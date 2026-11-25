@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -14,6 +15,19 @@ import '../../l10n/app_localizations.dart';
 import '../devices/devices_controller.dart';
 import '../devices/devices_state.dart';
 import '../devices/profile_order.dart';
+
+/// Whether a server or protocol test measures the direct path from this
+/// device, which is the only answer worth showing.
+///
+/// With no tunnel, always. Android's Xray and Hysteria2 tunnels leave the
+/// app's own traffic out (as v2rayNG's does), so there it is direct while
+/// connected too. WireGuard on Android and the desktop tunnels carry the
+/// app's own sockets: a number taken through them would be the round trip
+/// to the server already in use.
+bool testsGoDirect(DevicesState state, TargetPlatform platform) =>
+    !state.tunnelEstablished ||
+    (platform == TargetPlatform.android &&
+        state.activeProtocolCode != wireguardProtocolCode);
 
 /// Pick a server, then a protocol on that server.
 ///
@@ -68,11 +82,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen> {
     final NebulaPalette palette = context.palette;
     final bool freeMode = ref.watch(freeModeProvider);
 
-    // Measured from this device to the server, so it only means anything
-    // while the tunnel is down. With the tunnel up the app's own sockets go
-    // through it, and the number would quietly be the round trip to the
-    // server the user is already on -- the same figure for every row.
-    final bool canMeasure = !state.tunnelEstablished;
+    final bool canMeasure = testsGoDirect(state, defaultTargetPlatform);
     final List<AvailableServer> servers = sortByLatency(state.servers, latency);
 
     final String? serverCode = _serverCode ?? state.selectedServerCode;

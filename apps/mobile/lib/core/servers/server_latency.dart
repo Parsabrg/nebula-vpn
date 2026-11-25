@@ -189,9 +189,9 @@ class ServerLatencyController extends Notifier<ServerLatencyState> {
   /// list, and showing the next person numbers measured against servers they
   /// may not even have would be worse than showing none.
   ///
-  /// Not dropped on disconnect: measuring is only offered while the tunnel is
-  /// down, so every reading here was taken on the direct path and is still
-  /// the right answer after a session ends.
+  /// Not dropped on disconnect: measuring is only offered when it goes
+  /// direct (tunnel down, or Android's Xray tunnel, which leaves the app
+  /// out), so every reading is still the right answer after a session ends.
   void clear() {
     state = const ServerLatencyState();
   }

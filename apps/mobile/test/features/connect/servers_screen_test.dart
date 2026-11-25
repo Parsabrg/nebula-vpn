@@ -102,6 +102,20 @@ Future<void> _pump(
 }
 
 void main() {
+  test('tests are offered while connected where they still go direct', () {
+    DevicesState up(String protocol) => DevicesState.initial.copyWith(
+      tunnelEstablished: true,
+      activeProtocolCode: () => protocol,
+    );
+    expect(testsGoDirect(DevicesState.initial, TargetPlatform.windows), isTrue);
+    expect(testsGoDirect(up('vless'), TargetPlatform.android), isTrue);
+    expect(testsGoDirect(up('hysteria2'), TargetPlatform.android), isTrue);
+    // WireGuard and the desktop tunnels carry the app's own sockets.
+    expect(testsGoDirect(up('wireguard'), TargetPlatform.android), isFalse);
+    expect(testsGoDirect(up('vless'), TargetPlatform.windows), isFalse);
+    expect(testsGoDirect(up('vless'), TargetPlatform.linux), isFalse);
+  });
+
   group('orderedProfiles', () {
     final List<AvailableProfile> cdn = <AvailableProfile>[
       _profile('vless-grpc-tls', 'vless'),
