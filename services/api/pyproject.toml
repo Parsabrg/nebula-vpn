@@ -15,7 +15,7 @@ dependencies = [
   "cryptography==50.0.2",
   "dnspython==2.9.2",
   "email-validator==2.4.0",
-  "fastapi==0.163.2",
+  "fastapi==0.165.0",
   "prometheus-client==0.26.0",
   "httpx==0.28.1",
   "pydantic-settings==2.16.3",
@@ -37,13 +37,13 @@ build = ["hatchling==1.33.0"]
 
 [project.optional-dependencies]
 dev = [
-  "hypothesis==6.170.15",
+  "hypothesis==6.170.17",
   "httpx2==2.16.2",
   "mypy==2.4.1",
   "pip-audit==2.10.1",
   "pytest==9.2.0",
   "pytest-cov==7.1.0",
-  "ruff==0.17.5",
+  "ruff==0.17.6",
 ]
 
 [tool.hatch.build.targets.wheel]
