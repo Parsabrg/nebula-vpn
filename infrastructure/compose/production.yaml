@@ -154,6 +154,8 @@ services:
       NEBULA_DEPLOYMENT_NAME: ${NEBULA_DEPLOYMENT_NAME:-Nebula}
       NEBULA_API_PUBLIC_URL: ${NEBULA_API_PUBLIC_URL:?NEBULA_API_PUBLIC_URL must be set}
       NEBULA_ADMIN_PUBLIC_URL: ${NEBULA_ADMIN_PUBLIC_URL:?NEBULA_ADMIN_PUBLIC_URL must be set}
+      # This server's public address, for the panel's DNS records check.
+      NEBULA_PUBLIC_IP: ${NEBULA_PUBLIC_IP:-}
       NEBULA_ALLOWED_ORIGINS: ${NEBULA_ALLOWED_ORIGINS:?NEBULA_ALLOWED_ORIGINS must be set}
       # The Cloudflare-proxied hostname clients fall back to when this
       # server's own address is blocked. Optional: empty disables the route.

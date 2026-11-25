@@ -33,6 +33,10 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
   the peer back; sign-out, an admin, or the account running out removes it.
 
 ### Admin panel
+- Server health → DNS records (and `nebula-api dns-records`) lists every DNS record the deployment
+  needs (panel and API, each server's name, the CDN names, the DNS tunnels) and whether the public
+  DNS has it right. A DNS tunnel's delegation is now read from the parent zone, so a working one
+  no longer shows "no NS record yet".
 - Servers → Manage → DNS tunnel: give a server DNS tunnel names; the dialog lists the
   DNS records to add (with a copy button) and checks that they work. Also
   `nebula-api set-dns-tunnel`.

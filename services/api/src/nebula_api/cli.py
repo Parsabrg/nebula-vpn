@@ -45,7 +45,10 @@ from nebula_api.bootstrap import (
 from nebula_api.db.engine import create_database_engine, create_session_factory
 from nebula_api.db.schema import SCHEMA_HEAD, schema_is_current
 from nebula_api.dns_profiles import ResolverHealth
-from nebula_api.dns_tunnels import clean_names, set_tunnel
+from nebula_api.dns_records import check as check_dns_records
+from nebula_api.dns_records import needed as needed_dns_records
+from nebula_api.dns_records import servers as dns_record_servers
+from nebula_api.dns_tunnels import clean_names, list_tunnels, set_tunnel
 from nebula_api.dns_tunnels import push as push_dns_tunnel
 from nebula_api.dns_tunnels import push_all as push_all_dns_tunnels
 from nebula_api.enrollment.service import EnrollmentService, certificate_hostnames
@@ -327,6 +330,10 @@ def build_parser() -> argparse.ArgumentParser:
     commands.add_parser(
         "push-relays",
         help="tell every relay server what to forward again (the reconcile sweep)",
+    )
+    commands.add_parser(
+        "dns-records",
+        help="every DNS record the deployment needs, and whether the public DNS has it right",
     )
     enroll_token = commands.add_parser(
         "create-enrollment-token",
@@ -1025,6 +1032,29 @@ async def run_push_relays() -> int:
     return 0
 
 
+async def run_dns_records() -> int:
+    """Every DNS record the deployment needs and whether it works, as the
+    panel shows them. 1 when any is missing or wrong, for scripts."""
+
+    settings = Settings()
+    engine = _build_engine(settings)
+    try:
+        sessions = create_session_factory(engine)
+        statuses = await check_dns_records(
+            needed_dns_records(
+                settings, await dns_record_servers(sessions), await list_tunnels(sessions)
+            )
+        )
+    finally:
+        await engine.dispose()
+    for status in statuses:
+        record = status.record
+        proxy = " (proxied)" if record.proxied else ""
+        mark = "ok " if status.ok else "FIX"
+        print(f"{mark} {record.type:<2} {record.name} -> {record.value}{proxy}: {status.detail}")
+    return 0 if all(s.ok for s in statuses) else 1
+
+
 async def run_create_enrollment_token(*, label: str, minutes: int, rebuild: bool = False) -> int:
     settings = Settings()
     engine = _build_engine(settings)
@@ -1651,6 +1681,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         if arguments.command == "push-relays":
             return asyncio.run(run_push_relays())
+        if arguments.command == "dns-records":
+            return asyncio.run(run_dns_records())
         if arguments.command == "push-dns-tunnels":
             return asyncio.run(run_push_dns_tunnels())
         if arguments.command == "create-enrollment-token":

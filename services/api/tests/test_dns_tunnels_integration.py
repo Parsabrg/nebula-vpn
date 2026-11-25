@@ -114,7 +114,11 @@ def test_the_checks_say_what_is_missing(monkeypatch: pytest.MonkeyPatch) -> None
     async def answers_on_53(server_ip: str, name: str) -> bool:
         return name == "t2.example.org"
 
+    async def delegated_to(_client: object, name: str) -> list[str]:
+        return answers.get((name, "NS"), [])
+
     monkeypatch.setattr(tunnels, "_doh", doh)
+    monkeypatch.setattr(tunnels, "_delegated_to", delegated_to)
     monkeypatch.setattr(tunnels, "_answers_on_53", answers_on_53)
 
     ip, good = asyncio.run(tunnels.check("t2.example.org", "nl.example.org"))
