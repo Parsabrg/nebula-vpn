@@ -725,7 +725,8 @@ fi
 
 step "DNS"
 resolve() {
-  { fetch -H 'accept: application/dns-json' "https://cloudflare-dns.com/dns-query?name=$1&type=A" 2>/dev/null \
+  # Short: DoH can hang where it is filtered (Iran), and getent follows.
+  { fetch --retry 0 -m 8 -H 'accept: application/dns-json' "https://cloudflare-dns.com/dns-query?name=$1&type=A" 2>/dev/null \
       | grep -oE '"data":"[0-9.]+"' | tail -1 | cut -d'"' -f4; } || true
 }
 dns_ok() {
@@ -993,7 +994,8 @@ if [ -f $ETC/agent.env ]; then
   HOP=$(sed -n 's/^NEBULA_XRAY_HYSTERIA_HOP_PORTS=//p' $ETC/agent.env | tail -1)
   HYPORT=$(sed -n 's/^NEBULA_XRAY_HYSTERIA_PORT=//p' $ETC/agent.env | tail -1)
 else
-  HOP=20000-50000 HYPORT=443
+  # Off 443 with the rest where a relay on this server forwards it (8445).
+  HOP=20000-50000 HYPORT=443; [ "$XPORT" = 443 ] || HYPORT=8450
 fi
 # ponytail: IPv4 only, and the redirect keeps the port it was made with; a
 # Hysteria2 port moved later with --configure needs the rule edited.

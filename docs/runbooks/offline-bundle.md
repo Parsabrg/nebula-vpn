@@ -16,7 +16,8 @@ The bundle is for new installs on amd64. The first server (the one with the
 panel) must be served on port 443 (`docs/runbooks/port-443.md`); a joined
 server may use either. A joined server rebuilt from scratch keeps the port
 its apps and relays know when given `NEBULA_XRAY_PUBLIC_PORT=8445` (needed
-where a relay on that server forwards 443). An existing first server on
+where a relay on that server forwards 443): TCP stays on 8445 and Hysteria2
+on UDP 8450. An existing first server on
 8444, or an arm64 one, installs online as before.
 
 ## Steps
