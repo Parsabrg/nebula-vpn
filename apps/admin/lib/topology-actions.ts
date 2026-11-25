@@ -154,3 +154,25 @@ export async function checkDnsTunnel(
     ),
   );
 }
+
+export type DnsRecordStatus = {
+  name: string;
+  type: string;
+  value: string;
+  purpose: "control-plane" | "server" | "cdn" | "dns-tunnel";
+  proxied: boolean;
+  ok: boolean;
+  found: string[];
+  detail: string;
+};
+
+/** Every DNS record the deployment needs, looked up live. */
+export async function checkDnsRecords(): Promise<
+  ActionResult<DnsRecordStatus[]>
+> {
+  return toActionResult(
+    apiFetch<{ items: DnsRecordStatus[] }>("/v1/admin/dns-records").then(
+      (body) => body.items,
+    ),
+  );
+}

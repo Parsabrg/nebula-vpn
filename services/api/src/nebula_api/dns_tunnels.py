@@ -7,8 +7,8 @@ key and tells the server's agent, which runs the tunnel server there
 agent again, so a rebuilt server or a push that did not get through catches
 up by itself. Signed-in apps get the list from GET /v1/dns-tunnel.
 
-What an administrator cannot do from here is the DNS records themselves at
-their DNS provider: `records` says which, and `check` whether they work.
+The DNS records themselves are in dns_records.py with the deployment's
+others; `check` here also asks whether the tunnel answers on port 53.
 """
 
 import asyncio
@@ -33,13 +33,13 @@ from nebula_api.agent_client.client import (
 from nebula_api.agent_client.models import SetDnsTunnelRequest
 from nebula_api.auth.audit import add_audit_event
 from nebula_api.db.engine import SessionFactory
+from nebula_api.dns_records import delegated_to, doh, tunnel_records
 from nebula_api.models import DnsTunnel, VPNServer
 
 _LOGGER = logging.getLogger(__name__)
 
 NAME = re.compile(r"^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$")
 MAX_NAMES = 4
-_DOH = "https://cloudflare-dns.com/dns-query"
 
 
 @dataclass(frozen=True)
@@ -172,13 +172,10 @@ async def push_all(session_factory: SessionFactory, builder: AgentClientBuilder)
 
 
 def records(name: str, server_ip: str) -> list[tuple[str, str, str]]:
-    """The two records the DNS provider needs, as (name, type, value): the
-    tunnel name delegated to a nameserver beside it (not inside it: a zone
-    cannot hold glue for a name it delegates away), and that nameserver's
-    address."""
+    """The two records the DNS provider needs, as (name, type, value)
+    (dns_records.tunnel_records)."""
 
-    nameserver = "ns-" + name
-    return [(name, "NS", nameserver), (nameserver, "A", server_ip)]
+    return [(r.name, r.type, r.value) for r in tunnel_records(name, server_ip)]
 
 
 @dataclass(frozen=True)
@@ -188,17 +185,8 @@ class Check:
     detail: str
 
 
-async def _doh(client: httpx.AsyncClient, name: str, kind: str) -> list[str]:
-    response = await client.get(
-        _DOH, params={"name": name, "type": kind}, headers={"accept": "application/dns-json"}
-    )
-    response.raise_for_status()
-    wanted = {"A": 1, "NS": 2}[kind]
-    return [
-        str(answer["data"]).rstrip(".").lower()
-        for answer in response.json().get("Answer", [])
-        if answer.get("type") == wanted
-    ]
+_doh = doh
+_delegated_to = delegated_to
 
 
 def _query(name: str) -> bytes:
@@ -238,7 +226,7 @@ async def check(name: str, public_host: str) -> tuple[str | None, list[Check]]:
             addresses = []
         server_ip = addresses[0] if addresses else None
         try:
-            nameservers = await _doh(client, name, "NS")
+            nameservers = await _delegated_to(client, name)
             glue = [ip for ns in nameservers for ip in await _doh(client, ns, "A")]
         except httpx.HTTPError:
             nameservers, glue = [], []

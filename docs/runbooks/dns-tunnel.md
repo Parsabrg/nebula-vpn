@@ -61,6 +61,7 @@ on the next installer run, so apps that hold the key keep working. On a
 joined server the installer points to the panel.
 
 **DNS records**, at the DNS provider, both *DNS only* (never proxied):
+(the panel's Server health → DNS records lists them with every other record the deployment needs, and checks each one)
 
 | Type | Name | Value |
 |---|---|---|

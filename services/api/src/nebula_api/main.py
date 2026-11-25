@@ -61,6 +61,7 @@ from nebula_api.servers.routes import router as server_discovery_router
 from nebula_api.servers.service import ServerDiscoveryService
 from nebula_api.settings import Settings, get_settings
 from nebula_api.subscription import router as subscription_router
+from nebula_api.topology_admin.dns_records_routes import router as dns_records_admin_router
 from nebula_api.topology_admin.dns_tunnel_routes import router as dns_tunnel_admin_router
 from nebula_api.topology_admin.relays_routes import router as relays_admin_router
 from nebula_api.topology_admin.routes import router as topology_admin_router
@@ -370,6 +371,7 @@ def create_app(
     application.include_router(subscription_router)
     application.include_router(relay_report_router)
     application.include_router(dns_tunnel_admin_router)
+    application.include_router(dns_records_admin_router)
     application.include_router(relays_admin_router)
     application.include_router(subscription_link_admin_router)
     application.include_router(enrollment_router)

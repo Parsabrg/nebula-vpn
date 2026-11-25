@@ -148,6 +148,9 @@ export default async function ServerHealthPage({
           <Link className="button" href="/server-health/relays">
             Relays
           </Link>
+          <Link className="button" href="/server-health/dns">
+            DNS records
+          </Link>
           <Link className="button" href="/server-health/subscription-link">
             Subscription links
           </Link>

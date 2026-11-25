@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     env: Environment = "development"
     log_level: LogLevel = "INFO"
     api_public_url: str = "http://localhost:8000"
+    # This server's public IPv4 address, as the installer found it: what the
+    # panel's, the API's and the CDN's names must point at (dns_records.py).
+    public_ip: str = ""
     # The Cloudflare-proxied hostname clients fall back to when the server's
     # own address is blocked; empty disables the route. Comma-separated for
     # more than one (another CDN's name too). See nebula_api/cdn.py.

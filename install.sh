@@ -638,6 +638,7 @@ setenv() { sed -i "/^$1=/d" $ETC/compose.env; printf '%s=%s\n' "$1" "$2" >> $ETC
 setenv NEBULA_API_PUBLIC_URL "https://$APIHOST$WEB"
 setenv NEBULA_ADMIN_PUBLIC_URL "https://$PANEL$WEB"
 setenv NEBULA_ALLOWED_ORIGINS "https://$PANEL$WEB"
+setenv NEBULA_PUBLIC_IP "$PUBLIC_IP"
 # 443 first; the old ports stay open and listed for apps that know them.
 routes="https://$APIHOST:8444,https://$NEBULA_DOMAIN:8445"
 [ -n "$WEB" ] || routes="https://$APIHOST,https://$NEBULA_DOMAIN,$routes"
