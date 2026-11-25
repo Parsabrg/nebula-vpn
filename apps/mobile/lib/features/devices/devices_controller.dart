@@ -271,13 +271,14 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
   ///
   /// Only when the selection still names the connected server: having
   /// picked another one since, reconnecting would quietly switch servers.
-  Future<void> _reconnectForRouting() async {
+  Future<void> _reconnectForRouting({bool toSelection = false}) async {
     final String? deviceId = _connectedDeviceId ?? _storedDeviceId();
     if (!ref.mounted ||
         deviceId == null ||
         !state.isConnected ||
         state.isSubmitting ||
-        state.connectedServerCode != state.selectedServerCode) {
+        (!toSelection &&
+            state.connectedServerCode != state.selectedServerCode)) {
       return;
     }
     await disconnect(deviceId);
@@ -703,6 +704,25 @@ abstract class _DevicesCore extends Notifier<DevicesState> {
       // Automatic unless a protocol the server still offers was chosen.
       selectedProfileCode: () =>
           profileStillOffered ? profile : automaticProfileCode,
+    );
+  }
+
+  /// The servers screen's Use button. While connected, a different server
+  /// or protocol is connected to straight away: it used to be only stored,
+  /// and the old connection kept running as though nothing was picked.
+  void choose(String serverCode, String? profileCode) {
+    final String? server = state.selectedServerCode;
+    final String? profile = state.selectedProfileCode;
+    selectServer(serverCode);
+    if (profileCode != null) {
+      selectProfile(profileCode);
+    }
+    if (server == state.selectedServerCode &&
+        profile == state.selectedProfileCode) {
+      return;
+    }
+    _routingReconnect = (_routingReconnect ?? Future<void>.value()).then(
+      (_) => _reconnectForRouting(toSelection: true),
     );
   }
 
