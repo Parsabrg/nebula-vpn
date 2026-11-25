@@ -8,6 +8,10 @@ updated (`install.sh` rerun, or the deploy in `docs/runbooks/deployment.md`).
 ## Unreleased
 
 ### Apps
+- Connecting to a server far from the control plane no longer fails with "An Xray operation is
+  already in progress": when the server is still setting the connection up, the app waits for it.
+- Test builds (`NEBULA_DEBUG_LOGS=true`) log every API call, each connect step and all engines
+  (Xray, Hysteria2, tun2socks) at their most verbose.
 - The DNS tunnel is offered on every server that has one, not only on one server.
 - "Block ads" in Settings (Routing) blocks ads and trackers on every server and protocol;
   the servers' separate "(Ad-block)" profiles are no longer listed. Someone who had picked

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import '../diagnostics/debug_log.dart';
 import '../routing/sanctioned_domains.dart';
 import '../servers/server_repository.dart';
 import '../storage/advanced_settings_store.dart';
@@ -27,6 +28,8 @@ String renderXrayDelayProbeConfigJson(
 }) {
   return jsonEncode(<String, dynamic>{
     'log': logModuleFor(settings),
+    // Read by the Android plugin: Hysteria2 and tun2socks log verbosely too.
+    if (kDebugLogs) 'nebulaDebugLogs': true,
     'outbounds': <Map<String, dynamic>>[
       _withFragment(_withMux(_vlessOutbound(result), settings), settings),
       if (settings.fragment.enabled) fragmentOutbound(settings.fragment),
@@ -167,6 +170,8 @@ String renderXrayClientConfigJson(
     // never been asked to. `warning` is Xray's own default level; naming it
     // explicitly is what actually turns the output on.
     'log': logModuleFor(settings),
+    // Read by the Android plugin: Hysteria2 and tun2socks log verbosely too.
+    if (kDebugLogs) 'nebulaDebugLogs': true,
     // Both blocks together are what make the connect screen's byte counters
     // possible, and either alone is silently useless.
     //
@@ -564,6 +569,8 @@ String _renderHysteriaClientConfigJson(
     // this exists to serve forges answers, sending a client to a blockpage
     // address before any tunnelled connection is attempted.
     'dns': dnsModuleFor(result, settings),
+    // Read by the Android plugin: Hysteria2 and tun2socks log verbosely too.
+    if (kDebugLogs) 'nebulaDebugLogs': true,
     // The port tun2socks dials, and therefore the port the child process must
     // listen on. The two are kept in step by both reading [localProxy].
     'inbounds': <Map<String, dynamic>>[
@@ -1331,7 +1338,10 @@ Map<String, dynamic> _withWarpEntry(
 /// other one now tells the truth.
 Map<String, dynamic> logModuleFor(AdvancedSettings settings) {
   return <String, dynamic>{
-    'loglevel': settings.logLevel.wireName,
+    // Test builds: everything, whatever the setting says.
+    'loglevel': kDebugLogs
+        ? XrayLogLevel.debug.wireName
+        : settings.logLevel.wireName,
     // `none` is the core's own way of saying "do not keep one", and is not
     // the same as an empty path, which it would treat as a filename.
     if (!settings.logLevel.recordsDestinations) 'access': 'none',
