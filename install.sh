@@ -1019,11 +1019,15 @@ else
 fi
 # ponytail: IPv4 only. Written again each run, so a moved port follows.
 nat_live_clear /etc/ufw/before.rules
-drop_nat_blocks /etc/ufw/before.rules nebula-hysteria-hop
-[ -z "$HOP" ] || hysteria_hop "$WAN" /etc/ufw/before.rules "$HOP" "${HYPORT:-8450}"
+cp /etc/ufw/before.rules $WORK/before.rules
+drop_nat_blocks $WORK/before.rules nebula-hysteria-hop
+[ -z "$HOP" ] || hysteria_hop "$WAN" $WORK/before.rules "$HOP" "${HYPORT:-8450}"
 # Relays forward Hysteria2 to the protocol's usual port (8450); a server
 # whose Hysteria2 is elsewhere answers there too.
-[ -z "$HYPORT" ] || [ "$HYPORT" = 8450 ] || hysteria_hop "$WAN" /etc/ufw/before.rules 8450 "$HYPORT"
+[ -z "$HYPORT" ] || [ "$HYPORT" = 8450 ] || hysteria_hop "$WAN" $WORK/before.rules 8450 "$HYPORT"
+# Only when they changed: a rerun leaves the file as it was.
+hops() { awk '/^# nebula-hysteria-hop/,/^COMMIT/' "$1" | sort; }
+[ "$(hops $WORK/before.rules)" = "$(hops /etc/ufw/before.rules)" ] || cat $WORK/before.rules > /etc/ufw/before.rules
 [ -z "$JOIN_URL" ] || wireguard_dns "$WAN" /etc/ufw/before.rules "${WG_ADDR%/*}"
 local_dns_redirect /etc/ufw/before.rules
 printf 'net.ipv4.ip_forward=1\n' > /etc/sysctl.d/99-nebula-forward.conf
